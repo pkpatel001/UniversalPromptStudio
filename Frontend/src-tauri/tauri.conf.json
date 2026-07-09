@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Universal Prompt Studio",
+  "version": "0.1.0",
+  "identifier": "com.universalpromptstudio.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Universal Prompt Studio",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640
+      }
+    ]
+  }
+}
+

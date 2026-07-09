@@ -1,0 +1,38 @@
+# Default Categories
+
+- Office
+- Programming
+- Research
+- Science
+- Engineering
+- Medicine
+- Law
+- Education
+- Marketing
+- Finance
+- Mathematics
+- AI
+- Machine Learning
+- Cybersecurity
+- Creative Writing
+- Architecture
+- Construction
+- Manufacturing
+- Government
+- Military
+- Photography
+- Video
+- Audio
+- Music
+- Journalism
+- Business
+- Agriculture
+- Robotics
+- IoT
+- Embedded Systems
+- Linux
+- Windows
+- Cloud
+- Data Science
+- Prompt Engineering
+
