@@ -11,7 +11,7 @@ requires-python = ">=3.12"
 license = { text = "MPL-2.0" }
 
 authors = [
-    { name = "Universal Prompt Studio Team" }
+    { name = "The Patel Brothers Creative Solutions" }
 ]
 
 keywords = [
