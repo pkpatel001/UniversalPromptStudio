@@ -6,52 +6,210 @@ build-backend = "setuptools.build_meta"
 name = "universal-prompt-studio"
 version = "0.1.0"
 description = "Offline, AI-agnostic desktop application for prompt engineering."
+readme = "README.md"
 requires-python = ">=3.12"
+license = { text = "MIT" }
+
+authors = [
+    { name = "Universal Prompt Studio Team" }
+]
+
+keywords = [
+    "prompt",
+    "prompt-engineering",
+    "ai",
+    "desktop",
+    "offline",
+    "workflow",
+    "plugin",
+    "python",
+    "llm",
+    "automation"
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Typing :: Typed"
+]
+
 dependencies = [
-  "sqlalchemy>=2.0",
-  "whoosh>=2.7",
+
+    # Database
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+
+    # Search
+    "whoosh>=2.7",
+
+    # Templates
+    "jinja2>=3.1",
+
+    # YAML
+    "PyYAML>=6.0",
+
+    # JSON Schema Validation
+    "jsonschema>=4.22",
+
+    # CLI
+    "typer>=0.12",
+
+    # Console Output
+    "rich>=13.7",
+
+    # Configuration
+    "platformdirs>=4.2",
+
+    # File Monitoring
+    "watchdog>=4.0",
+
+    # Version Handling
+    "packaging>=24.0",
 ]
 
 [project.optional-dependencies]
+
 dev = [
-  "pytest>=8.0",
-  "black>=24.0",
-  "isort>=5.13",
-  "ruff>=0.5",
-  "mypy>=1.10",
+
+    "pytest>=8.0",
+
+    "pytest-cov>=5.0",
+
+    "coverage>=7.6",
+
+    "black>=24.0",
+
+    "ruff>=0.5",
+
+    "isort>=5.13",
+
+    "mypy>=1.10",
+
+    "pre-commit>=3.7",
+
+    "types-PyYAML",
 ]
 
+[project.urls]
+
+Homepage = "https://github.com/<your-github>/UniversalPromptStudio"
+
+Documentation = "https://github.com/<your-github>/UniversalPromptStudio/wiki"
+
+Repository = "https://github.com/<your-github>/UniversalPromptStudio"
+
+Issues = "https://github.com/<your-github>/UniversalPromptStudio/issues"
+
 [tool.setuptools.packages.find]
-include = ["Backend*"]
+
+include = [
+    "Backend*",
+    "Engineering*",
+]
+
 exclude = [
-  "Assets*",
-  "Categories*",
-  "Database*",
-  "Docs*",
-  "Frontend*",
-  "Plugins*",
-  "Scripts*",
-  "Templates*",
-  "Tests*",
-  "Themes*",
+    "Assets*",
+    "Categories*",
+    "Database*",
+    "Docs*",
+    "Frontend*",
+    "Plugins*",
+    "Scripts*",
+    "Templates*",
+    "Tests*",
+    "Themes*",
 ]
 
 [tool.black]
+
 line-length = 100
+
 target-version = ["py312"]
 
 [tool.isort]
+
 profile = "black"
+
 line_length = 100
 
+multi_line_output = 3
+
+include_trailing_comma = true
+
 [tool.ruff]
+
 line-length = 100
+
 target-version = "py312"
 
+fix = true
+
+show-fixes = true
+
+[tool.ruff.lint]
+
+select = [
+    "E",
+    "F",
+    "I",
+    "N",
+    "UP",
+    "B",
+]
+
+ignore = [
+]
+
+[tool.pytest.ini_options]
+
+testpaths = [
+    "Tests",
+    "Engineering/Tests",
+]
+
+python_files = [
+    "test_*.py",
+]
+
+addopts = "-ra"
+
+[tool.coverage.run]
+
+branch = true
+
+source = [
+    "Backend",
+    "Engineering",
+]
+
+[tool.coverage.report]
+
+show_missing = true
+
+skip_covered = false
+
 [tool.mypy]
+
 python_version = "3.12"
+
 strict = true
 
+warn_unused_configs = true
+
+warn_return_any = true
+
+warn_unused_ignores = true
+
+show_error_codes = true
+
+pretty = true
+
 [[tool.mypy.overrides]]
-module = ["whoosh.*"]
+
+module = [
+    "whoosh.*",
+]
+
 ignore_missing_imports = true
