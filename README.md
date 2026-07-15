@@ -145,7 +145,7 @@ Please follow the project's coding standards and documentation guidelines before
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the Mozilla Public License 2.0 (MPL 2.0).
 
 See the LICENSE file for details.
 

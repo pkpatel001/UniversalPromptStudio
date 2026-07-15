@@ -1,2 +1,51 @@
-# Auto detect text files and perform LF normalization
+# Auto-detect text files and normalize line endings
 * text=auto
+
+# Source code
+*.py text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+
+# Windows scripts
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+
+# XML / XAML
+*.xml text eol=lf
+*.xaml text eol=lf
+
+# Shell scripts
+*.sh text eol=lf
+
+# SQL
+*.sql text eol=lf
+
+# SVG
+*.svg text eol=lf
+
+# Mermaid
+*.mmd text eol=lf
+
+# Ignore generated language statistics
+*.min.js -diff
+*.min.css -diff
