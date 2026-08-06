@@ -24,6 +24,7 @@ from .constants import (
     ASSETS_FOLDER,
     BACKEND_FOLDER,
     CATEGORIES_FOLDER,
+    CONFIG_FOLDER,
     DATABASE_FOLDER,
     DOCS_FOLDER,
     ENGINEERING_FOLDER,
@@ -32,20 +33,17 @@ from .constants import (
     TEMPLATES_FOLDER,
     TESTS_FOLDER,
 )
+from .exceptions import ProjectRootNotFoundError
 
 # -----------------------------------------------------------------------------
 # Project Root Discovery
 # -----------------------------------------------------------------------------
 
-PROJECT_MARKERS = (
+PROJECT_MARKERS: tuple[str, ...] = (
     "pyproject.toml",
     ".git",
     "README.md",
 )
-
-
-from .exceptions import ProjectRootNotFoundError
-    """Raised when the Universal Prompt Studio project root cannot be found."""
 
 
 def discover_project_root() -> Path:
@@ -66,9 +64,9 @@ def discover_project_root() -> Path:
         If the project root cannot be located.
     """
 
-    current = Path(__file__).resolve()
+    current = Path(__file__).resolve().parent
 
-    for candidate in [current.parent, *current.parents]:
+    for candidate in (current, *current.parents):
         if all((candidate / marker).exists() for marker in PROJECT_MARKERS):
             return candidate
 
@@ -90,9 +88,12 @@ class ProjectPaths:
 
     root: Path
 
+    engineering: Path
+    config: Path
+
     backend: Path
     frontend: Path
-    engineering: Path
+
     docs: Path
     database: Path
 
@@ -100,6 +101,7 @@ class ProjectPaths:
     templates: Path
     assets: Path
     categories: Path
+
     tests: Path
 
 
@@ -121,9 +123,10 @@ def get_paths() -> ProjectPaths:
 
     return ProjectPaths(
         root=root,
+        engineering=root / ENGINEERING_FOLDER,
+        config=root / ENGINEERING_FOLDER / CONFIG_FOLDER,
         backend=root / BACKEND_FOLDER,
         frontend=root / FRONTEND_FOLDER,
-        engineering=root / ENGINEERING_FOLDER,
         docs=root / DOCS_FOLDER,
         database=root / DATABASE_FOLDER,
         plugins=root / PLUGINS_FOLDER,
@@ -153,9 +156,10 @@ def verify_structure() -> list[str]:
     paths = get_paths()
 
     required = {
+        "Engineering": paths.engineering,
+        "Engineering/config": paths.config,
         "Backend": paths.backend,
         "Frontend": paths.frontend,
-        "Engineering": paths.engineering,
         "Docs": paths.docs,
         "Database": paths.database,
         "Plugins": paths.plugins,
@@ -168,7 +172,15 @@ def verify_structure() -> list[str]:
     errors: list[str] = []
 
     for name, directory in required.items():
-        if not directory.exists():
+        if not directory.is_dir():
             errors.append(f"Missing required directory: {name}")
 
     return errors
+
+
+__all__ = (
+    "ProjectPaths",
+    "discover_project_root",
+    "get_paths",
+    "verify_structure",
+)
