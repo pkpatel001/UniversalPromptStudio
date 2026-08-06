@@ -39,54 +39,78 @@ PYTHON_MINIMUM_VERSION: tuple[int, int] = (3, 12)
 # Folder Names
 # ---------------------------------------------------------------------------
 
-BACKEND_FOLDER = "Backend"
+BACKEND_FOLDER: str = "Backend"
 
-FRONTEND_FOLDER = "Frontend"
+FRONTEND_FOLDER: str = "Frontend"
 
-ENGINEERING_FOLDER = "Engineering"
+ENGINEERING_FOLDER: str = "Engineering"
 
-DOCS_FOLDER = "Docs"
+CONFIG_FOLDER: str = "config"
 
-DATABASE_FOLDER = "Database"
+DOCS_FOLDER: str = "Docs"
 
-PLUGINS_FOLDER = "Plugins"
+DATABASE_FOLDER: str = "Database"
 
-THEMES_FOLDER = "Themes"
+PLUGINS_FOLDER: str = "Plugins"
 
-ASSETS_FOLDER = "Assets"
+THEMES_FOLDER: str = "Themes"
 
-TEMPLATES_FOLDER = "Templates"
+ASSETS_FOLDER: str = "Assets"
 
-CATEGORIES_FOLDER = "Categories"
+TEMPLATES_FOLDER: str = "Templates"
 
-TESTS_FOLDER = "Tests"
+CATEGORIES_FOLDER: str = "Categories"
+
+TESTS_FOLDER: str = "Tests"
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
-DEFAULT_ENCODING = "utf-8"
+DEFAULT_ENCODING: str = "utf-8"
 
-DEFAULT_CONFIG_FILENAME = "project.yaml"
+YAML_EXTENSION: str = ".yaml"
 
-DEFAULT_MANIFEST_FILENAME = "documentation_manifest.yaml"
+JSON_EXTENSION: str = ".json"
+
+MARKDOWN_EXTENSION: str = ".md"
+
+PROJECT_CONFIG_FILENAME: str = "project.yaml"
+
+ENGINEERING_CONFIG_FILENAME: str = "engineering.yaml"
+
+DOCUMENTATION_CONFIG_FILENAME: str = "documentation.yaml"
+
+LOGGING_CONFIG_FILENAME: str = "logging.yaml"
+
+DEFAULT_MANIFEST_FILENAME: str = "documentation_manifest.yaml"
+
+DEFAULT_JSON_INDENT: int = 4
+
+DEFAULT_JSON_ENSURE_ASCII: bool = False
+
+DEFAULT_YAML_INDENT: int = 2
+
+DEFAULT_YAML_SORT_KEYS: bool = False
+
+DEFAULT_YAML_ALLOW_UNICODE: bool = True
 
 # ---------------------------------------------------------------------------
 # Documentation
 # ---------------------------------------------------------------------------
 
-DOCUMENTATION_ROOT = Path("Engineering") / "Documentation"
+DOCUMENTATION_ROOT: Path = Path("Engineering") / "Documentation"
 
-MANIFEST_FOLDER = DOCUMENTATION_ROOT / "Manifest"
+MANIFEST_FOLDER: Path = DOCUMENTATION_ROOT / "Manifest"
 
-RULES_FOLDER = DOCUMENTATION_ROOT / "Rules"
+RULES_FOLDER: Path = DOCUMENTATION_ROOT / "Rules"
 
-SCHEMA_FOLDER = DOCUMENTATION_ROOT / "Schemas"
+SCHEMA_FOLDER: Path = DOCUMENTATION_ROOT / "Schemas"
 
-TEMPLATE_FOLDER = DOCUMENTATION_ROOT / "Templates"
+TEMPLATE_FOLDER: Path = DOCUMENTATION_ROOT / "Templates"
 
-SCRIPT_FOLDER = DOCUMENTATION_ROOT / "Scripts"
+SCRIPT_FOLDER: Path = DOCUMENTATION_ROOT / "Scripts"
 
-GENERATED_FOLDER = DOCUMENTATION_ROOT / "Generated"
+GENERATED_FOLDER: Path = DOCUMENTATION_ROOT / "Generated"
 
-LOG_FOLDER = DOCUMENTATION_ROOT / "Logs"
+LOG_FOLDER: Path = DOCUMENTATION_ROOT / "Logs"

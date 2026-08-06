@@ -44,7 +44,7 @@ PROJECT_MARKERS = (
 )
 
 
-class ProjectRootNotFoundError(RuntimeError):
+from .exceptions import ProjectRootNotFoundError
     """Raised when the Universal Prompt Studio project root cannot be found."""
 
 

@@ -1,0 +1,20 @@
+# =============================================================================
+# Universal Prompt Studio
+# Engineering Toolkit
+#
+# Logging Configuration
+#
+# =============================================================================
+
+logging:
+  enabled: true
+
+  level: "INFO"
+
+  console: true
+
+  file: true
+
+  directory: "Engineering/Documentation/Logs"
+
+  filename: "engineering.log"

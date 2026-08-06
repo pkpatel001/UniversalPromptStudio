@@ -1,0 +1,23 @@
+# =============================================================================
+# Universal Prompt Studio
+# Engineering Toolkit
+#
+# Engineering Configuration
+#
+# This file contains Engineering Toolkit behavior settings.
+#
+# =============================================================================
+
+engineering:
+  strict_mode: true
+
+  diagnostics: true
+
+  cache:
+    enabled: true
+
+  validation:
+    enabled: true
+
+  paths:
+    verify_on_startup: true

@@ -1,0 +1,30 @@
+# =============================================================================
+# Universal Prompt Studio
+# Engineering Toolkit
+#
+# Documentation Configuration
+#
+# =============================================================================
+
+documentation:
+  enabled: true
+
+  output:
+    root: "Engineering/Documentation/Generated"
+
+  generate:
+    readme: true
+
+    api: true
+
+    architecture: true
+
+    adrs: true
+
+    project_status: true
+
+    changelog: true
+
+    index: true
+
+    manifests: true

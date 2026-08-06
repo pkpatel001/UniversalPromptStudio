@@ -1,0 +1,23 @@
+# =============================================================================
+# Universal Prompt Studio
+# Engineering Toolkit
+#
+# Project Configuration
+#
+# This file defines immutable project metadata used throughout the
+# Engineering Toolkit.
+#
+# =============================================================================
+
+project:
+  name: "Universal Prompt Studio"
+  short_name: "UPS"
+
+  company: "The Patel Brothers Creative Solutions"
+
+  version: "0.1.0-alpha"
+
+  license: "Mozilla Public License 2.0"
+
+  python:
+    minimum_version: "3.12"
