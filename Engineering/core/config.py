@@ -58,6 +58,7 @@ from typing import TypeVar
 from typing import Union
 from typing import get_args
 from typing import get_origin
+from typing import get_type_hints
 import logging
 
 from Engineering.core.constants import DEFAULT_ENCODING
@@ -452,3 +453,243 @@ def _is_required(field: Field[Any]) -> bool:
         True if the field has no default value.
     """
     return not _has_default(field)
+    
+###############################################################################
+# Generic conversion helpers
+###############################################################################
+
+
+def _coerce_scalar(
+    value: Any,
+    annotation: type[Any],
+    *,
+    field_name: str,
+) -> Any:
+    """
+    Convert a scalar value to the requested Python type.
+
+    Parameters
+    ----------
+    value
+        Source value.
+
+    annotation
+        Target scalar type.
+
+    field_name
+        Name of the configuration field.
+
+    Returns
+    -------
+    Any
+        Converted scalar value.
+
+    Raises
+    ------
+    ConfigurationTypeError
+        If the value cannot be converted.
+    """
+    if isinstance(value, annotation):
+        return value
+
+    try:
+        if annotation is Path:
+            return Path(value)
+
+        return annotation(value)
+    except (TypeError, ValueError) as exc:
+        raise ConfigurationTypeError(
+            f"Field '{field_name}' cannot be converted "
+            f"to {annotation.__name__}."
+        ) from exc
+
+
+def _convert_sequence(
+    value: Any,
+    annotation: Any,
+    *,
+    field_name: str,
+) -> Any:
+    """
+    Convert a sequence to the requested container type.
+
+    Parameters
+    ----------
+    value
+        Source sequence.
+
+    annotation
+        Target annotation.
+
+    field_name
+        Name of the configuration field.
+
+    Returns
+    -------
+    Any
+        Converted sequence.
+    """
+    if not isinstance(value, (list, tuple, set, frozenset)):
+        _raise_invalid_type(
+            field_name=field_name,
+            expected=annotation,
+            actual=value,
+        )
+
+    origin = get_origin(annotation)
+    arguments = get_args(annotation)
+
+    element_type = Any
+
+    if arguments:
+        element_type = arguments[0]
+
+    converted = [
+        _convert_value(
+            item,
+            element_type,
+            field_name=field_name,
+        )
+        for item in value
+    ]
+
+    if origin is tuple:
+        return tuple(converted)
+
+    if origin is set:
+        return set(converted)
+
+    if origin is frozenset:
+        return frozenset(converted)
+
+    return list(converted)
+
+
+def _convert_mapping(
+    value: Any,
+    annotation: Any,
+    *,
+    field_name: str,
+) -> Mapping[str, Any]:
+    """
+    Convert a mapping.
+
+    Parameters
+    ----------
+    value
+        Source mapping.
+
+    annotation
+        Target annotation.
+
+    field_name
+        Name of the configuration field.
+
+    Returns
+    -------
+    Mapping[str, Any]
+        Converted mapping.
+    """
+    if not isinstance(value, Mapping):
+        _raise_invalid_type(
+            field_name=field_name,
+            expected=annotation,
+            actual=value,
+        )
+
+    arguments = get_args(annotation)
+
+    key_type: Any = str
+    value_type: Any = Any
+
+    if len(arguments) == 2:
+        key_type, value_type = arguments
+
+    converted: dict[Any, Any] = {}
+
+    for key, item in value.items():
+        converted_key = _convert_value(
+            key,
+            key_type,
+            field_name=field_name,
+        )
+
+        converted_value = _convert_value(
+            item,
+            value_type,
+            field_name=field_name,
+        )
+
+        converted[converted_key] = converted_value
+
+    return converted
+
+
+def _convert_value(
+    value: Any,
+    annotation: Any,
+    *,
+    field_name: str,
+) -> Any:
+    """
+    Convert a Python object to the requested annotation.
+
+    Parameters
+    ----------
+    value
+        Source value.
+
+    annotation
+        Target annotation.
+
+    field_name
+        Name of the configuration field.
+
+    Returns
+    -------
+    Any
+        Converted value.
+    """
+    annotation = _strip_optional_type(annotation)
+
+    if value is None:
+        return None
+
+    if annotation is Any:
+        return value
+
+    if _is_scalar_type(annotation):
+        return _coerce_scalar(
+            value,
+            annotation,
+            field_name=field_name,
+        )
+
+    if _is_sequence_type(annotation):
+        return _convert_sequence(
+            value,
+            annotation,
+            field_name=field_name,
+        )
+
+    if _is_mapping_type(annotation):
+        return _convert_mapping(
+            value,
+            annotation,
+            field_name=field_name,
+        )
+
+    if _is_dataclass_type(annotation):
+        if not isinstance(value, Mapping):
+            _raise_invalid_type(
+                field_name=field_name,
+                expected=annotation,
+                actual=value,
+            )
+
+        return _deserialize_dataclass(
+            annotation,
+            value,
+        )
+
+    return value
