@@ -693,3 +693,253 @@ def _convert_value(
         )
 
     return value
+    
+    ###############################################################################
+# Dataclass deserialization
+###############################################################################
+
+
+def _deserialize_dataclass(
+    dataclass_type: type[DataclassType],
+    data: Mapping[str, Any],
+) -> DataclassType:
+    """
+    Deserialize a mapping into an immutable dataclass instance.
+
+    Parameters
+    ----------
+    dataclass_type
+        Dataclass type to instantiate.
+
+    data
+        Source mapping.
+
+    Returns
+    -------
+    DataclassType
+        Fully constructed dataclass instance.
+
+    Raises
+    ------
+    ConfigurationValidationError
+        If required fields are missing.
+
+    ConfigurationTypeError
+        If a value cannot be converted to the declared type.
+    """
+    if not isinstance(data, Mapping):
+        raise ConfigurationTypeError(
+            f"{dataclass_type.__name__} expects a mapping."
+        )
+
+    type_hints = get_type_hints(dataclass_type)
+
+    constructor_arguments: dict[str, Any] = {}
+
+    for field in fields(dataclass_type):
+
+        annotation = type_hints.get(
+            field.name,
+            field.type,
+        )
+
+        field_exists = field.name in data
+
+        if not field_exists:
+
+            if _is_required(field):
+                _raise_missing_field(
+                    field,
+                    dataclass_type,
+                )
+
+            continue
+
+        raw_value = data[field.name]
+
+        constructor_arguments[field.name] = _convert_value(
+            raw_value,
+            annotation,
+            field_name=field.name,
+        )
+
+    try:
+        return dataclass_type(
+            **constructor_arguments,
+        )
+
+    except TypeError as exc:
+        raise ConfigurationValidationError(
+            f"Failed constructing "
+            f"{dataclass_type.__name__}: "
+            f"{exc}"
+        ) from exc
+
+
+###############################################################################
+# Dataclass validation
+###############################################################################
+
+
+def _validate_dataclass(
+    instance: Any,
+) -> None:
+    """
+    Recursively validate a dataclass instance.
+
+    Parameters
+    ----------
+    instance
+        Dataclass instance.
+
+    Raises
+    ------
+    ConfigurationValidationError
+        If validation fails.
+    """
+    if not is_dataclass(instance):
+        raise ConfigurationValidationError(
+            "Expected a dataclass instance."
+        )
+
+    for field in fields(instance):
+
+        value = getattr(
+            instance,
+            field.name,
+        )
+
+        if value is None:
+            continue
+
+        if is_dataclass(value):
+            _validate_dataclass(value)
+            continue
+
+        if isinstance(value, Mapping):
+
+            for mapping_value in value.values():
+
+                if is_dataclass(mapping_value):
+                    _validate_dataclass(mapping_value)
+
+            continue
+
+        if isinstance(
+            value,
+            (list, tuple, set, frozenset),
+        ):
+
+            for item in value:
+
+                if is_dataclass(item):
+                    _validate_dataclass(item)
+                                continue
+
+        annotation = field.type
+
+        if _is_optional_type(annotation):
+            annotation = _strip_optional_type(annotation)
+
+        if annotation is Any:
+            continue
+
+        if _is_scalar_type(annotation):
+
+            if not isinstance(value, annotation):
+                _raise_invalid_type(
+                    field_name=field.name,
+                    expected=annotation,
+                    actual=value,
+                )
+
+            continue
+
+        if _is_sequence_type(annotation):
+            continue
+
+        if _is_mapping_type(annotation):
+            continue
+
+        if _is_dataclass_type(annotation):
+            continue
+
+        origin = get_origin(annotation)
+
+        if origin is None:
+
+            if not isinstance(value, annotation):
+                _raise_invalid_type(
+                    field_name=field.name,
+                    expected=annotation,
+                    actual=value,
+                )
+
+    return
+
+
+###############################################################################
+# Validation entry point
+###############################################################################
+
+
+def _validate_configuration(
+    configuration: ConfigT,
+) -> ConfigT:
+    """
+    Validate a fully constructed configuration object.
+
+    Parameters
+    ----------
+    configuration
+        Configuration instance.
+
+    Returns
+    -------
+    ConfigT
+        The validated configuration instance.
+
+    Raises
+    ------
+    ConfigurationValidationError
+        If validation fails.
+    """
+    _validate_dataclass(configuration)
+    return configuration
+
+
+###############################################################################
+# Internal loading helpers
+###############################################################################
+
+
+def _read_configuration_file(
+    configuration_path: PathLike,
+) -> Mapping[str, Any]:
+    """
+    Read a configuration mapping from disk.
+
+    Parameters
+    ----------
+    configuration_path
+        Configuration file.
+
+    Returns
+    -------
+    Mapping[str, Any]
+        Parsed YAML mapping.
+
+    Raises
+    ------
+    ConfigurationError
+        If the configuration file cannot be loaded.
+    """
+    path = _normalize_path(configuration_path)
+
+    try:
+        return read_yaml(path)
+
+    except Exception as exc:
+        raise ConfigurationError(
+            f"Unable to load configuration file: {path}"
+        ) from exc
