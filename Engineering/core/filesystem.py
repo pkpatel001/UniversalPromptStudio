@@ -190,7 +190,7 @@ def write_text(path: Path, text: str) -> None:
     _ensure_parent_directory(path)
 
     try:
-        return path.write_text(
+        path.write_text(
             text,
             encoding=DEFAULT_ENCODING,
         )

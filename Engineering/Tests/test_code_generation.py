@@ -228,7 +228,7 @@ class TestGenerationContext:
     def test_immutable(self) -> None:
         ctx = _make_context()
         with pytest.raises(AttributeError):
-            ctx.project = None  # type: ignore[misc]
+            ctx.project = None  # type: ignore[assignment]
 
     def test_default_values(self) -> None:
         ctx = GenerationContext(
