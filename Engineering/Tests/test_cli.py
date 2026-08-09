@@ -133,10 +133,11 @@ class TestFutureCommands:
         assert "doctor info" in result.output.lower()
 
     def test_docs_no_subcommand(self) -> None:
-        """Test docs without subcommand."""
+        """Test docs without subcommand shows usage guidance."""
         result = runner.invoke(app, ["docs"])
         assert result.exit_code == 0
-        assert "not yet implemented" in result.output.lower()
+        assert "docs generate" in result.output.lower()
+        assert "docs validate" in result.output.lower()
 
     def test_build_no_subcommand(self) -> None:
         """Test build without subcommand."""
