@@ -3,943 +3,498 @@
 Universal Prompt Studio
 Engineering Toolkit
 
-Configuration Infrastructure
+Configuration System
 
-This module provides the generic configuration loading infrastructure for the
-Engineering Toolkit.
+This module provides the canonical, immutable configuration for the
+Engineering Toolkit. All configuration values are loaded from YAML files
+and exposed as frozen dataclasses.
 
-The implementation is intentionally schema-agnostic. Rather than defining
-application-specific configuration models, this module provides reusable
-utilities for loading immutable dataclass-based configuration objects from
-YAML files.
+No raw dictionaries are exposed outside this module.
 
-Features
---------
-* Generic YAML → dataclass deserialization
-* Recursive dataclass construction
-* Strong runtime validation
-* Immutable configuration objects
-* Thread-safe configuration cache
-* Automatic project root integration
-* Helpful exception hierarchy
-* Type-safe public API
+Public API
+----------
+from Engineering.core.config import get_config
 
-The module depends only upon the Engineering core infrastructure and therefore
-remains reusable across every subsystem of the Universal Prompt Studio.
-
-Notes
------
-Configuration schemas themselves should live elsewhere (for example,
-``Engineering/config``). This module should never contain application-specific
-configuration dataclasses.
-
-Examples
---------
->>> from pathlib import Path
->>> from Engineering.config.app import AppConfig
->>> cfg = load_config(AppConfig, Path("config/app.yaml"))
+config = get_config()
+config.project.name
+config.documentation.generate.api
+config.logging.level
 
 ===============================================================================
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import MISSING
-from dataclasses import Field
-from dataclasses import fields
-from dataclasses import is_dataclass
+from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
-from threading import RLock
-from typing import Any
-from typing import Final
-from typing import TypeAlias
-from typing import TypeVar
-from typing import Union
-from typing import get_args
-from typing import get_origin
-from typing import get_type_hints
-import logging
 
-from Engineering.core.constants import DEFAULT_ENCODING
-from Engineering.core.exceptions import (
+from .constants import (
+    DOCUMENTATION_CONFIG_FILENAME,
+    ENGINEERING_CONFIG_FILENAME,
+    LOGGING_CONFIG_FILENAME,
+    PROJECT_CONFIG_FILENAME,
+)
+from .exceptions import (
     ConfigurationError,
+    ConfigurationFileNotFoundError,
     ConfigurationValidationError,
 )
-from Engineering.core.filesystem import read_yaml
-from Engineering.core.paths import get_paths
+from .filesystem import read_yaml
+from .paths import get_paths
 
-__all__: list[str] = [
-    "ConfigurationError",
-    "ConfigurationFileError",
-    "ConfigurationValidationError",
-    "ConfigurationTypeError",
-    "load_config",
-    "load_config_from_file",
-    "load_config_from_mapping",
+__all__ = [
+    "Configuration",
+    "ProjectConfiguration",
+    "EngineeringConfiguration",
+    "DocumentationConfiguration",
+    "LoggingConfiguration",
+    "PythonConfiguration",
+    "CacheConfiguration",
+    "ValidationConfiguration",
+    "EngineeringPathsConfiguration",
+    "DocumentationOutputConfiguration",
+    "DocumentationGenerateConfiguration",
     "get_config",
-    "reload_config",
-    "clear_config_cache",
 ]
 
-###############################################################################
-# Logging
-###############################################################################
 
-_LOGGER: Final[logging.Logger] = logging.getLogger(__name__)
-
-###############################################################################
-# Generic typing
-###############################################################################
-
-ConfigT = TypeVar("ConfigT")
-
-DataclassType = TypeVar("DataclassType")
-
-PathLike: TypeAlias = str | Path
-
-MappingType: TypeAlias = Mapping[str, Any]
-
-CacheKey: TypeAlias = tuple[type[Any], Path]
-
-###############################################################################
-# Internal module state
-###############################################################################
-
-_CONFIGURATION_CACHE: dict[CacheKey, Any] = {}
-
-_CACHE_LOCK: Final[RLock] = RLock()
-
-###############################################################################
-# Supported scalar types
-###############################################################################
-
-_SUPPORTED_SCALAR_TYPES: Final[frozenset[type[Any]]] = frozenset(
-    {
-        bool,
-        int,
-        float,
-        str,
-        Path,
-    }
-)
-
-###############################################################################
-# Default configuration location
-###############################################################################
-
-_DEFAULT_CONFIG_DIRECTORY: Final[Path] = get_paths().config
-
-###############################################################################
-# Helper utilities
-###############################################################################
+# -----------------------------------------------------------------------------
+# Configuration Dataclasses
+# -----------------------------------------------------------------------------
 
 
-def _normalize_path(path: PathLike) -> Path:
+@dataclass(frozen=True, slots=True)
+class PythonConfiguration:
     """
-    Normalize a filesystem path.
+    Python runtime requirements.
+    """
+
+    minimum_version: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectConfiguration:
+    """
+    Project-level metadata.
+    """
+
+    name: str
+    short_name: str
+    company: str
+    version: str
+    license: str
+    python: PythonConfiguration
+
+
+@dataclass(frozen=True, slots=True)
+class CacheConfiguration:
+    """
+    Engineering Toolkit cache settings.
+    """
+
+    enabled: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ValidationConfiguration:
+    """
+    Engineering Toolkit validation settings.
+    """
+
+    enabled: bool
+
+
+@dataclass(frozen=True, slots=True)
+class EngineeringPathsConfiguration:
+    """
+    Engineering Toolkit path behavior.
+    """
+
+    verify_on_startup: bool
+
+
+@dataclass(frozen=True, slots=True)
+class EngineeringConfiguration:
+    """
+    Engineering Toolkit behavior settings.
+    """
+
+    strict_mode: bool
+    diagnostics: bool
+    cache: CacheConfiguration
+    validation: ValidationConfiguration
+    paths: EngineeringPathsConfiguration
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentationOutputConfiguration:
+    """
+    Documentation output settings.
+    """
+
+    root: str
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentationGenerateConfiguration:
+    """
+    Documentation generation toggles.
+    """
+
+    readme: bool
+    api: bool
+    architecture: bool
+    adrs: bool
+    project_status: bool
+    changelog: bool
+    index: bool
+    manifests: bool
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentationConfiguration:
+    """
+    Documentation subsystem configuration.
+    """
+
+    enabled: bool
+    output: DocumentationOutputConfiguration
+    generate: DocumentationGenerateConfiguration
+
+
+@dataclass(frozen=True, slots=True)
+class LoggingConfiguration:
+    """
+    Logging subsystem configuration.
+    """
+
+    enabled: bool
+    level: str
+    console: bool
+    file: bool
+    directory: str
+    filename: str
+
+
+@dataclass(frozen=True, slots=True)
+class Configuration:
+    """
+    Top-level Engineering Toolkit configuration.
+
+    Contains all configuration sections loaded from YAML files.
+    """
+
+    project: ProjectConfiguration
+    engineering: EngineeringConfiguration
+    documentation: DocumentationConfiguration
+    logging: LoggingConfiguration
+
+
+# -----------------------------------------------------------------------------
+# Validation Helpers
+# -----------------------------------------------------------------------------
+
+
+def _require_keys(data: dict[str, object], keys: tuple[str, ...]) -> None:
+    """
+    Ensure that all required keys exist in a mapping.
+
+    Parameters
+    ----------
+    data
+        Mapping to validate.
+    keys
+        Required keys.
+
+    Raises
+    ------
+    ConfigurationValidationError
+        If any required key is missing.
+    """
+
+    missing = [key for key in keys if key not in data]
+
+    if missing:
+        raise ConfigurationValidationError(
+            f"Missing required configuration keys: {', '.join(missing)}"
+        )
+
+
+def _load_project_config(path: Path) -> ProjectConfiguration:
+    """
+    Load and validate project configuration.
 
     Parameters
     ----------
     path
-        Path supplied by the caller.
+        Path to project.yaml.
 
     Returns
     -------
-    Path
-        Fully resolved absolute path.
-
-    Notes
-    -----
-    Relative paths are interpreted relative to the current working directory
-    before resolution.
+    ProjectConfiguration
     """
-    return Path(path).expanduser().resolve()
 
+    data = read_yaml(path)
 
-def _cache_key(
-    configuration_type: type[Any],
-    configuration_path: PathLike,
-) -> CacheKey:
-    """
-    Construct the cache key used internally.
+    root = data.get("project")
+    if not isinstance(root, dict):
+        raise ConfigurationValidationError(
+            "Expected 'project' to be a mapping in project.yaml"
+        )
 
-    Parameters
-    ----------
-    configuration_type
-        Requested configuration class.
+    _require_keys(root, ("name", "short_name", "company", "version", "license", "python"))
 
-    configuration_path
-        YAML configuration file.
+    python_data = root["python"]
+    if not isinstance(python_data, dict):
+        raise ConfigurationValidationError(
+            "Expected 'project.python' to be a mapping in project.yaml"
+        )
 
-    Returns
-    -------
-    CacheKey
-        Immutable cache identifier.
-    """
-    return (
-        configuration_type,
-        _normalize_path(configuration_path),
+    _require_keys(python_data, ("minimum_version",))
+
+    return ProjectConfiguration(
+        name=str(root["name"]),
+        short_name=str(root["short_name"]),
+        company=str(root["company"]),
+        version=str(root["version"]),
+        license=str(root["license"]),
+        python=PythonConfiguration(
+            minimum_version=str(python_data["minimum_version"])
+        ),
     )
 
 
-def _is_optional_type(annotation: Any) -> bool:
+def _load_engineering_config(path: Path) -> EngineeringConfiguration:
     """
-    Determine whether a type annotation represents an Optional value.
+    Load and validate engineering configuration.
 
     Parameters
     ----------
-    annotation
-        Type annotation.
+    path
+        Path to engineering.yaml.
 
     Returns
     -------
-    bool
-        True if Optional[...] or X | None.
+    EngineeringConfiguration
     """
-    origin = get_origin(annotation)
 
-    if origin is Union:
-        return type(None) in get_args(annotation)
+    data = read_yaml(path)
 
-    return False
+    root = data.get("engineering")
+    if not isinstance(root, dict):
+        raise ConfigurationValidationError(
+            "Expected 'engineering' to be a mapping in engineering.yaml"
+        )
 
-    
-def _strip_optional_type(annotation: Any) -> Any:
-    """
-    Remove Optional from a type annotation.
+    _require_keys(root, ("strict_mode", "diagnostics", "cache", "validation", "paths"))
 
-    Parameters
-    ----------
-    annotation
-        Type annotation.
+    cache_data = root["cache"]
+    if not isinstance(cache_data, dict):
+        raise ConfigurationValidationError(
+            "Expected 'engineering.cache' to be a mapping in engineering.yaml"
+        )
 
-    Returns
-    -------
-    Any
-        Underlying annotation with ``None`` removed.
-    """
-    if not _is_optional_type(annotation):
-        return annotation
+    _require_keys(cache_data, ("enabled",))
 
-    return next(
-        candidate
-        for candidate in get_args(annotation)
-        if candidate is not type(None)
+    validation_data = root["validation"]
+    if not isinstance(validation_data, dict):
+        raise ConfigurationValidationError(
+            "Expected 'engineering.validation' to be a mapping in engineering.yaml"
+        )
+
+    _require_keys(validation_data, ("enabled",))
+
+    paths_data = root["paths"]
+    if not isinstance(paths_data, dict):
+        raise ConfigurationValidationError(
+            "Expected 'engineering.paths' to be a mapping in engineering.yaml"
+        )
+
+    _require_keys(paths_data, ("verify_on_startup",))
+
+    return EngineeringConfiguration(
+        strict_mode=bool(root["strict_mode"]),
+        diagnostics=bool(root["diagnostics"]),
+        cache=CacheConfiguration(enabled=bool(cache_data["enabled"])),
+        validation=ValidationConfiguration(enabled=bool(validation_data["enabled"])),
+        paths=EngineeringPathsConfiguration(
+            verify_on_startup=bool(paths_data["verify_on_startup"])
+        ),
     )
 
 
-def _is_dataclass_type(annotation: Any) -> bool:
+def _load_documentation_config(path: Path) -> DocumentationConfiguration:
     """
-    Determine whether an annotation represents a dataclass type.
+    Load and validate documentation configuration.
 
     Parameters
     ----------
-    annotation
-        Annotation to inspect.
+    path
+        Path to documentation.yaml.
 
     Returns
     -------
-    bool
-        True if the annotation is a dataclass type.
+    DocumentationConfiguration
     """
-    annotation = _strip_optional_type(annotation)
 
-    try:
-        return is_dataclass(annotation)
-    except TypeError:
-        return False
+    data = read_yaml(path)
 
+    root = data.get("documentation")
+    if not isinstance(root, dict):
+        raise ConfigurationValidationError(
+            "Expected 'documentation' to be a mapping in documentation.yaml"
+        )
 
-def _is_mapping_type(annotation: Any) -> bool:
-    """
-    Determine whether an annotation represents a mapping.
+    _require_keys(root, ("enabled", "output", "generate"))
 
-    Parameters
-    ----------
-    annotation
-        Type annotation.
+    output_data = root["output"]
+    if not isinstance(output_data, dict):
+        raise ConfigurationValidationError(
+            "Expected 'documentation.output' to be a mapping in documentation.yaml"
+        )
 
-    Returns
-    -------
-    bool
-        True if the annotation is mapping-like.
-    """
-    annotation = _strip_optional_type(annotation)
+    _require_keys(output_data, ("root",))
 
-    origin = get_origin(annotation)
+    generate_data = root["generate"]
+    if not isinstance(generate_data, dict):
+        raise ConfigurationValidationError(
+            "Expected 'documentation.generate' to be a mapping in documentation.yaml"
+        )
 
-    if origin is None:
-        return False
+    _require_keys(
+        generate_data,
+        (
+            "readme",
+            "api",
+            "architecture",
+            "adrs",
+            "project_status",
+            "changelog",
+            "index",
+            "manifests",
+        ),
+    )
 
-    return issubclass(origin, Mapping)
-
-
-def _is_sequence_type(annotation: Any) -> bool:
-    """
-    Determine whether an annotation represents a sequence.
-
-    Strings and bytes are intentionally excluded.
-
-    Parameters
-    ----------
-    annotation
-        Type annotation.
-
-    Returns
-    -------
-    bool
-        True if the annotation represents a supported sequence.
-    """
-    annotation = _strip_optional_type(annotation)
-
-    origin = get_origin(annotation)
-
-    return origin in (
-        list,
-        tuple,
-        set,
-        frozenset,
+    return DocumentationConfiguration(
+        enabled=bool(root["enabled"]),
+        output=DocumentationOutputConfiguration(root=str(output_data["root"])),
+        generate=DocumentationGenerateConfiguration(
+            readme=bool(generate_data["readme"]),
+            api=bool(generate_data["api"]),
+            architecture=bool(generate_data["architecture"]),
+            adrs=bool(generate_data["adrs"]),
+            project_status=bool(generate_data["project_status"]),
+            changelog=bool(generate_data["changelog"]),
+            index=bool(generate_data["index"]),
+            manifests=bool(generate_data["manifests"]),
+        ),
     )
 
 
-def _is_scalar_type(annotation: Any) -> bool:
+def _load_logging_config(path: Path) -> LoggingConfiguration:
     """
-    Determine whether an annotation represents a supported scalar.
+    Load and validate logging configuration.
 
     Parameters
     ----------
-    annotation
-        Annotation to inspect.
+    path
+        Path to logging.yaml.
 
     Returns
     -------
-    bool
-        True if supported.
-    """
-    annotation = _strip_optional_type(annotation)
-
-    return annotation in _SUPPORTED_SCALAR_TYPES
-
-
-###############################################################################
-# Configuration-specific exceptions
-###############################################################################
-
-
-class ConfigurationTypeError(ConfigurationValidationError):
-    """
-    Raised when a configuration value cannot be converted to
-    its declared Python type.
+    LoggingConfiguration
     """
 
-###############################################################################
-# Validation helpers
-###############################################################################
+    data = read_yaml(path)
+
+    root = data.get("logging")
+    if not isinstance(root, dict):
+        raise ConfigurationValidationError(
+            "Expected 'logging' to be a mapping in logging.yaml"
+        )
+
+    _require_keys(root, ("enabled", "level", "console", "file", "directory", "filename"))
+
+    return LoggingConfiguration(
+        enabled=bool(root["enabled"]),
+        level=str(root["level"]),
+        console=bool(root["console"]),
+        file=bool(root["file"]),
+        directory=str(root["directory"]),
+        filename=str(root["filename"]),
+    )
 
 
-def _field_name(field: Field[Any]) -> str:
+# -----------------------------------------------------------------------------
+# Public API
+# -----------------------------------------------------------------------------
+
+
+@lru_cache(maxsize=1)
+def get_config() -> Configuration:
     """
-    Return a readable field name.
+    Load and return the Engineering Toolkit configuration.
 
-    Parameters
-    ----------
-    field
-        Dataclass field.
+    Configuration is loaded once and cached for the lifetime of the process.
 
     Returns
     -------
-    str
-        Human-readable field name.
-    """
-    return field.name.replace("_", " ")
-
-
-def _raise_missing_field(
-    field: Field[Any],
-    dataclass_type: type[Any],
-) -> None:
-    """
-    Raise an exception for a missing required field.
-
-    Parameters
-    ----------
-    field
-        Missing dataclass field.
-
-    dataclass_type
-        Owning dataclass.
+    Configuration
+        Immutable configuration instance.
 
     Raises
     ------
+    ConfigurationFileNotFoundError
+        If a required configuration file is missing.
     ConfigurationValidationError
+        If a configuration file is structurally invalid.
     """
-    raise ConfigurationValidationError(
-        f"Required field "
-        f"'{field.name}' "
-        f"is missing while loading "
-        f"{dataclass_type.__name__}."
-    )
 
+    paths = get_paths()
+    config_dir = paths.config
 
-def _raise_invalid_type(
-    *,
-    field_name: str,
-    expected: Any,
-    actual: Any,
-) -> None:
-    """
-    Raise a strongly formatted type mismatch exception.
-
-    Parameters
-    ----------
-    field_name
-        Field being processed.
-
-    expected
-        Expected Python type.
-
-    actual
-        Actual value.
-    """
-    expected_name = getattr(
-        expected,
-        "__name__",
-        str(expected),
-    )
-
-    actual_name = type(actual).__name__
-
-    raise ConfigurationTypeError(
-        f"Field '{field_name}' expected "
-        f"{expected_name} "
-        f"but received "
-        f"{actual_name}."
-    )
-
-
-def _has_default(field: Field[Any]) -> bool:
-    """
-    Determine whether a dataclass field defines a default.
-
-    Parameters
-    ----------
-    field
-        Dataclass field.
-
-    Returns
-    -------
-    bool
-        True if a default value or factory exists.
-    """
-    return (
-        field.default is not MISSING
-        or field.default_factory is not MISSING
-    )
-
-
-def _is_required(field: Field[Any]) -> bool:
-    """
-    Determine whether a dataclass field is required.
-
-    Parameters
-    ----------
-    field
-        Dataclass field.
-
-    Returns
-    -------
-    bool
-        True if the field has no default value.
-    """
-    return not _has_default(field)
-    
-###############################################################################
-# Generic conversion helpers
-###############################################################################
-
-
-def _coerce_scalar(
-    value: Any,
-    annotation: type[Any],
-    *,
-    field_name: str,
-) -> Any:
-    """
-    Convert a scalar value to the requested Python type.
-
-    Parameters
-    ----------
-    value
-        Source value.
-
-    annotation
-        Target scalar type.
-
-    field_name
-        Name of the configuration field.
-
-    Returns
-    -------
-    Any
-        Converted scalar value.
-
-    Raises
-    ------
-    ConfigurationTypeError
-        If the value cannot be converted.
-    """
-    if isinstance(value, annotation):
-        return value
-
-    try:
-        if annotation is Path:
-            return Path(value)
-
-        return annotation(value)
-    except (TypeError, ValueError) as exc:
-        raise ConfigurationTypeError(
-            f"Field '{field_name}' cannot be converted "
-            f"to {annotation.__name__}."
-        ) from exc
-
-
-def _convert_sequence(
-    value: Any,
-    annotation: Any,
-    *,
-    field_name: str,
-) -> Any:
-    """
-    Convert a sequence to the requested container type.
-
-    Parameters
-    ----------
-    value
-        Source sequence.
-
-    annotation
-        Target annotation.
-
-    field_name
-        Name of the configuration field.
-
-    Returns
-    -------
-    Any
-        Converted sequence.
-    """
-    if not isinstance(value, (list, tuple, set, frozenset)):
-        _raise_invalid_type(
-            field_name=field_name,
-            expected=annotation,
-            actual=value,
+    if not config_dir.is_dir():
+        raise ConfigurationFileNotFoundError(
+            f"Configuration directory not found: {config_dir}"
         )
 
-    origin = get_origin(annotation)
-    arguments = get_args(annotation)
+    project_path = config_dir / PROJECT_CONFIG_FILENAME
+    engineering_path = config_dir / ENGINEERING_CONFIG_FILENAME
+    documentation_path = config_dir / DOCUMENTATION_CONFIG_FILENAME
+    logging_path = config_dir / LOGGING_CONFIG_FILENAME
 
-    element_type = Any
-
-    if arguments:
-        element_type = arguments[0]
-
-    converted = [
-        _convert_value(
-            item,
-            element_type,
-            field_name=field_name,
+    missing_files = [
+        str(path)
+        for path in (
+            project_path,
+            engineering_path,
+            documentation_path,
+            logging_path,
         )
-        for item in value
+        if not path.is_file()
     ]
 
-    if origin is tuple:
-        return tuple(converted)
-
-    if origin is set:
-        return set(converted)
-
-    if origin is frozenset:
-        return frozenset(converted)
-
-    return list(converted)
-
-
-def _convert_mapping(
-    value: Any,
-    annotation: Any,
-    *,
-    field_name: str,
-) -> Mapping[str, Any]:
-    """
-    Convert a mapping.
-
-    Parameters
-    ----------
-    value
-        Source mapping.
-
-    annotation
-        Target annotation.
-
-    field_name
-        Name of the configuration field.
-
-    Returns
-    -------
-    Mapping[str, Any]
-        Converted mapping.
-    """
-    if not isinstance(value, Mapping):
-        _raise_invalid_type(
-            field_name=field_name,
-            expected=annotation,
-            actual=value,
-        )
-
-    arguments = get_args(annotation)
-
-    key_type: Any = str
-    value_type: Any = Any
-
-    if len(arguments) == 2:
-        key_type, value_type = arguments
-
-    converted: dict[Any, Any] = {}
-
-    for key, item in value.items():
-        converted_key = _convert_value(
-            key,
-            key_type,
-            field_name=field_name,
-        )
-
-        converted_value = _convert_value(
-            item,
-            value_type,
-            field_name=field_name,
-        )
-
-        converted[converted_key] = converted_value
-
-    return converted
-
-
-def _convert_value(
-    value: Any,
-    annotation: Any,
-    *,
-    field_name: str,
-) -> Any:
-    """
-    Convert a Python object to the requested annotation.
-
-    Parameters
-    ----------
-    value
-        Source value.
-
-    annotation
-        Target annotation.
-
-    field_name
-        Name of the configuration field.
-
-    Returns
-    -------
-    Any
-        Converted value.
-    """
-    annotation = _strip_optional_type(annotation)
-
-    if value is None:
-        return None
-
-    if annotation is Any:
-        return value
-
-    if _is_scalar_type(annotation):
-        return _coerce_scalar(
-            value,
-            annotation,
-            field_name=field_name,
-        )
-
-    if _is_sequence_type(annotation):
-        return _convert_sequence(
-            value,
-            annotation,
-            field_name=field_name,
-        )
-
-    if _is_mapping_type(annotation):
-        return _convert_mapping(
-            value,
-            annotation,
-            field_name=field_name,
-        )
-
-    if _is_dataclass_type(annotation):
-        if not isinstance(value, Mapping):
-            _raise_invalid_type(
-                field_name=field_name,
-                expected=annotation,
-                actual=value,
-            )
-
-        return _deserialize_dataclass(
-            annotation,
-            value,
-        )
-
-    return value
-    
-    ###############################################################################
-# Dataclass deserialization
-###############################################################################
-
-
-def _deserialize_dataclass(
-    dataclass_type: type[DataclassType],
-    data: Mapping[str, Any],
-) -> DataclassType:
-    """
-    Deserialize a mapping into an immutable dataclass instance.
-
-    Parameters
-    ----------
-    dataclass_type
-        Dataclass type to instantiate.
-
-    data
-        Source mapping.
-
-    Returns
-    -------
-    DataclassType
-        Fully constructed dataclass instance.
-
-    Raises
-    ------
-    ConfigurationValidationError
-        If required fields are missing.
-
-    ConfigurationTypeError
-        If a value cannot be converted to the declared type.
-    """
-    if not isinstance(data, Mapping):
-        raise ConfigurationTypeError(
-            f"{dataclass_type.__name__} expects a mapping."
-        )
-
-    type_hints = get_type_hints(dataclass_type)
-
-    constructor_arguments: dict[str, Any] = {}
-
-    for field in fields(dataclass_type):
-
-        annotation = type_hints.get(
-            field.name,
-            field.type,
-        )
-
-        field_exists = field.name in data
-
-        if not field_exists:
-
-            if _is_required(field):
-                _raise_missing_field(
-                    field,
-                    dataclass_type,
-                )
-
-            continue
-
-        raw_value = data[field.name]
-
-        constructor_arguments[field.name] = _convert_value(
-            raw_value,
-            annotation,
-            field_name=field.name,
+    if missing_files:
+        raise ConfigurationFileNotFoundError(
+            f"Required configuration files not found: {', '.join(missing_files)}"
         )
 
     try:
-        return dataclass_type(
-            **constructor_arguments,
-        )
-
-    except TypeError as exc:
-        raise ConfigurationValidationError(
-            f"Failed constructing "
-            f"{dataclass_type.__name__}: "
-            f"{exc}"
-        ) from exc
-
-
-###############################################################################
-# Dataclass validation
-###############################################################################
-
-
-def _validate_dataclass(
-    instance: Any,
-) -> None:
-    """
-    Recursively validate a dataclass instance.
-
-    Parameters
-    ----------
-    instance
-        Dataclass instance.
-
-    Raises
-    ------
-    ConfigurationValidationError
-        If validation fails.
-    """
-    if not is_dataclass(instance):
-        raise ConfigurationValidationError(
-            "Expected a dataclass instance."
-        )
-
-    for field in fields(instance):
-
-        value = getattr(
-            instance,
-            field.name,
-        )
-
-        if value is None:
-            continue
-
-        if is_dataclass(value):
-            _validate_dataclass(value)
-            continue
-
-        if isinstance(value, Mapping):
-
-            for mapping_value in value.values():
-
-                if is_dataclass(mapping_value):
-                    _validate_dataclass(mapping_value)
-
-            continue
-
-        if isinstance(
-            value,
-            (list, tuple, set, frozenset),
-        ):
-
-            for item in value:
-
-                if is_dataclass(item):
-                    _validate_dataclass(item)
-                                continue
-
-        annotation = field.type
-
-        if _is_optional_type(annotation):
-            annotation = _strip_optional_type(annotation)
-
-        if annotation is Any:
-            continue
-
-        if _is_scalar_type(annotation):
-
-            if not isinstance(value, annotation):
-                _raise_invalid_type(
-                    field_name=field.name,
-                    expected=annotation,
-                    actual=value,
-                )
-
-            continue
-
-        if _is_sequence_type(annotation):
-            continue
-
-        if _is_mapping_type(annotation):
-            continue
-
-        if _is_dataclass_type(annotation):
-            continue
-
-        origin = get_origin(annotation)
-
-        if origin is None:
-
-            if not isinstance(value, annotation):
-                _raise_invalid_type(
-                    field_name=field.name,
-                    expected=annotation,
-                    actual=value,
-                )
-
-    return
-
-
-###############################################################################
-# Validation entry point
-###############################################################################
-
-
-def _validate_configuration(
-    configuration: ConfigT,
-) -> ConfigT:
-    """
-    Validate a fully constructed configuration object.
-
-    Parameters
-    ----------
-    configuration
-        Configuration instance.
-
-    Returns
-    -------
-    ConfigT
-        The validated configuration instance.
-
-    Raises
-    ------
-    ConfigurationValidationError
-        If validation fails.
-    """
-    _validate_dataclass(configuration)
-    return configuration
-
-
-###############################################################################
-# Internal loading helpers
-###############################################################################
-
-
-def _read_configuration_file(
-    configuration_path: PathLike,
-) -> Mapping[str, Any]:
-    """
-    Read a configuration mapping from disk.
-
-    Parameters
-    ----------
-    configuration_path
-        Configuration file.
-
-    Returns
-    -------
-    Mapping[str, Any]
-        Parsed YAML mapping.
-
-    Raises
-    ------
-    ConfigurationError
-        If the configuration file cannot be loaded.
-    """
-    path = _normalize_path(configuration_path)
-
-    try:
-        return read_yaml(path)
-
+        project_config = _load_project_config(project_path)
+        engineering_config = _load_engineering_config(engineering_path)
+        documentation_config = _load_documentation_config(documentation_path)
+        logging_config = _load_logging_config(logging_path)
+    except ConfigurationError:
+        raise
     except Exception as exc:
         raise ConfigurationError(
-            f"Unable to load configuration file: {path}"
+            "Unexpected error while loading configuration."
         ) from exc
+
+    return Configuration(
+        project=project_config,
+        engineering=engineering_config,
+        documentation=documentation_config,
+        logging=logging_config,
+    )

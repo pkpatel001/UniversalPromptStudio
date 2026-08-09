@@ -20,7 +20,7 @@ from rich.table import Table
 
 APP_NAME = "Universal Prompt Studio"
 TOOLKIT_NAME = "Engineering Toolkit"
-VERSION = "0.1.0-alpha"
+from Engineering.core.version import VERSION
 
 console = Console()
 app = typer.Typer(
