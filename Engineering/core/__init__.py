@@ -18,6 +18,16 @@ from .config import (
     ValidationConfiguration,
     get_config,
 )
+from .diagnostics import (
+    DiagnosticCategory,
+    DiagnosticCheck,
+    DiagnosticContext,
+    DiagnosticIssue,
+    DiagnosticReport,
+    DiagnosticSeverity,
+    Doctor,
+    HealthState,
+)
 from .paths import ProjectPaths, get_paths
 from .validation import (
     ValidationContext,
@@ -51,4 +61,12 @@ __all__ = [
     "ValidationReport",
     "ValidationRule",
     "ValidationSeverity",
+    "DiagnosticCategory",
+    "DiagnosticSeverity",
+    "DiagnosticIssue",
+    "HealthState",
+    "DiagnosticReport",
+    "DiagnosticCheck",
+    "DiagnosticContext",
+    "Doctor",
 ]
