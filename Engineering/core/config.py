@@ -196,29 +196,213 @@ class Configuration:
 # -----------------------------------------------------------------------------
 
 
-def _require_keys(data: dict[str, object], keys: tuple[str, ...]) -> None:
+def _validate_str(value: object, filename: str, key_path: str) -> str:
     """
-    Ensure that all required keys exist in a mapping.
+    Validate that a configuration value is a string.
 
     Parameters
     ----------
-    data
-        Mapping to validate.
-    keys
-        Required keys.
+    value
+        Configuration value to validate.
+    filename
+        Configuration file name for error messages.
+    key_path
+        Dot-separated configuration path for error messages.
+
+    Returns
+    -------
+    str
+        The validated string value.
 
     Raises
     ------
     ConfigurationValidationError
-        If any required key is missing.
+        If the value is not a string.
     """
 
-    missing = [key for key in keys if key not in data]
+    if not isinstance(value, str):
+        raise ConfigurationValidationError(
+            f"Invalid configuration value at {key_path} in {filename}: "
+            f"expected str, received {type(value).__name__}."
+        )
+
+    return value
+
+
+def _validate_bool(value: object, filename: str, key_path: str) -> bool:
+    """
+    Validate that a configuration value is a boolean.
+
+    Parameters
+    ----------
+    value
+        Configuration value to validate.
+    filename
+        Configuration file name for error messages.
+    key_path
+        Dot-separated configuration path for error messages.
+
+    Returns
+    -------
+    bool
+        The validated boolean value.
+
+    Raises
+    ------
+    ConfigurationValidationError
+        If the value is not a boolean.
+    """
+
+    if not isinstance(value, bool):
+        raise ConfigurationValidationError(
+            f"Invalid configuration value at {key_path} in {filename}: "
+            f"expected bool, received {type(value).__name__}."
+        )
+
+    return value
+
+
+def _validate_mapping(
+    value: object,
+    filename: str,
+    key_path: str,
+    required_keys: tuple[str, ...],
+) -> dict[str, object]:
+    """
+    Validate that a configuration value is a mapping with expected keys.
+
+    Parameters
+    ----------
+    value
+        Configuration value to validate.
+    filename
+        Configuration file name for error messages.
+    key_path
+        Dot-separated configuration path for error messages.
+    required_keys
+        Keys that must be present in the mapping.
+
+    Returns
+    -------
+    dict[str, object]
+        The validated mapping.
+
+    Raises
+    ------
+    ConfigurationValidationError
+        If the value is not a mapping, is missing required keys,
+        or contains unknown keys.
+    """
+
+    if not isinstance(value, dict):
+        raise ConfigurationValidationError(
+            f"Invalid configuration value at {key_path} in {filename}: "
+            f"expected mapping, received {type(value).__name__}."
+        )
+
+    missing = [key for key in required_keys if key not in value]
 
     if missing:
         raise ConfigurationValidationError(
-            f"Missing required configuration keys: {', '.join(missing)}"
+            f"Missing required configuration key(s) at {key_path} in {filename}: "
+            f"{', '.join(missing)}"
         )
+
+    unknown = [key for key in value if key not in required_keys]
+
+    if unknown:
+        raise ConfigurationValidationError(
+            f"Unknown configuration key(s) at {key_path} in {filename}: "
+            f"{', '.join(unknown)}"
+        )
+
+    return value
+
+
+def _load_config(
+    path: Path,
+    expected_root: str,
+    required_keys: tuple[str, ...],
+) -> dict[str, object]:
+    """
+    Load and validate a configuration file.
+
+    This generic loader handles common configuration file validation:
+    filename/root-key integrity, YAML parsing, root mapping validation,
+    required-key presence, and unknown-key rejection.
+
+    Parameters
+    ----------
+    path
+        Path to the configuration file.
+    expected_root
+        Expected root YAML key (must match the filename stem).
+    required_keys
+        Keys that must be present in the root mapping.
+
+    Returns
+    -------
+    dict[str, object]
+        Validated root mapping.
+
+    Raises
+    ------
+    ConfigurationFileNotFoundError
+        If the file does not exist.
+    ConfigurationValidationError
+        If the file is structurally invalid.
+    """
+
+    if not path.is_file():
+        raise ConfigurationFileNotFoundError(
+            f"Configuration file not found: {path}"
+        )
+
+    if path.stem != expected_root:
+        raise ConfigurationValidationError(
+            f"Invalid configuration file {path.name}: "
+            f"filename stem '{path.stem}' does not match expected root key '{expected_root}'."
+        )
+
+    data = read_yaml(path)
+
+    root = data.get(expected_root)
+
+    if root is None:
+        raise ConfigurationValidationError(
+            f"Invalid configuration file {path.name}: "
+            f"expected root key '{expected_root}' not found."
+        )
+
+    if not isinstance(root, dict):
+        raise ConfigurationValidationError(
+            f"Invalid configuration file {path.name}: "
+            f"expected root key '{expected_root}' to be a mapping, "
+            f"received {type(root).__name__}."
+        )
+
+    missing = [key for key in required_keys if key not in root]
+
+    if missing:
+        raise ConfigurationValidationError(
+            f"Missing required configuration key(s) in {path.name} "
+            f"under '{expected_root}': {', '.join(missing)}"
+        )
+
+    unknown = [key for key in root if key not in required_keys]
+
+    if unknown:
+        raise ConfigurationValidationError(
+            f"Unknown configuration key(s) in {path.name} "
+            f"under '{expected_root}': {', '.join(unknown)}"
+        )
+
+    return root
+
+
+# -----------------------------------------------------------------------------
+# Configuration Loaders
+# -----------------------------------------------------------------------------
 
 
 def _load_project_config(path: Path) -> ProjectConfiguration:
@@ -235,32 +419,31 @@ def _load_project_config(path: Path) -> ProjectConfiguration:
     ProjectConfiguration
     """
 
-    data = read_yaml(path)
+    root = _load_config(
+        path,
+        "project",
+        ("name", "short_name", "company", "version", "license", "python"),
+    )
 
-    root = data.get("project")
-    if not isinstance(root, dict):
-        raise ConfigurationValidationError(
-            "Expected 'project' to be a mapping in project.yaml"
-        )
-
-    _require_keys(root, ("name", "short_name", "company", "version", "license", "python"))
-
-    python_data = root["python"]
-    if not isinstance(python_data, dict):
-        raise ConfigurationValidationError(
-            "Expected 'project.python' to be a mapping in project.yaml"
-        )
-
-    _require_keys(python_data, ("minimum_version",))
+    python_data = _validate_mapping(
+        root["python"],
+        path.name,
+        "project.python",
+        ("minimum_version",),
+    )
 
     return ProjectConfiguration(
-        name=str(root["name"]),
-        short_name=str(root["short_name"]),
-        company=str(root["company"]),
-        version=str(root["version"]),
-        license=str(root["license"]),
+        name=_validate_str(root["name"], path.name, "project.name"),
+        short_name=_validate_str(root["short_name"], path.name, "project.short_name"),
+        company=_validate_str(root["company"], path.name, "project.company"),
+        version=_validate_str(root["version"], path.name, "project.version"),
+        license=_validate_str(root["license"], path.name, "project.license"),
         python=PythonConfiguration(
-            minimum_version=str(python_data["minimum_version"])
+            minimum_version=_validate_str(
+                python_data["minimum_version"],
+                path.name,
+                "project.python.minimum_version",
+            ),
         ),
     )
 
@@ -279,47 +462,52 @@ def _load_engineering_config(path: Path) -> EngineeringConfiguration:
     EngineeringConfiguration
     """
 
-    data = read_yaml(path)
+    root = _load_config(
+        path,
+        "engineering",
+        ("strict_mode", "diagnostics", "cache", "validation", "paths"),
+    )
 
-    root = data.get("engineering")
-    if not isinstance(root, dict):
-        raise ConfigurationValidationError(
-            "Expected 'engineering' to be a mapping in engineering.yaml"
-        )
+    cache_data = _validate_mapping(
+        root["cache"],
+        path.name,
+        "engineering.cache",
+        ("enabled",),
+    )
 
-    _require_keys(root, ("strict_mode", "diagnostics", "cache", "validation", "paths"))
+    validation_data = _validate_mapping(
+        root["validation"],
+        path.name,
+        "engineering.validation",
+        ("enabled",),
+    )
 
-    cache_data = root["cache"]
-    if not isinstance(cache_data, dict):
-        raise ConfigurationValidationError(
-            "Expected 'engineering.cache' to be a mapping in engineering.yaml"
-        )
-
-    _require_keys(cache_data, ("enabled",))
-
-    validation_data = root["validation"]
-    if not isinstance(validation_data, dict):
-        raise ConfigurationValidationError(
-            "Expected 'engineering.validation' to be a mapping in engineering.yaml"
-        )
-
-    _require_keys(validation_data, ("enabled",))
-
-    paths_data = root["paths"]
-    if not isinstance(paths_data, dict):
-        raise ConfigurationValidationError(
-            "Expected 'engineering.paths' to be a mapping in engineering.yaml"
-        )
-
-    _require_keys(paths_data, ("verify_on_startup",))
+    paths_data = _validate_mapping(
+        root["paths"],
+        path.name,
+        "engineering.paths",
+        ("verify_on_startup",),
+    )
 
     return EngineeringConfiguration(
-        strict_mode=bool(root["strict_mode"]),
-        diagnostics=bool(root["diagnostics"]),
-        cache=CacheConfiguration(enabled=bool(cache_data["enabled"])),
-        validation=ValidationConfiguration(enabled=bool(validation_data["enabled"])),
+        strict_mode=_validate_bool(root["strict_mode"], path.name, "engineering.strict_mode"),
+        diagnostics=_validate_bool(root["diagnostics"], path.name, "engineering.diagnostics"),
+        cache=CacheConfiguration(
+            enabled=_validate_bool(cache_data["enabled"], path.name, "engineering.cache.enabled"),
+        ),
+        validation=ValidationConfiguration(
+            enabled=_validate_bool(
+                validation_data["enabled"],
+                path.name,
+                "engineering.validation.enabled",
+            ),
+        ),
         paths=EngineeringPathsConfiguration(
-            verify_on_startup=bool(paths_data["verify_on_startup"])
+            verify_on_startup=_validate_bool(
+                paths_data["verify_on_startup"],
+                path.name,
+                "engineering.paths.verify_on_startup",
+            ),
         ),
     )
 
@@ -338,32 +526,23 @@ def _load_documentation_config(path: Path) -> DocumentationConfiguration:
     DocumentationConfiguration
     """
 
-    data = read_yaml(path)
+    root = _load_config(
+        path,
+        "documentation",
+        ("enabled", "output", "generate"),
+    )
 
-    root = data.get("documentation")
-    if not isinstance(root, dict):
-        raise ConfigurationValidationError(
-            "Expected 'documentation' to be a mapping in documentation.yaml"
-        )
+    output_data = _validate_mapping(
+        root["output"],
+        path.name,
+        "documentation.output",
+        ("root",),
+    )
 
-    _require_keys(root, ("enabled", "output", "generate"))
-
-    output_data = root["output"]
-    if not isinstance(output_data, dict):
-        raise ConfigurationValidationError(
-            "Expected 'documentation.output' to be a mapping in documentation.yaml"
-        )
-
-    _require_keys(output_data, ("root",))
-
-    generate_data = root["generate"]
-    if not isinstance(generate_data, dict):
-        raise ConfigurationValidationError(
-            "Expected 'documentation.generate' to be a mapping in documentation.yaml"
-        )
-
-    _require_keys(
-        generate_data,
+    generate_data = _validate_mapping(
+        root["generate"],
+        path.name,
+        "documentation.generate",
         (
             "readme",
             "api",
@@ -377,17 +556,39 @@ def _load_documentation_config(path: Path) -> DocumentationConfiguration:
     )
 
     return DocumentationConfiguration(
-        enabled=bool(root["enabled"]),
-        output=DocumentationOutputConfiguration(root=str(output_data["root"])),
+        enabled=_validate_bool(root["enabled"], path.name, "documentation.enabled"),
+        output=DocumentationOutputConfiguration(
+            root=_validate_str(output_data["root"], path.name, "documentation.output.root"),
+        ),
         generate=DocumentationGenerateConfiguration(
-            readme=bool(generate_data["readme"]),
-            api=bool(generate_data["api"]),
-            architecture=bool(generate_data["architecture"]),
-            adrs=bool(generate_data["adrs"]),
-            project_status=bool(generate_data["project_status"]),
-            changelog=bool(generate_data["changelog"]),
-            index=bool(generate_data["index"]),
-            manifests=bool(generate_data["manifests"]),
+            readme=_validate_bool(
+                generate_data["readme"],
+                path.name,
+                "documentation.generate.readme",
+            ),
+            api=_validate_bool(generate_data["api"], path.name, "documentation.generate.api"),
+            architecture=_validate_bool(
+                generate_data["architecture"],
+                path.name,
+                "documentation.generate.architecture",
+            ),
+            adrs=_validate_bool(generate_data["adrs"], path.name, "documentation.generate.adrs"),
+            project_status=_validate_bool(
+                generate_data["project_status"],
+                path.name,
+                "documentation.generate.project_status",
+            ),
+            changelog=_validate_bool(
+                generate_data["changelog"],
+                path.name,
+                "documentation.generate.changelog",
+            ),
+            index=_validate_bool(generate_data["index"], path.name, "documentation.generate.index"),
+            manifests=_validate_bool(
+                generate_data["manifests"],
+                path.name,
+                "documentation.generate.manifests",
+            ),
         ),
     )
 
@@ -406,23 +607,19 @@ def _load_logging_config(path: Path) -> LoggingConfiguration:
     LoggingConfiguration
     """
 
-    data = read_yaml(path)
-
-    root = data.get("logging")
-    if not isinstance(root, dict):
-        raise ConfigurationValidationError(
-            "Expected 'logging' to be a mapping in logging.yaml"
-        )
-
-    _require_keys(root, ("enabled", "level", "console", "file", "directory", "filename"))
+    root = _load_config(
+        path,
+        "logging",
+        ("enabled", "level", "console", "file", "directory", "filename"),
+    )
 
     return LoggingConfiguration(
-        enabled=bool(root["enabled"]),
-        level=str(root["level"]),
-        console=bool(root["console"]),
-        file=bool(root["file"]),
-        directory=str(root["directory"]),
-        filename=str(root["filename"]),
+        enabled=_validate_bool(root["enabled"], path.name, "logging.enabled"),
+        level=_validate_str(root["level"], path.name, "logging.level"),
+        console=_validate_bool(root["console"], path.name, "logging.console"),
+        file=_validate_bool(root["file"], path.name, "logging.file"),
+        directory=_validate_str(root["directory"], path.name, "logging.directory"),
+        filename=_validate_str(root["filename"], path.name, "logging.filename"),
     )
 
 
