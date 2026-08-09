@@ -1,0 +1,20 @@
+# =============================================================================
+# {{ project.name }}
+#
+# {{ artifact.name | default("Module") }}
+#
+# AUTO-GENERATED FILE
+# Generator: {{ generator.generator_id }}
+# Template: python.module
+# DO NOT EDIT DIRECTLY.
+# =============================================================================
+
+"""
+{{ artifact.name | default("Module") }}
+
+{{ artifact.description | default("") }}
+"""
+
+from __future__ import annotations
+
+__version__ = "{{ values.version | default(project.version) }}"

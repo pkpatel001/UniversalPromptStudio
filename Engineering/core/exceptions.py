@@ -27,6 +27,14 @@ __all__ = [
     "DocumentationError",
     "DocumentationGenerationError",
     "BuildError",
+    "CodeGenerationError",
+    "TemplateError",
+    "TemplateNotFoundError",
+    "TemplateRenderError",
+    "GenerationConflictError",
+    "GenerationValidationError",
+    "UnsafeDestinationError",
+    "SecretContextError",
 ]
 
 
@@ -125,4 +133,57 @@ class DocumentationGenerationError(DocumentationError):
 class BuildError(EngineeringError):
     """
     Base exception for build and release operations.
+    """
+
+
+# -----------------------------------------------------------------------------
+# Code Generation
+# -----------------------------------------------------------------------------
+
+
+class CodeGenerationError(EngineeringError):
+    """
+    Base exception for the Code Generation framework.
+    """
+
+
+class TemplateError(CodeGenerationError):
+    """
+    Base exception for template-related errors.
+    """
+
+
+class TemplateNotFoundError(TemplateError):
+    """
+    Raised when a template cannot be resolved by its identifier.
+    """
+
+
+class TemplateRenderError(TemplateError):
+    """
+    Raised when a template fails to render.
+    """
+
+
+class GenerationConflictError(CodeGenerationError):
+    """
+    Raised when an artifact conflicts with an existing file.
+    """
+
+
+class GenerationValidationError(CodeGenerationError):
+    """
+    Raised when a generation plan fails validation.
+    """
+
+
+class UnsafeDestinationError(CodeGenerationError):
+    """
+    Raised when an artifact destination violates path safety rules.
+    """
+
+
+class SecretContextError(CodeGenerationError):
+    """
+    Raised when generation context contains secret key patterns.
     """
