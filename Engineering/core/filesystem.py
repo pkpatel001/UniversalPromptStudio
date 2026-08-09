@@ -147,6 +147,7 @@ def is_directory(path: Path) -> bool:
 
 from .exceptions import FileReadError
 
+
 def read_text(path: Path) -> str:
     """
     Read a UTF-8 encoded text file.
@@ -169,6 +170,7 @@ def read_text(path: Path) -> str:
         ) from exc
 
 from .exceptions import FileWriteError
+
 
 def write_text(path: Path, text: str) -> None:
     """

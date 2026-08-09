@@ -19,6 +19,14 @@ from .config import (
     get_config,
 )
 from .paths import ProjectPaths, get_paths
+from .validation import (
+    ValidationContext,
+    ValidationIssue,
+    ValidationReport,
+    ValidationRule,
+    ValidationSeverity,
+    Validator,
+)
 from .version import VERSION
 
 __all__ = [
@@ -37,4 +45,10 @@ __all__ = [
     "DocumentationOutputConfiguration",
     "DocumentationGenerateConfiguration",
     "LoggingConfiguration",
+    "Validator",
+    "ValidationContext",
+    "ValidationIssue",
+    "ValidationReport",
+    "ValidationRule",
+    "ValidationSeverity",
 ]
