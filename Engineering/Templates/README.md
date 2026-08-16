@@ -44,7 +44,9 @@ artifacts:
 ```
 
 Supported variable kinds are `required`, `optional`, and `defaulted`.
-Defaulted variables must declare a non-null `default` value.
+Supported value types are `string`, `integer`, `number`, `boolean`, `list`, and
+`mapping`. Supplied values and defaults are checked against their declared
+types. Defaulted variables must declare a non-null `default` value.
 
 ## Discovery and validation
 
@@ -59,6 +61,23 @@ duplicates, and optional cross-references to the E-008 source repository.
 JSON-serializable record. Written artifacts include SHA-256 hashes so consumers
 can verify generated content without relying on timestamps or machine-specific
 metadata.
+
+Manifests can be loaded with `ArtifactManifest.read()` and verified against an
+artifact directory with `verify()`. Verification reports missing files and
+content-hash mismatches without modifying generated output.
+
+## CLI
+
+Built-in definitions are available through the Engineering CLI:
+
+```text
+python -m Engineering generate templates
+python -m Engineering generate templates inspect project.basic
+python -m Engineering generate templates validate
+```
+
+The commands use the same discovery and validation services as programmatic
+consumers; the CLI remains a presentation adapter.
 
 See [Engineering/CodeGeneration/README.md](../CodeGeneration/README.md) for
 source-template conventions and rendering context details.

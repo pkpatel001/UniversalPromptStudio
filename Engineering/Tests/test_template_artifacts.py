@@ -168,6 +168,15 @@ class TestTemplateArtifactService:
                 values={"class_name": "Example", "surprise": True},
             )
 
+    def test_invalid_variable_type_is_rejected(self) -> None:
+        with pytest.raises(GenerationValidationError, match="expected string"):
+            TemplateArtifactService().build_request(
+                _definition(),
+                destination="out",
+                context=_context(),
+                values={"class_name": 42},
+            )
+
     def test_definition_runs_through_e008_engine(self, tmp_path: Path) -> None:
         source = tmp_path / "templates" / "python"
         source.mkdir(parents=True)
@@ -212,6 +221,24 @@ class TestTemplateDefinitionDiscovery:
         assert result.exit_code == 0
         assert "project.basic" in result.output
         assert "Basic project artifacts" in result.output
+
+    def test_cli_inspects_and_validates_built_in_definitions(self) -> None:
+        from typer.testing import CliRunner
+
+        from Engineering.cli.app import app
+
+        runner = CliRunner()
+        inspect_result = runner.invoke(
+            app, ["generate", "templates", "inspect", "project.basic"]
+        )
+        validate_result = runner.invoke(
+            app, ["generate", "templates", "validate"]
+        )
+
+        assert inspect_result.exit_code == 0
+        assert "README.md <- markdown.readme" in inspect_result.output
+        assert validate_result.exit_code == 0
+        assert "Validated 1 template definition" in validate_result.output
 
     def test_discovers_and_resolves_yaml_definitions(self, tmp_path: Path) -> None:
         source = tmp_path / "sources" / "python"
@@ -298,3 +325,14 @@ class TestArtifactManifest:
         manifest.write(manifest_path)
         assert manifest_path.read_text(encoding="utf-8") == first
         assert '"schema_version": 1' in first
+
+        loaded = type(manifest).read(manifest_path)
+        assert loaded == manifest
+        assert loaded.verify(tmp_path / "generated").passed
+
+        (tmp_path / "generated" / "component.py").write_text(
+            "tampered", encoding="utf-8"
+        )
+        verification = loaded.verify(tmp_path / "generated")
+        assert verification.passed is False
+        assert verification.issues[0].relative_path == "component.py"

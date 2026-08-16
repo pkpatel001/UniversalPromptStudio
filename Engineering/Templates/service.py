@@ -13,7 +13,7 @@ from Engineering.CodeGeneration.models import (
 from Engineering.core.exceptions import GenerationValidationError
 
 from .models import TemplateDefinition, VariableKind
-from .validation import TemplateDefinitionValidator
+from .validation import TemplateDefinitionValidator, value_matches_type
 
 
 class TemplateArtifactService:
@@ -45,6 +45,20 @@ class TemplateArtifactService:
         if unknown:
             raise GenerationValidationError(
                 f"Unknown template variable(s): {', '.join(unknown)}"
+            )
+
+        invalid_types = sorted(
+            name
+            for name, value in supplied.items()
+            if not value_matches_type(value, declared[name].value_type)
+        )
+        if invalid_types:
+            details = ", ".join(
+                f"{name} (expected {declared[name].value_type})"
+                for name in invalid_types
+            )
+            raise GenerationValidationError(
+                f"Invalid template variable type(s): {details}"
             )
 
         resolved: dict[str, object] = {}

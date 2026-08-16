@@ -10,7 +10,13 @@ from .discovery import (
     DirectoryTemplateDefinitionRepository,
     built_in_definition_repository,
 )
-from .manifest import ArtifactManifest, ArtifactManifestBuilder, ArtifactManifestEntry
+from .manifest import (
+    ArtifactManifest,
+    ArtifactManifestBuilder,
+    ArtifactManifestEntry,
+    ManifestVerificationIssue,
+    ManifestVerificationReport,
+)
 from .models import (
     ArtifactDefinition,
     TemplateCategory,
@@ -28,6 +34,8 @@ __all__ = [
     "ArtifactManifestBuilder",
     "ArtifactManifestEntry",
     "DirectoryTemplateDefinitionRepository",
+    "ManifestVerificationIssue",
+    "ManifestVerificationReport",
     "TemplateArtifactService",
     "TemplateCatalog",
     "TemplateCategory",
