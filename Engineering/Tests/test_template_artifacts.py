@@ -17,9 +17,12 @@ from Engineering.CodeGeneration import (
 from Engineering.core.exceptions import (
     CodeGenerationError,
     GenerationValidationError,
+    TemplateError,
 )
 from Engineering.Templates import (
     ArtifactDefinition,
+    ArtifactManifestBuilder,
+    DirectoryTemplateDefinitionRepository,
     TemplateArtifactService,
     TemplateCatalog,
     TemplateCategory,
@@ -28,6 +31,7 @@ from Engineering.Templates import (
     TemplateMetadata,
     TemplateVariable,
     VariableKind,
+    built_in_definition_repository,
 )
 
 
@@ -187,3 +191,110 @@ class TestTemplateArtifactService:
         output = (tmp_path / "generated" / "component.py").read_text(encoding="utf-8")
         assert "class Example" in output
         assert "Generated component" in output
+
+
+class TestTemplateDefinitionDiscovery:
+    def test_built_in_definition_is_valid(self) -> None:
+        repository = built_in_definition_repository()
+
+        definition = repository.resolve("project.basic")
+
+        assert definition.metadata.category == TemplateCategory.PROJECT
+        assert len(definition.artifacts) == 3
+
+    def test_cli_lists_built_in_definitions(self) -> None:
+        from typer.testing import CliRunner
+
+        from Engineering.cli.app import app
+
+        result = CliRunner().invoke(app, ["generate", "templates"])
+
+        assert result.exit_code == 0
+        assert "project.basic" in result.output
+        assert "Basic project artifacts" in result.output
+
+    def test_discovers_and_resolves_yaml_definitions(self, tmp_path: Path) -> None:
+        source = tmp_path / "sources" / "python"
+        source.mkdir(parents=True)
+        (source / "component.j2").write_text(
+            "class {{ values.class_name }}:\n    pass\n", encoding="utf-8"
+        )
+        definitions = tmp_path / "definitions" / "python"
+        definitions.mkdir(parents=True)
+        (definitions / "component.template.yaml").write_text(
+            """metadata:
+  id: python.component
+  name: Python component
+  version: 1.0.0
+  category: python
+  tags: [python, component]
+variables:
+  - name: class_name
+    kind: required
+    type: string
+artifacts:
+  - path: component.py
+    template: python.component
+    type: source
+""",
+            encoding="utf-8",
+        )
+        validator = TemplateDefinitionValidator(
+            DirectoryTemplateRepository(tmp_path / "sources")
+        )
+        repository = DirectoryTemplateDefinitionRepository(
+            tmp_path / "definitions", validator
+        )
+
+        definition = repository.resolve("python.component")
+
+        assert repository.definition_ids() == ("python.component",)
+        assert definition.version == "1.0.0"
+        assert definition.metadata.tags == ("python", "component")
+        assert definition.variables[0].kind == VariableKind.REQUIRED
+
+    def test_invalid_definition_is_rejected(self, tmp_path: Path) -> None:
+        (tmp_path / "bad.template.yaml").write_text(
+            "metadata: invalid\n", encoding="utf-8"
+        )
+
+        with pytest.raises(TemplateError, match="Invalid template definition"):
+            DirectoryTemplateDefinitionRepository(tmp_path).definitions()
+
+    def test_empty_or_missing_root_is_deterministic(self, tmp_path: Path) -> None:
+        repository = DirectoryTemplateDefinitionRepository(tmp_path / "missing")
+
+        assert repository.definitions() == ()
+        assert repository.definition_ids() == ()
+
+
+class TestArtifactManifest:
+    def test_builds_sorted_manifest_with_content_hashes(self, tmp_path: Path) -> None:
+        source = tmp_path / "templates" / "python"
+        source.mkdir(parents=True)
+        (source / "component.j2").write_text(
+            "class {{ values.class_name }}:\n    pass\n", encoding="utf-8"
+        )
+        repository = DirectoryTemplateRepository(tmp_path / "templates")
+        validator = TemplateDefinitionValidator(repository)
+        definition = _definition()
+        request = TemplateArtifactService(validator).build_request(
+            definition,
+            destination="generated",
+            context=_context(),
+            values={"class_name": "Example"},
+        )
+        report = GenerationEngine(repository, tmp_path).generate(request)
+
+        manifest = ArtifactManifestBuilder().build(
+            definition, report, tmp_path / "generated"
+        )
+        manifest_path = tmp_path / "manifest.json"
+        manifest.write(manifest_path)
+
+        assert manifest.template_id == "python.component"
+        assert manifest.artifacts[0].sha256
+        first = manifest_path.read_text(encoding="utf-8")
+        manifest.write(manifest_path)
+        assert manifest_path.read_text(encoding="utf-8") == first
+        assert '"schema_version": 1' in first

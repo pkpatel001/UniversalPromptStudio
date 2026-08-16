@@ -1,13 +1,64 @@
-# Engineering Templates
+# Engineering Templates and Artifacts
 
-This directory contains template files used by the Engineering Toolkit.
+This package is the E-009 template and artifact domain built on the E-008
+Code Generation framework.
 
-## Template categories
+The separation is deliberate:
 
-### CodeGeneration templates
+- E-009 discovers, describes, versions, validates, and catalogs templates and
+  their intended artifacts.
+- E-008 plans, renders, checks, writes, and reports generated files.
 
-Located in `CodeGeneration/`. These are Jinja2 (`.j2`) templates used by
-the Code Generation framework (E-008) to produce project artifacts.
+## Layout
 
-See [Engineering/CodeGeneration/README.md](../CodeGeneration/README.md)
-for template conventions, variable access patterns, and the ID mapping.
+```text
+Templates/
+├── CodeGeneration/       Jinja2 source templates owned by E-008
+├── Definitions/          E-009 *.template.yaml definitions
+├── catalog.py            Version-aware in-memory catalog
+├── discovery.py          File-backed definition discovery
+├── manifest.py           Deterministic artifact manifests
+├── models.py             Immutable domain models
+├── service.py            E-009 to E-008 request bridge
+└── validation.py         Definition and source-reference validation
+```
+
+## Definition format
+
+Definitions use the suffix `.template.yaml` and contain three sections:
+
+```yaml
+metadata:
+  id: project.basic
+  name: Basic project artifacts
+  version: 1.0.0
+  category: project
+variables:
+  - name: version
+    kind: optional
+    type: string
+artifacts:
+  - path: module.py
+    template: python.module
+    type: source
+```
+
+Supported variable kinds are `required`, `optional`, and `defaulted`.
+Defaulted variables must declare a non-null `default` value.
+
+## Discovery and validation
+
+`DirectoryTemplateDefinitionRepository` recursively discovers definition
+files in deterministic order. Each definition is validated before being
+returned, including its identity, semantic version, variables, artifact paths,
+duplicates, and optional cross-references to the E-008 source repository.
+
+## Artifact manifests
+
+`ArtifactManifestBuilder` converts an E-008 `GenerationReport` into a stable,
+JSON-serializable record. Written artifacts include SHA-256 hashes so consumers
+can verify generated content without relying on timestamps or machine-specific
+metadata.
+
+See [Engineering/CodeGeneration/README.md](../CodeGeneration/README.md) for
+source-template conventions and rendering context details.

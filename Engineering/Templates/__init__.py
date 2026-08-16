@@ -6,6 +6,11 @@ planning, rendering, safety checks, and filesystem writes.
 """
 
 from .catalog import TemplateCatalog
+from .discovery import (
+    DirectoryTemplateDefinitionRepository,
+    built_in_definition_repository,
+)
+from .manifest import ArtifactManifest, ArtifactManifestBuilder, ArtifactManifestEntry
 from .models import (
     ArtifactDefinition,
     TemplateCategory,
@@ -19,6 +24,10 @@ from .validation import TemplateDefinitionValidator
 
 __all__ = [
     "ArtifactDefinition",
+    "ArtifactManifest",
+    "ArtifactManifestBuilder",
+    "ArtifactManifestEntry",
+    "DirectoryTemplateDefinitionRepository",
     "TemplateArtifactService",
     "TemplateCatalog",
     "TemplateCategory",
@@ -27,4 +36,5 @@ __all__ = [
     "TemplateMetadata",
     "TemplateVariable",
     "VariableKind",
+    "built_in_definition_repository",
 ]

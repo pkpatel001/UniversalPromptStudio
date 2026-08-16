@@ -1,0 +1,32 @@
+metadata:
+  id: project.basic
+  name: Basic project artifacts
+  version: 1.0.0
+  category: project
+  description: A Python module, YAML configuration, and project README.
+  tags:
+    - built-in
+    - project
+
+variables:
+  - name: version
+    kind: optional
+    type: string
+    description: Optional artifact version override.
+
+artifacts:
+  - path: module.py
+    template: python.module
+    type: source
+    name: Project module
+    description: Generated Python project module.
+  - path: config.yaml
+    template: yaml.config
+    type: configuration
+    name: project
+    description: Generated project configuration.
+  - path: README.md
+    template: markdown.readme
+    type: documentation
+    name: Project README
+    description: Generated project overview.
