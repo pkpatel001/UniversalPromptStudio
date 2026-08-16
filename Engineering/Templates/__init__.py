@@ -10,6 +10,7 @@ from .discovery import (
     DirectoryTemplateDefinitionRepository,
     built_in_definition_repository,
 )
+from .executor import TemplateExecutionResult, TemplateExecutor
 from .manifest import (
     ArtifactManifest,
     ArtifactManifestBuilder,
@@ -41,6 +42,8 @@ __all__ = [
     "TemplateCategory",
     "TemplateDefinition",
     "TemplateDefinitionValidator",
+    "TemplateExecutionResult",
+    "TemplateExecutor",
     "TemplateMetadata",
     "TemplateVariable",
     "VariableKind",

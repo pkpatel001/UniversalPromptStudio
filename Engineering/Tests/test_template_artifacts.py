@@ -28,6 +28,7 @@ from Engineering.Templates import (
     TemplateCategory,
     TemplateDefinition,
     TemplateDefinitionValidator,
+    TemplateExecutor,
     TemplateMetadata,
     TemplateVariable,
     VariableKind,
@@ -240,6 +241,27 @@ class TestTemplateDefinitionDiscovery:
         assert validate_result.exit_code == 0
         assert "Validated 1 template definition" in validate_result.output
 
+    def test_cli_dry_run_executes_without_writes(self) -> None:
+        from typer.testing import CliRunner
+
+        from Engineering.cli.app import app
+
+        result = CliRunner().invoke(
+            app,
+            [
+                "generate",
+                "templates",
+                "run",
+                "project.basic",
+                "--destination",
+                "work/e009-cli-dry-run",
+                "--dry-run",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Dry-run Generation completed" in result.output
+
     def test_discovers_and_resolves_yaml_definitions(self, tmp_path: Path) -> None:
         source = tmp_path / "sources" / "python"
         source.mkdir(parents=True)
@@ -336,3 +358,122 @@ class TestArtifactManifest:
         verification = loaded.verify(tmp_path / "generated")
         assert verification.passed is False
         assert verification.issues[0].relative_path == "component.py"
+
+
+class TestTemplateExecutor:
+    def test_executes_and_writes_verified_manifest(self, tmp_path: Path) -> None:
+        sources = tmp_path / "templates" / "python"
+        sources.mkdir(parents=True)
+        (sources / "component.j2").write_text(
+            "class {{ values.class_name }}:\n    pass\n", encoding="utf-8"
+        )
+        definitions = tmp_path / "definitions"
+        definitions.mkdir()
+        (definitions / "component.template.yaml").write_text(
+            """metadata:
+  id: python.component
+  name: Component
+  version: 1.0.0
+  category: python
+variables:
+  - name: class_name
+    type: string
+artifacts:
+  - path: component.py
+    template: python.component
+""",
+            encoding="utf-8",
+        )
+        source_repository = DirectoryTemplateRepository(tmp_path / "templates")
+        definition_repository = DirectoryTemplateDefinitionRepository(
+            definitions, TemplateDefinitionValidator(source_repository)
+        )
+        executor = TemplateExecutor(
+            definition_repository, source_repository, tmp_path
+        )
+
+        result = executor.execute(
+            "python.component",
+            destination="output",
+            context=_context(),
+            values={"class_name": "Example"},
+        )
+
+        assert result.report.success
+        assert result.manifest is not None
+        assert result.manifest_path is not None
+        assert result.manifest_path.is_file()
+        assert result.manifest.verify(tmp_path / "output").passed
+
+    def test_dry_run_and_failure_never_write_manifest(self, tmp_path: Path) -> None:
+        source_repository = DirectoryTemplateRepository(tmp_path / "sources")
+        definitions = tmp_path / "definitions"
+        definitions.mkdir()
+        definition_repository = DirectoryTemplateDefinitionRepository(definitions)
+        executor = TemplateExecutor(
+            definition_repository, source_repository, tmp_path
+        )
+
+        with pytest.raises(TemplateError):
+            executor.execute(
+                "missing.template",
+                destination="output",
+                context=_context(),
+                dry_run=True,
+            )
+
+        assert not (tmp_path / "output" / ".ups-artifact-manifest.json").exists()
+
+    def test_unsafe_destination_fails_without_manifest(self, tmp_path: Path) -> None:
+        executor = TemplateExecutor.built_in(tmp_path)
+
+        result = executor.execute(
+            "project.basic",
+            destination="../outside",
+            context=_context(),
+            dry_run=False,
+        )
+
+        assert result.report.success is False
+        assert result.manifest is None
+        assert result.manifest_path is None
+
+    def test_secret_values_are_rejected_before_writes(self, tmp_path: Path) -> None:
+        sources = tmp_path / "sources" / "python"
+        sources.mkdir(parents=True)
+        (sources / "module.j2").write_text("content\n", encoding="utf-8")
+        definitions = tmp_path / "definitions"
+        definitions.mkdir()
+        (definitions / "secret.template.yaml").write_text(
+            """metadata:
+  id: project.secret-check
+  name: Secret check
+  version: 1.0.0
+  category: project
+variables:
+  - name: api_key
+    type: string
+artifacts:
+  - path: file.py
+    template: python.module
+""",
+            encoding="utf-8",
+        )
+        source_repository = DirectoryTemplateRepository(tmp_path / "sources")
+        definition_repository = DirectoryTemplateDefinitionRepository(
+            definitions, TemplateDefinitionValidator(source_repository)
+        )
+        executor = TemplateExecutor(
+            definition_repository, source_repository, tmp_path
+        )
+
+        result = executor.execute(
+            "project.secret-check",
+            destination="output",
+            context=_context(),
+            values={"api_key": "do-not-write"},
+        )
+
+        assert result.report.success is False
+        assert result.manifest is None
+        assert not (tmp_path / "output").exists()

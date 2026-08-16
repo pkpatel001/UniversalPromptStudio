@@ -74,10 +74,17 @@ Built-in definitions are available through the Engineering CLI:
 python -m Engineering generate templates
 python -m Engineering generate templates inspect project.basic
 python -m Engineering generate templates validate
+python -m Engineering generate templates run project.basic --destination Generated/Basic
+python -m Engineering generate templates run project.basic --destination Generated/Basic --dry-run
 ```
 
 The commands use the same discovery and validation services as programmatic
 consumers; the CLI remains a presentation adapter.
+
+Repeat `--value NAME=VALUE` for declared variables. Non-string values use JSON
+syntax. Existing differing files are conflicts unless `--overwrite` is passed.
+Successful runs write `.ups-artifact-manifest.json` in the destination; dry-runs
+never write artifacts or manifests.
 
 See [Engineering/CodeGeneration/README.md](../CodeGeneration/README.md) for
 source-template conventions and rendering context details.

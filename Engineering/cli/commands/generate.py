@@ -2,10 +2,27 @@
 
 from __future__ import annotations
 
+import json
+from typing import Annotated
+
 import typer
 
 from Engineering.cli.output.console import console
-from Engineering.Templates import built_in_definition_repository
+from Engineering.CodeGeneration import (
+    ArtifactInfo,
+    GenerationContext,
+    GeneratorInfo,
+    OverwritePolicy,
+    project_context_from_config,
+)
+from Engineering.core.config import get_config
+from Engineering.core.exceptions import GenerationValidationError
+from Engineering.core.paths import get_paths
+from Engineering.Templates import (
+    TemplateDefinition,
+    TemplateExecutor,
+    built_in_definition_repository,
+)
 
 app = typer.Typer(help="Generate project assets")
 templates_app = typer.Typer(help="Discover and validate template definitions")
@@ -68,6 +85,73 @@ def validate_templates() -> None:
     console.print(
         f"[green]Validated {len(definitions)} template definition(s).[/green]"
     )
+
+
+@templates_app.command(name="run")
+def run_template(
+    template_id: str,
+    destination: Annotated[str, typer.Option("--destination", "-d")],
+    version: Annotated[str | None, typer.Option("--version")] = None,
+    values: Annotated[list[str] | None, typer.Option("--value", "-v")] = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    overwrite: Annotated[bool, typer.Option("--overwrite")] = False,
+) -> None:
+    """Generate artifacts from a built-in template definition."""
+
+    definition = built_in_definition_repository().resolve(template_id, version)
+    parsed_values = _parse_values(values or [], definition)
+    config = get_config()
+    context = GenerationContext(
+        project=project_context_from_config(config),
+        generator=GeneratorInfo(
+            generator_id=definition.template_id,
+            name=definition.metadata.name,
+            version=definition.version,
+        ),
+        artifact=ArtifactInfo(name=definition.metadata.name),
+    )
+    result = TemplateExecutor.built_in(get_paths().root).execute(
+        template_id,
+        version=version,
+        destination=destination,
+        context=context,
+        values=parsed_values,
+        overwrite=OverwritePolicy.ALLOWED if overwrite else OverwritePolicy.NEVER,
+        dry_run=dry_run,
+    )
+    console.print(result.report.summary)
+    if result.manifest_path is not None:
+        console.print(f"Manifest: {result.manifest_path}")
+    if not result.report.success:
+        raise typer.Exit(code=1)
+
+
+def _parse_values(
+    values: list[str], definition: TemplateDefinition
+) -> dict[str, object]:
+    """Parse repeatable NAME=VALUE options using declared variable types."""
+
+    declared = {variable.name: variable.value_type for variable in definition.variables}
+    parsed: dict[str, object] = {}
+    for item in values:
+        name, separator, raw = item.partition("=")
+        if not separator or not name:
+            raise GenerationValidationError(
+                f"Template values must use NAME=VALUE syntax: {item!r}"
+            )
+        value_type = declared.get(name)
+        if value_type is None:
+            raise GenerationValidationError(f"Unknown template variable: {name!r}")
+        if value_type == "string":
+            parsed[name] = raw
+            continue
+        try:
+            parsed[name] = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise GenerationValidationError(
+                f"Invalid {value_type} value for {name!r}: {raw!r}"
+            ) from exc
+    return parsed
 
 
 @app.command(name="provider")
