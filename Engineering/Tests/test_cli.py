@@ -48,6 +48,7 @@ class TestCLIApp:
         assert "docs" in result.output
         assert "build" in result.output
         assert "generate" in result.output
+        assert "release" in result.output
 
 
 class TestVersionCommand:
@@ -125,6 +126,14 @@ class TestFutureCommands:
         assert "provider" in result.output
         assert "plugin" in result.output
 
+    def test_release_help(self) -> None:
+        """Test release command help."""
+        result = runner.invoke(app, ["release", "--help"])
+        assert result.exit_code == 0
+        assert "plan" in result.output
+        assert "run" in result.output
+        assert "clean" in result.output
+
     def test_doctor_no_subcommand(self) -> None:
         """Test doctor without subcommand shows usage guidance."""
         result = runner.invoke(app, ["doctor"])
@@ -150,6 +159,12 @@ class TestFutureCommands:
         result = runner.invoke(app, ["generate"])
         assert result.exit_code == 0
         assert "not yet implemented" in result.output.lower()
+
+    def test_release_no_subcommand(self) -> None:
+        """Test release without subcommand."""
+        result = runner.invoke(app, ["release"])
+        assert result.exit_code == 0
+        assert "release plan" in result.output.lower()
 
 
 class TestErrorHandling:

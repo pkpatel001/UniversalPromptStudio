@@ -1,14 +1,15 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "universal-prompt-studio"
-version = "0.2.0"
+version = "0.2.0-alpha"
 description = "Offline, AI-agnostic desktop application for prompt engineering."
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "MPL-2.0" }
+license = "MPL-2.0"
+license-files = ["LICENSE", "NOTICE", "COPYRIGHT"]
 
 authors = [
     { name = "The Patel Brothers Creative Solutions" }
@@ -30,7 +31,6 @@ keywords = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3.12",
-    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
     "Operating System :: Microsoft :: Windows",
     "Typing :: Typed"
 ]
@@ -90,19 +90,45 @@ dev = [
     "pre-commit>=3.7",
 
     "types-PyYAML",
+
+    "build>=1.2",
+
+    "setuptools>=77",
+
+    "wheel>=0.43",
 ]
 
 [project.urls]
 
-Homepage = "https://github.com/<your-github>/UniversalPromptStudio"
+Homepage = "https://github.com/pkpatel001/UniversalPromptStudio"
 
-Documentation = "https://github.com/<your-github>/UniversalPromptStudio/wiki"
+Documentation = "https://github.com/pkpatel001/UniversalPromptStudio/wiki"
 
-Repository = "https://github.com/<your-github>/UniversalPromptStudio"
+Repository = "https://github.com/pkpatel001/UniversalPromptStudio"
 
-Issues = "https://github.com/<your-github>/UniversalPromptStudio/issues"
+Issues = "https://github.com/pkpatel001/UniversalPromptStudio/issues"
+
+[project.scripts]
+
+ups-engineering = "Engineering.cli.app:app"
+
+[tool.setuptools]
+
+include-package-data = true
+
+[tool.setuptools.package-data]
+
+Engineering = [
+    "config/*.yaml",
+    "Templates/CodeGeneration/markdown/*.j2",
+    "Templates/CodeGeneration/python/*.j2",
+    "Templates/CodeGeneration/yaml/*.j2",
+    "Templates/Definitions/*.template.yaml",
+]
 
 [tool.setuptools.packages.find]
+
+namespaces = false
 
 include = [
     "Backend*",
@@ -119,6 +145,8 @@ exclude = [
     "Scripts*",
     "Templates*",
     "Tests*",
+    "Engineering.Tests*",
+    "Engineering.Documentation.Generated*",
     "Themes*",
 ]
 

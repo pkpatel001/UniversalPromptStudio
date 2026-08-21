@@ -1,0 +1,6 @@
+include LICENSE
+include NOTICE
+include COPYRIGHT
+include README.md
+recursive-include Engineering/config *.yaml
+recursive-include Engineering/Templates *.j2 *.yaml

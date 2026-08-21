@@ -4,4 +4,6 @@ Universal Prompt Studio
 Engineering Toolkit
 """
 
-__version__ = "0.1.0-alpha"
+from .core.version import VERSION
+
+__version__ = VERSION

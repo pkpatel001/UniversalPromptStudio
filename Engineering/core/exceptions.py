@@ -27,6 +27,7 @@ __all__ = [
     "DocumentationError",
     "DocumentationGenerationError",
     "BuildError",
+    "ReleaseError",
     "CodeGenerationError",
     "TemplateError",
     "TemplateNotFoundError",
@@ -132,8 +133,12 @@ class DocumentationGenerationError(DocumentationError):
 
 class BuildError(EngineeringError):
     """
-    Base exception for build and release operations.
+    Base exception for build operations.
     """
+
+
+class ReleaseError(EngineeringError):
+    """Base exception for release and packaging operations."""
 
 
 # -----------------------------------------------------------------------------
