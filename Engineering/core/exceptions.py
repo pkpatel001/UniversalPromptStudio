@@ -28,6 +28,7 @@ __all__ = [
     "DocumentationGenerationError",
     "BuildError",
     "ReleaseError",
+    "ManifestError",
     "CodeGenerationError",
     "TemplateError",
     "TemplateNotFoundError",
@@ -139,6 +140,10 @@ class BuildError(EngineeringError):
 
 class ReleaseError(EngineeringError):
     """Base exception for release and packaging operations."""
+
+
+class ManifestError(EngineeringError):
+    """Base exception for manifest discovery and validation operations."""
 
 
 # -----------------------------------------------------------------------------
