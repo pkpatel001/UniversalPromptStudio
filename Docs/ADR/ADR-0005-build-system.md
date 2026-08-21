@@ -62,6 +62,19 @@ E-010 verifies and orchestrates build readiness. Wheels, executables, Tauri or
 PyInstaller bundles, signing, release versions, and publishing remain outside
 this milestone.
 
+### 9. Profiles select terminal targets
+
+Backend, frontend, and full profiles are mappings to terminal build-step IDs.
+The dependency planner expands and deduplicates their prerequisites. Profiles
+do not introduce separate execution engines or duplicate build logic.
+
+### 10. Frontend readiness precedes frontend packaging
+
+The frontend step validates Vite scripts, Tauri build wiring, and required
+sources. Because the repository does not yet contain a dependency lockfile or
+Rust `Cargo.toml`, E-010 does not claim to produce a reproducible Tauri bundle.
+Those prerequisites and bundle execution belong to E-011.
+
 ## Consequences
 
 - Backend, frontend, documentation, and future packaging checks can be added as

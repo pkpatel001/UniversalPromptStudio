@@ -8,10 +8,10 @@ import typer
 
 from Engineering.BuildSystem import (
     BuildContext,
-    BuildEngine,
+    BuildProfile,
     BuildService,
-    ProjectValidationStep,
-    PythonSyntaxStep,
+    default_build_engine,
+    profile_targets,
 )
 from Engineering.cli.errors import EXIT_CODE_VALIDATION_FAILURE
 from Engineering.cli.output.console import console
@@ -43,6 +43,7 @@ def build_clean() -> None:
 @app.command(name="run")
 def build_run(
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    profile: Annotated[BuildProfile, typer.Option("--profile")] = BuildProfile.FULL,
 ) -> None:
     """Run build process."""
     paths = get_paths()
@@ -51,7 +52,9 @@ def build_run(
         output_root=paths.root / "build",
         dry_run=dry_run,
     )
-    execution = BuildService(_default_engine()).run(context)
+    execution = BuildService(default_build_engine()).run(
+        context, targets=profile_targets(profile)
+    )
     for result in execution.report.results:
         console.print(f"{result.state.value.upper():9} {result.step_id}: {result.message}")
     console.print(execution.report.summary)
@@ -62,13 +65,13 @@ def build_run(
 
 
 @app.command(name="plan")
-def build_plan() -> None:
+def build_plan(
+    profile: Annotated[BuildProfile, typer.Option("--profile")] = BuildProfile.FULL,
+) -> None:
     """Display the deterministic default build plan."""
 
-    plan = _default_engine().plan(dry_run=True)
+    plan = default_build_engine().plan(
+        targets=profile_targets(profile), dry_run=True
+    )
     for index, step_id in enumerate(plan.step_ids, start=1):
         console.print(f"{index}. {step_id}")
-
-
-def _default_engine() -> BuildEngine:
-    return BuildEngine([ProjectValidationStep(), PythonSyntaxStep()])

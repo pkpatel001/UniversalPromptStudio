@@ -15,11 +15,23 @@ Build targets
     -> successful build manifest
 ```
 
-The default build currently runs:
+The build profiles are:
+
+- `backend` — project validation, Python syntax verification, and deterministic
+  Backend package inventory.
+- `frontend` — project validation plus Vite/Tauri configuration and source
+  readiness checks.
+- `full` — composes backend and frontend targets while deduplicating shared
+  dependencies.
+
+The built-in steps are:
 
 1. `build.validate-project` — established project structure rules.
 2. `build.python-syntax` — in-memory compilation of Backend and Engineering
    Python sources without writing bytecode.
+3. `build.backend-inventory` — validates and inventories Backend Python files.
+4. `build.frontend-readiness` — validates npm scripts, Tauri build wiring, and
+   required frontend sources.
 
 ## Safety and determinism
 
@@ -35,7 +47,9 @@ The default build currently runs:
 
 ```text
 python -m Engineering build plan
+python -m Engineering build plan --profile frontend
 python -m Engineering build run --dry-run
+python -m Engineering build run --profile backend
 python -m Engineering build run
 python -m Engineering build clean
 ```
@@ -47,3 +61,8 @@ python -m Engineering build clean
 E-010 owns build planning, build verification, orchestration, output tracking,
 and cleanup. E-011 owns wheels, installers, PyInstaller/Tauri bundles, signing,
 release metadata, and publishing.
+
+The repository currently has no committed frontend lockfile or Rust
+`Cargo.toml`. Consequently the frontend profile proves build readiness but does
+not claim to create a reproducible Tauri bundle. That work must begin only after
+E-011 establishes those packaging prerequisites.

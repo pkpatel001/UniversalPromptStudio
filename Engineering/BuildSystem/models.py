@@ -15,6 +15,14 @@ class BuildState(Enum):
     FAILED = "failed"
 
 
+class BuildProfile(Enum):
+    """Supported E-010 build-readiness profiles."""
+
+    BACKEND = "backend"
+    FRONTEND = "frontend"
+    FULL = "full"
+
+
 @dataclass(frozen=True, slots=True)
 class BuildContext:
     """Filesystem context shared by build steps."""

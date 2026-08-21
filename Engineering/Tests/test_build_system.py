@@ -7,14 +7,20 @@ from pathlib import Path
 import pytest
 
 from Engineering.BuildSystem import (
+    BackendInventoryStep,
     BuildContext,
     BuildEngine,
+    BuildManifest,
+    BuildProfile,
     BuildService,
     BuildState,
     BuildStep,
     BuildStepResult,
+    FrontendReadinessStep,
     ProjectValidationStep,
     PythonSyntaxStep,
+    default_build_engine,
+    profile_targets,
 )
 from Engineering.core.exceptions import BuildError
 
@@ -145,6 +151,7 @@ class TestBuildService:
         assert execution.manifest_path == tmp_path / "build" / "build-manifest.json"
         assert execution.manifest_path.is_file()
         first = execution.manifest_path.read_text(encoding="utf-8")
+        assert BuildManifest.read(execution.manifest_path) == execution.manifest
         second = service.run(context)
         assert second.manifest_path is not None
         assert second.manifest_path.read_text(encoding="utf-8") == first
@@ -214,6 +221,84 @@ class TestProjectValidationStep:
         assert "error(s)" in result.message
 
 
+class TestBuildProfiles:
+    def test_profile_targets_produce_expected_plans(self) -> None:
+        engine = default_build_engine()
+
+        backend = engine.plan(targets=profile_targets(BuildProfile.BACKEND))
+        frontend = engine.plan(targets=profile_targets(BuildProfile.FRONTEND))
+        full = engine.plan(targets=profile_targets(BuildProfile.FULL))
+
+        assert backend.step_ids == (
+            "build.validate-project",
+            "build.python-syntax",
+            "build.backend-inventory",
+        )
+        assert frontend.step_ids == (
+            "build.validate-project",
+            "build.frontend-readiness",
+        )
+        assert full.step_ids == (
+            "build.validate-project",
+            "build.python-syntax",
+            "build.backend-inventory",
+            "build.frontend-readiness",
+        )
+
+
+class TestBackendInventoryStep:
+    def test_inventories_backend_sources(self, tmp_path: Path) -> None:
+        backend = tmp_path / "Backend" / "domain"
+        backend.mkdir(parents=True)
+        (tmp_path / "Backend" / "__init__.py").write_text("", encoding="utf-8")
+        (backend / "models.py").write_text("class Model: pass\n", encoding="utf-8")
+
+        result = BackendInventoryStep().execute(_context(tmp_path))
+
+        assert result.state == BuildState.SUCCEEDED
+        assert result.artifacts == (
+            "Backend/__init__.py",
+            "Backend/domain/models.py",
+        )
+
+    def test_requires_backend_package(self, tmp_path: Path) -> None:
+        result = BackendInventoryStep().execute(_context(tmp_path))
+
+        assert result.state == BuildState.FAILED
+
+
+class TestFrontendReadinessStep:
+    def test_validates_vite_tauri_configuration(self, tmp_path: Path) -> None:
+        frontend = tmp_path / "Frontend"
+        (frontend / "src-tauri").mkdir(parents=True)
+        (frontend / "src").mkdir()
+        (frontend / "package.json").write_text(
+            '{"scripts":{"build":"vite build","dev":"vite","tauri":"tauri"}}',
+            encoding="utf-8",
+        )
+        (frontend / "src-tauri" / "tauri.conf.json").write_text(
+            '{"build":{"beforeBuildCommand":"npm run build","frontendDist":"../dist"}}',
+            encoding="utf-8",
+        )
+        for relative in ("index.html", "src/main.js", "src/styles.css"):
+            (frontend / relative).write_text("source\n", encoding="utf-8")
+
+        result = FrontendReadinessStep().execute(_context(tmp_path))
+
+        assert result.state == BuildState.SUCCEEDED
+        assert "Vite/Tauri" in result.message
+
+    def test_reports_invalid_frontend_configuration(self, tmp_path: Path) -> None:
+        frontend = tmp_path / "Frontend"
+        frontend.mkdir()
+        (frontend / "package.json").write_text("{}", encoding="utf-8")
+
+        result = FrontendReadinessStep().execute(_context(tmp_path))
+
+        assert result.state == BuildState.FAILED
+        assert "scripts mapping" in result.message
+
+
 class TestBuildCLI:
     def test_plan_and_dry_run(self) -> None:
         from typer.testing import CliRunner
@@ -229,3 +314,16 @@ class TestBuildCLI:
         assert "build.python-syntax" in plan.output
         assert dry_run.exit_code == 0
         assert "Dry-run Build succeeded" in dry_run.output
+
+    def test_profile_specific_plan(self) -> None:
+        from typer.testing import CliRunner
+
+        from Engineering.cli.app import app
+
+        result = CliRunner().invoke(
+            app, ["build", "plan", "--profile", "frontend"]
+        )
+
+        assert result.exit_code == 0
+        assert "build.frontend-readiness" in result.output
+        assert "build.python-syntax" not in result.output
