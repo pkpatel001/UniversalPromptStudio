@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import struct
 import subprocess
 import tarfile
 import zipfile
@@ -14,6 +15,7 @@ import pytest
 
 from Engineering.core.exceptions import ReleaseError
 from Engineering.ReleaseSystem import (
+    DesktopPackageBuilder,
     FrontendPackageBuilder,
     PackageArtifact,
     PackageFormat,
@@ -252,6 +254,22 @@ class TestPackageInspection:
         assert artifact.package_format == PackageFormat.FRONTEND_ZIP
         assert artifact.relative_path == "packages/frontend/frontend.zip"
 
+    def test_inspects_nsis_windows_executable(self, tmp_path: Path) -> None:
+        root = tmp_path / "release"
+        package = root / "packages" / "desktop" / "example_x64-setup.exe"
+        package.parent.mkdir(parents=True)
+        content = bytearray(132)
+        content[:2] = b"MZ"
+        struct.pack_into("<I", content, 0x3C, 128)
+        content[128:132] = b"PE\0\0"
+        package.write_bytes(content)
+
+        artifact = PackageInspector().inspect(package, root)
+
+        assert artifact.package_format == PackageFormat.DESKTOP_NSIS
+        assert artifact.relative_path == "packages/desktop/example_x64-setup.exe"
+        assert artifact.members == ()
+
 
 class TestFrontendPackageBuilder:
     def test_creates_deterministic_archive(
@@ -284,6 +302,41 @@ class TestFrontendPackageBuilder:
         )[0].read_bytes()
 
         assert first == second
+
+
+class TestDesktopPackageBuilder:
+    def test_builds_and_stages_nsis_installer(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        frontend = tmp_path / "Frontend"
+        tauri = frontend / "src-tauri"
+        tauri.mkdir(parents=True)
+        (tauri / "Cargo.lock").write_text("version = 4", encoding="utf-8")
+        builder = DesktopPackageBuilder()
+
+        def fake_run(
+            command: list[str],
+            cwd: Path,
+            operation: str,
+            env: dict[str, str] | None = None,
+        ) -> None:
+            if operation == "Tauri NSIS build":
+                bundle = tauri / "target" / "release" / "bundle" / "nsis"
+                bundle.mkdir(parents=True)
+                (bundle / "example_x64-setup.exe").write_bytes(b"installer")
+
+        monkeypatch.setattr("shutil.which", lambda name: "npm")
+        monkeypatch.setattr(FrontendPackageBuilder, "_run", staticmethod(fake_run))
+
+        artifacts = builder.build(
+            tmp_path,
+            tmp_path / "packages",
+            (PackageFormat.DESKTOP_NSIS,),
+        )
+
+        assert len(artifacts) == 1
+        assert artifacts[0].name == "example_x64-setup.exe"
+        assert artifacts[0].read_bytes() == b"installer"
 
 
 class TestReleaseManifest:
@@ -338,6 +391,7 @@ class FakePackageBuilder:
                 PackageFormat.SDIST: "example.tar.gz",
                 PackageFormat.WHEEL: "example.whl",
                 PackageFormat.FRONTEND_ZIP: "frontend.zip",
+                PackageFormat.DESKTOP_NSIS: "example_x64-setup.exe",
             }
             name = names[package_format]
             path = output_directory / name
@@ -351,6 +405,8 @@ class FakeInspector:
         package_format = (
             PackageFormat.WHEEL
             if path.suffix == ".whl"
+            else PackageFormat.DESKTOP_NSIS
+            if path.name.endswith("-setup.exe")
             else PackageFormat.FRONTEND_ZIP
             if path.suffix == ".zip"
             else PackageFormat.SDIST
@@ -376,7 +432,12 @@ class TestReleaseService:
 
         execution = service.run(
             context,
-            (PackageFormat.SDIST, PackageFormat.WHEEL, PackageFormat.FRONTEND_ZIP),
+            (
+                PackageFormat.SDIST,
+                PackageFormat.WHEEL,
+                PackageFormat.FRONTEND_ZIP,
+                PackageFormat.DESKTOP_NSIS,
+            ),
         )
 
         assert execution.report is not None
@@ -395,11 +456,16 @@ class TestReleaseService:
 
         execution = service.run(
             context,
-            (PackageFormat.SDIST, PackageFormat.WHEEL, PackageFormat.FRONTEND_ZIP),
+            (
+                PackageFormat.SDIST,
+                PackageFormat.WHEEL,
+                PackageFormat.FRONTEND_ZIP,
+                PackageFormat.DESKTOP_NSIS,
+            ),
         )
 
         assert execution.report is not None and execution.report.success
         assert execution.manifest_path is not None and execution.manifest_path.is_file()
         assert execution.checksum_path is not None and execution.checksum_path.is_file()
         assert ReleaseManifest.read(execution.manifest_path) == execution.manifest
-        assert len(execution.report.results) == 3
+        assert len(execution.report.results) == 4

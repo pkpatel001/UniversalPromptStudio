@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import struct
 import tarfile
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -44,6 +45,9 @@ class PackageInspector:
     @staticmethod
     def _members(path: Path) -> tuple[PackageFormat, tuple[str, ...]]:
         try:
+            if path.name.endswith("-setup.exe"):
+                PackageInspector._validate_windows_executable(path)
+                return PackageFormat.DESKTOP_NSIS, ()
             if path.suffix == ".whl":
                 with zipfile.ZipFile(path) as archive:
                     return PackageFormat.WHEEL, tuple(sorted(archive.namelist()))
@@ -62,9 +66,22 @@ class PackageInspector:
         raise ReleaseError(f"Unsupported package artifact: {path.name}")
 
     @staticmethod
+    def _validate_windows_executable(path: Path) -> None:
+        """Validate the DOS and PE signatures without executing the installer."""
+
+        with path.open("rb") as stream:
+            header = stream.read(64)
+            if len(header) != 64 or header[:2] != b"MZ":
+                raise ReleaseError("Desktop installer is not a Windows executable.")
+            pe_offset = struct.unpack_from("<I", header, 0x3C)[0]
+            stream.seek(pe_offset)
+            if stream.read(4) != b"PE\0\0":
+                raise ReleaseError("Desktop installer has an invalid PE signature.")
+
+    @staticmethod
     def _validate_members(members: tuple[str, ...]) -> None:
         if not members:
-            raise ReleaseError("Package archive is empty.")
+            return
         for member in members:
             pure = PurePosixPath(member)
             if pure.is_absolute() or ".." in pure.parts:
@@ -76,6 +93,8 @@ class PackageInspector:
     def _validate_required(
         package_format: PackageFormat, members: tuple[str, ...]
     ) -> None:
+        if package_format == PackageFormat.DESKTOP_NSIS:
+            return
         if package_format == PackageFormat.FRONTEND_ZIP:
             if "index.html" not in members:
                 raise ReleaseError("Frontend package is missing index.html.")

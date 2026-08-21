@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -33,6 +35,16 @@ _REQUIRED_BUILD_STEPS = {
 }
 
 
+def _find_tool(name: str) -> str | None:
+    """Find a tool, including rustup's standard per-user Windows location."""
+
+    located = shutil.which(name)
+    if located is not None or os.name != "nt":
+        return located
+    candidate = Path.home() / ".cargo" / "bin" / f"{name}.exe"
+    return str(candidate) if candidate.is_file() else None
+
+
 class ReleasePreconditionChecker:
     """Check metadata, tooling, build evidence, and local safety boundaries."""
 
@@ -46,11 +58,17 @@ class ReleasePreconditionChecker:
         issues: list[ReleasePreconditionIssue] = []
         self._check_output(context, issues)
         self._check_required_files(context.project_root, issues)
-        self._check_metadata(context, issues)
+        self._check_metadata(context, formats, issues)
         self._check_build_manifest(context.project_root, issues)
         self._check_tools(issues, formats)
-        if PackageFormat.FRONTEND_ZIP in formats:
+        if any(
+            item in formats
+            for item in (PackageFormat.FRONTEND_ZIP, PackageFormat.DESKTOP_NSIS)
+        ):
             self._check_frontend_lock(context.project_root, issues)
+        if PackageFormat.DESKTOP_NSIS in formats:
+            self._check_desktop_project(context.project_root, issues)
+            self._check_desktop_host(issues)
         self._check_worktree(context.project_root, issues)
         return ReleasePreconditionReport(tuple(sorted(issues, key=lambda item: item.code)))
 
@@ -94,6 +112,7 @@ class ReleasePreconditionChecker:
     def _check_metadata(
         self,
         context: ReleaseContext,
+        formats: tuple[PackageFormat, ...],
         issues: list[ReleasePreconditionIssue],
     ) -> None:
         root = context.project_root
@@ -139,6 +158,25 @@ class ReleasePreconditionChecker:
                 tauri.get("version") if isinstance(tauri, dict) else None
             ),
         }
+        if PackageFormat.DESKTOP_NSIS in formats:
+            try:
+                cargo = tomllib.loads(
+                    (root / "Frontend" / "src-tauri" / "Cargo.toml").read_text(
+                        encoding="utf-8"
+                    )
+                )
+                cargo_package = cargo.get("package")
+                values["Frontend/src-tauri/Cargo.toml"] = (
+                    cargo_package.get("version")
+                    if isinstance(cargo_package, dict)
+                    else None
+                )
+            except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
+                self._add(
+                    issues,
+                    "metadata.cargo-unreadable",
+                    f"Cannot read desktop Cargo metadata: {exc}",
+                )
         expected = Version(context.version.value)
         for source, value in values.items():
             try:
@@ -216,8 +254,145 @@ class ReleasePreconditionChecker:
                 "packaging.python-tools",
                 f"Missing Python packaging tools: {', '.join(missing)}.",
             )
-        if PackageFormat.FRONTEND_ZIP in formats and shutil.which("npm") is None:
+        if any(
+            item in formats
+            for item in (PackageFormat.FRONTEND_ZIP, PackageFormat.DESKTOP_NSIS)
+        ) and shutil.which("npm") is None:
             self._add(issues, "packaging.npm-tool", "npm is required for frontend packaging.")
+        if PackageFormat.DESKTOP_NSIS in formats:
+            missing_rust = [
+                name for name in ("rustup", "rustc", "cargo") if _find_tool(name) is None
+            ]
+            if missing_rust:
+                self._add(
+                    issues,
+                    "packaging.rust-tools",
+                    f"Missing Rust tools: {', '.join(missing_rust)}.",
+                )
+
+    def _check_desktop_project(
+        self, root: Path, issues: list[ReleasePreconditionIssue]
+    ) -> None:
+        cargo_path = root / "Frontend" / "src-tauri" / "Cargo.toml"
+        lock_path = root / "Frontend" / "src-tauri" / "Cargo.lock"
+        config_path = root / "Frontend" / "src-tauri" / "tauri.conf.json"
+        try:
+            cargo = tomllib.loads(cargo_path.read_text(encoding="utf-8"))
+            lock = tomllib.loads(lock_path.read_text(encoding="utf-8"))
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+            dependencies = cargo.get("dependencies")
+            build_dependencies = cargo.get("build-dependencies")
+            if not isinstance(dependencies, dict) or "tauri" not in dependencies:
+                raise ValueError("Cargo.toml must declare tauri")
+            if (
+                not isinstance(build_dependencies, dict)
+                or "tauri-build" not in build_dependencies
+            ):
+                raise ValueError("Cargo.toml must declare tauri-build")
+            locked = lock.get("package")
+            if not isinstance(locked, list):
+                raise ValueError("Cargo.lock must contain locked packages")
+            locked_names = {
+                item.get("name") for item in locked if isinstance(item, dict)
+            }
+            if not {"tauri", "tauri-build"}.issubset(locked_names):
+                raise ValueError("Cargo.lock must lock tauri and tauri-build")
+            bundle = config.get("bundle") if isinstance(config, dict) else None
+            targets = bundle.get("targets") if isinstance(bundle, dict) else None
+            if not isinstance(targets, list) or "nsis" not in targets:
+                raise ValueError("tauri.conf.json must enable the NSIS target")
+        except (
+            OSError,
+            UnicodeError,
+            ValueError,
+            TypeError,
+            json.JSONDecodeError,
+            tomllib.TOMLDecodeError,
+        ) as exc:
+            self._add(
+                issues,
+                "packaging.desktop-project",
+                f"A locked Tauri v2 NSIS project is required: {exc}",
+            )
+
+    def _check_desktop_host(
+        self, issues: list[ReleasePreconditionIssue]
+    ) -> None:
+        if sys.platform != "win32":
+            self._add(
+                issues,
+                "packaging.desktop-platform",
+                "NSIS desktop packaging requires a Windows host.",
+            )
+            return
+
+        rustup = _find_tool("rustup")
+        if rustup is not None:
+            completed = subprocess.run(
+                [rustup, "show", "active-toolchain"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if completed.returncode != 0 or "pc-windows-msvc" not in completed.stdout:
+                self._add(
+                    issues,
+                    "packaging.rust-msvc",
+                    "The active Rust toolchain must target Windows MSVC.",
+                )
+
+        program_files_x86 = os.environ.get("ProgramFiles(x86)")
+        vswhere = (
+            Path(program_files_x86)
+            / "Microsoft Visual Studio"
+            / "Installer"
+            / "vswhere.exe"
+            if program_files_x86
+            else None
+        )
+        if vswhere is None or not vswhere.is_file():
+            has_cpp_tools = False
+        else:
+            completed = subprocess.run(
+                [
+                    str(vswhere),
+                    "-latest",
+                    "-products",
+                    "*",
+                    "-requires",
+                    "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                    "-property",
+                    "installationPath",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            has_cpp_tools = completed.returncode == 0 and bool(completed.stdout.strip())
+        if not has_cpp_tools:
+            self._add(
+                issues,
+                "packaging.msvc-build-tools",
+                "Microsoft C++ Build Tools with Desktop development for C++ are required.",
+            )
+
+        webview_root = (
+            Path(program_files_x86)
+            / "Microsoft"
+            / "EdgeWebView"
+            / "Application"
+            if program_files_x86
+            else None
+        )
+        if webview_root is None or not any(
+            path.is_dir() and path.name[0].isdigit()
+            for path in webview_root.glob("*")
+        ):
+            self._add(
+                issues,
+                "packaging.webview2",
+                "Microsoft Edge WebView2 Runtime is required.",
+            )
 
     def _check_frontend_lock(
         self, root: Path, issues: list[ReleasePreconditionIssue]

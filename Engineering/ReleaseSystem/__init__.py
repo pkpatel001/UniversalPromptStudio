@@ -2,6 +2,7 @@
 
 from .builder import (
     CompositePackageBuilder,
+    DesktopPackageBuilder,
     FrontendPackageBuilder,
     PythonPackageBuilder,
 )
@@ -27,6 +28,7 @@ from .service import DefaultBuildGate, ReleaseExecution, ReleaseService
 __all__ = [
     "PackageArtifact",
     "CompositePackageBuilder",
+    "DesktopPackageBuilder",
     "FrontendPackageBuilder",
     "PackageFormat",
     "PackageInspector",

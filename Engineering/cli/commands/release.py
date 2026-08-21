@@ -23,6 +23,7 @@ _LOCAL_FORMATS = (
     PackageFormat.SDIST,
     PackageFormat.WHEEL,
     PackageFormat.FRONTEND_ZIP,
+    PackageFormat.DESKTOP_NSIS,
 )
 
 
@@ -103,4 +104,6 @@ def release_clean() -> None:
 def _package_id(package_format: PackageFormat) -> str:
     if package_format == PackageFormat.FRONTEND_ZIP:
         return "package.frontend.zip"
+    if package_format == PackageFormat.DESKTOP_NSIS:
+        return "package.desktop.nsis"
     return f"package.python.{package_format.value}"

@@ -11,22 +11,23 @@ ReleaseContext
     -> deterministic PackagingPlan
     -> release preconditions
     -> E-010 full build
-    -> Python and npm/Vite package builders
-    -> archive inspection and SHA-256 checksums
+    -> Python, npm/Vite, and Rust/Tauri package builders
+    -> artifact inspection and SHA-256 checksums
     -> ReleaseManifest and ReleaseReport
 ```
 
-The supported local formats are Python source distributions, Python wheels, and
-a deterministic ZIP of the production Vite frontend. npm is the selected
-frontend package manager; `Frontend/package-lock.json` and `npm ci` establish
-dependency reproducibility. Tauri bundling remains deferred until a real Rust
-project, `Cargo.toml`, and `Cargo.lock` exist.
+The supported local formats are Python source distributions, Python wheels, a
+deterministic ZIP of the production Vite frontend, and a Windows NSIS setup
+executable built by Tauri v2. npm and Cargo lockfiles establish reproducibility
+for the frontend and Rust dependency graphs.
 
 ## Safety
 
 - The Git working tree must be clean.
 - Versions and package metadata must agree.
 - Python packaging tools and npm must already be installed.
+- Desktop packaging additionally requires stable Rust for Windows MSVC,
+  Microsoft C++ Build Tools, and WebView2.
 - Frontend dependency installation uses only the committed npm lockfile.
 - Release execution never accesses a publisher.
 - Output is restricted to the ignored `release/` directory.
@@ -36,6 +37,7 @@ project, `Cargo.toml`, and `Cargo.lock` exist.
   member paths.
 - Frontend ZIP entries use stable ordering, timestamps, permissions, and
   compression settings.
+- Desktop installers must have valid DOS and PE executable signatures.
 - Manifests contain relative paths, sizes, formats, and SHA-256 hashes without
   timestamps or machine identifiers.
 
@@ -50,3 +52,6 @@ python -m Engineering release clean
 ```
 
 `release clean` removes only the canonical ignored `release/` output directory.
+
+The NSIS package produced by E-011.3 is intentionally unsigned. Signing,
+publication, MSI packaging, and updater metadata remain outside this checkpoint.

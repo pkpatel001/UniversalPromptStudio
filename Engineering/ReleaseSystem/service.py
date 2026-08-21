@@ -238,5 +238,10 @@ class ReleaseService:
 
     @staticmethod
     def _target_path(output_root: Path, artifact: Path) -> Path:
-        ecosystem = "frontend" if artifact.suffix == ".zip" else "python"
+        if artifact.name.endswith("-setup.exe"):
+            ecosystem = "desktop"
+        elif artifact.suffix == ".zip":
+            ecosystem = "frontend"
+        else:
+            ecosystem = "python"
         return output_root / "packages" / ecosystem / artifact.name

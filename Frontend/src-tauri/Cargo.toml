@@ -1,0 +1,25 @@
+[package]
+name = "universal-prompt-studio"
+version = "0.2.0-alpha"
+description = "Universal Prompt Studio desktop application"
+authors = ["The Patel Brothers Creative Solutions"]
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/pkpatel001/UniversalPromptStudio"
+
+[lib]
+name = "universal_prompt_studio_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
