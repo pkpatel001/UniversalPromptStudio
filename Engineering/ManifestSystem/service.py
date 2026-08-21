@@ -6,12 +6,22 @@ import hashlib
 import os
 from pathlib import Path
 
-from Engineering.core.exceptions import ManifestError
-from Engineering.core.filesystem import read_bytes
+from Engineering.core.exceptions import EngineeringError, ManifestError
+from Engineering.core.filesystem import read_bytes, read_json
 
 from .adapters import default_manifest_adapters
-from .models import ManifestInspectionReport, ManifestIssue, ManifestRecord
+from .models import (
+    ManifestInspectionReport,
+    ManifestIssue,
+    ManifestRecord,
+    ManifestValidationReport,
+    SchemaCompatibility,
+)
 from .registry import ManifestRegistry
+from .relationships import (
+    ManifestRelationshipValidator,
+    default_manifest_dependencies,
+)
 
 DEFAULT_IGNORED_DIRECTORIES = frozenset(
     {
@@ -55,11 +65,28 @@ class ManifestInspectionService:
                 resolved_path = path.resolve(strict=True)
                 if not resolved_path.is_relative_to(resolved_root):
                     raise ManifestError("Manifest resolves outside the inspection root.")
-                schema_version = adapter.validate(resolved_path)
+                schema_version = self._read_schema_version(resolved_path)
+                compatibility = adapter.spec.schema_contract.compatibility(schema_version)
+                if compatibility == SchemaCompatibility.UNSUPPORTED:
+                    issues.append(
+                        ManifestIssue(
+                            relative_path,
+                            "manifest.schema.unsupported",
+                            f"Schema version {schema_version} is not readable for "
+                            f"{adapter.spec.manifest_id}.",
+                        )
+                    )
+                    continue
+                validated_version = adapter.validate(resolved_path)
+                if validated_version != schema_version:
+                    raise ManifestError(
+                        f"Adapter for {adapter.spec.manifest_id} returned schema version "
+                        f"{validated_version}, expected {schema_version}."
+                    )
                 digest = hashlib.sha256(read_bytes(resolved_path)).hexdigest()
-            except (ManifestError, OSError) as exc:
+            except (EngineeringError, KeyError, OSError, TypeError, ValueError) as exc:
                 issues.append(
-                    ManifestIssue(relative_path, "manifest.invalid", str(exc))
+                    ManifestIssue(relative_path, "manifest.schema.invalid", str(exc))
                 )
                 continue
             records.append(
@@ -69,6 +96,7 @@ class ManifestInspectionService:
                     relative_path=relative_path,
                     schema_version=schema_version,
                     sha256=digest,
+                    compatibility=compatibility,
                 )
             )
 
@@ -80,6 +108,14 @@ class ManifestInspectionService:
         )
 
     @staticmethod
+    def _read_schema_version(path: Path) -> int:
+        data = read_json(path)
+        schema_version = data["schema_version"]
+        if type(schema_version) is not int:
+            raise TypeError("schema_version must be an integer")
+        return schema_version
+
+    @staticmethod
     def _discover(root: Path) -> tuple[Path, ...]:
         paths: list[Path] = []
         for directory, names, filenames in os.walk(root, followlinks=False):
@@ -89,3 +125,33 @@ class ManifestInspectionService:
             directory_path = Path(directory)
             paths.extend(directory_path / name for name in sorted(filenames))
         return tuple(paths)
+
+
+class ManifestValidationService:
+    """Validate a complete manifest set and its cross-family relationships."""
+
+    def __init__(
+        self,
+        inspection_service: ManifestInspectionService | None = None,
+        relationship_validator: ManifestRelationshipValidator | None = None,
+    ) -> None:
+        self.inspection_service = inspection_service or ManifestInspectionService()
+        self.relationship_validator = relationship_validator or ManifestRelationshipValidator(
+            self.inspection_service.registry,
+            default_manifest_dependencies(),
+        )
+
+    def validate(self, root: Path) -> ManifestValidationReport:
+        """Inspect root and validate relationships when documents are readable."""
+
+        inspection = self.inspection_service.inspect(root)
+        relationship_issues: tuple[ManifestIssue, ...] = ()
+        if inspection.passed:
+            relationship_issues = self.relationship_validator.validate(inspection.records)
+        issues = tuple(
+            sorted(
+                (*inspection.issues, *relationship_issues),
+                key=lambda item: (item.relative_path, item.code, item.message),
+            )
+        )
+        return ManifestValidationReport(inspection.records, issues)

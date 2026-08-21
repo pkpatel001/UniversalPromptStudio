@@ -11,10 +11,18 @@ from .models import (
     ManifestIssue,
     ManifestKind,
     ManifestRecord,
+    ManifestSchemaContract,
     ManifestSpec,
+    ManifestValidationReport,
+    SchemaCompatibility,
 )
 from .registry import ManifestAdapter, ManifestRegistry
-from .service import ManifestInspectionService
+from .relationships import (
+    ManifestDependency,
+    ManifestRelationshipValidator,
+    default_manifest_dependencies,
+)
+from .service import ManifestInspectionService, ManifestValidationService
 
 __all__ = [
     "BuildManifestAdapter",
@@ -23,10 +31,17 @@ __all__ = [
     "ManifestInspectionService",
     "ManifestIssue",
     "ManifestKind",
+    "ManifestDependency",
     "ManifestRecord",
     "ManifestRegistry",
+    "ManifestRelationshipValidator",
+    "ManifestSchemaContract",
     "ManifestSpec",
+    "ManifestValidationReport",
+    "ManifestValidationService",
     "ReleaseManifestAdapter",
     "TemplateArtifactManifestAdapter",
     "default_manifest_adapters",
+    "default_manifest_dependencies",
+    "SchemaCompatibility",
 ]

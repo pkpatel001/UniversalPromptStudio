@@ -14,6 +14,33 @@ class ManifestKind(Enum):
     RELEASE = "release"
 
 
+class SchemaCompatibility(Enum):
+    """Compatibility of a document with a registered schema contract."""
+
+    CURRENT = "current"
+    READABLE = "readable"
+    UNSUPPORTED = "unsupported"
+
+
+@dataclass(frozen=True, slots=True)
+class ManifestSchemaContract:
+    """Readable versions and the version emitted by the current producer."""
+
+    current_version: int
+    readable_versions: tuple[int, ...]
+
+    def compatibility(self, version: int) -> SchemaCompatibility:
+        """Classify a schema version without modifying its document."""
+
+        if type(version) is not int:
+            return SchemaCompatibility.UNSUPPORTED
+        if version == self.current_version:
+            return SchemaCompatibility.CURRENT
+        if version in self.readable_versions:
+            return SchemaCompatibility.READABLE
+        return SchemaCompatibility.UNSUPPORTED
+
+
 @dataclass(frozen=True, slots=True)
 class ManifestSpec:
     """Stable registration metadata for one manifest family."""
@@ -22,6 +49,17 @@ class ManifestSpec:
     kind: ManifestKind
     filename: str
     supported_schema_versions: tuple[int, ...]
+    current_schema_version: int | None = None
+    allow_multiple: bool = False
+
+    @property
+    def schema_contract(self) -> ManifestSchemaContract:
+        """Return the explicit compatibility contract for this family."""
+
+        current = self.current_schema_version
+        if current is None:
+            current = max(self.supported_schema_versions, default=0)
+        return ManifestSchemaContract(current, self.supported_schema_versions)
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +71,7 @@ class ManifestRecord:
     relative_path: str
     schema_version: int
     sha256: str
+    compatibility: SchemaCompatibility = SchemaCompatibility.CURRENT
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,4 +104,28 @@ class ManifestInspectionReport:
         return (
             f"Manifest inspection {state}: {len(self.records)} valid, "
             f"{len(self.issues)} invalid."
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ManifestValidationReport:
+    """Combined structural, schema, cardinality, and relationship result."""
+
+    records: tuple[ManifestRecord, ...] = ()
+    issues: tuple[ManifestIssue, ...] = ()
+
+    @property
+    def passed(self) -> bool:
+        """Return True when the complete manifest set is coherent."""
+
+        return not self.issues
+
+    @property
+    def summary(self) -> str:
+        """Return a stable human-readable validation summary."""
+
+        state = "succeeded" if self.passed else "failed"
+        return (
+            f"Manifest validation {state}: {len(self.records)} valid, "
+            f"{len(self.issues)} issues."
         )

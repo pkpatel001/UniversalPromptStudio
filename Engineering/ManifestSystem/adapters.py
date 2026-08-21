@@ -39,7 +39,13 @@ class _ReaderAdapter:
 class BuildManifestAdapter(_ReaderAdapter):
     """Validate E-010 build manifests."""
 
-    spec = ManifestSpec("ups.build", ManifestKind.BUILD, BUILD_MANIFEST_NAME, (1,))
+    spec = ManifestSpec(
+        "ups.build",
+        ManifestKind.BUILD,
+        BUILD_MANIFEST_NAME,
+        (1,),
+        current_schema_version=1,
+    )
 
     def _read_schema_version(self, path: Path) -> int:
         return BuildManifest.read(path).schema_version
@@ -53,6 +59,8 @@ class TemplateArtifactManifestAdapter(_ReaderAdapter):
         ManifestKind.TEMPLATE_ARTIFACT,
         DEFAULT_MANIFEST_NAME,
         (1,),
+        current_schema_version=1,
+        allow_multiple=True,
     )
 
     def _read_schema_version(self, path: Path) -> int:
@@ -62,7 +70,13 @@ class TemplateArtifactManifestAdapter(_ReaderAdapter):
 class ReleaseManifestAdapter(_ReaderAdapter):
     """Validate E-011 release manifests."""
 
-    spec = ManifestSpec("ups.release", ManifestKind.RELEASE, RELEASE_MANIFEST_NAME, (1,))
+    spec = ManifestSpec(
+        "ups.release",
+        ManifestKind.RELEASE,
+        RELEASE_MANIFEST_NAME,
+        (1,),
+        current_schema_version=1,
+    )
 
     def _read_schema_version(self, path: Path) -> int:
         return ReleaseManifest.read(path).schema_version

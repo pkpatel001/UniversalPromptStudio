@@ -38,9 +38,19 @@ class ManifestRegistry:
         if not spec.manifest_id or not spec.filename:
             raise ManifestError("Manifest id and filename must not be empty.")
         if not spec.supported_schema_versions or any(
-            version < 1 for version in spec.supported_schema_versions
+            type(version) is not int or version < 1
+            for version in spec.supported_schema_versions
         ):
             raise ManifestError("Manifest schema versions must be positive integers.")
+        if tuple(sorted(set(spec.supported_schema_versions))) != spec.supported_schema_versions:
+            raise ManifestError("Manifest schema versions must be unique and ascending.")
+        contract = spec.schema_contract
+        if type(contract.current_version) is not int:
+            raise ManifestError("Current manifest schema must be an integer.")
+        if contract.current_version != spec.supported_schema_versions[-1]:
+            raise ManifestError(
+                "Current manifest schema must be the latest readable version."
+            )
         if spec.manifest_id in self._by_id:
             raise ManifestError(f"Duplicate manifest id: {spec.manifest_id}")
         if spec.filename in self._by_filename:

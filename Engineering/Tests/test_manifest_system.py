@@ -139,7 +139,7 @@ class TestManifestInspectionService:
         assert tuple(record.manifest_id for record in report.records) == ("ups.release",)
         assert len(report.issues) == 1
         assert report.issues[0].relative_path == "build-manifest.json"
-        assert report.issues[0].code == "manifest.invalid"
+        assert report.issues[0].code == "manifest.schema.unsupported"
 
     def test_ignores_dependency_and_tool_cache_directories(self, tmp_path: Path) -> None:
         for directory in ("node_modules", "target", ".git", ".mypy_cache"):
@@ -170,9 +170,10 @@ class TestManifestCli:
         result = CliRunner().invoke(app, ["manifest", "types"])
 
         assert result.exit_code == 0
-        assert "ups.build: build-manifest.json" in result.output
-        assert "ups.release: release-manifest.json" in result.output
+        assert "ups.build: build-manifest.json (current: 1; readable: 1" in result.output
+        assert "ups.release: release-manifest.json (current: 1; readable: 1" in result.output
         assert "ups.template-artifact: .ups-artifact-manifest.json" in result.output
+        assert "cardinality: many" in result.output
 
     def test_inspects_explicit_root(self, tmp_path: Path) -> None:
         _write_json(
@@ -195,5 +196,5 @@ class TestManifestCli:
         result = CliRunner().invoke(app, ["manifest", "inspect", "--root", str(tmp_path)])
 
         assert result.exit_code != 0
-        assert "FAILED manifest.invalid" in result.output
+        assert "FAILED manifest.schema.unsupported" in result.output
         assert "Manifest inspection failed: 0 valid, 1 invalid." in result.output
