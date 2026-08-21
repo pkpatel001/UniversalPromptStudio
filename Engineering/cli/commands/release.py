@@ -19,7 +19,11 @@ from Engineering.ReleaseSystem import (
 )
 
 app = typer.Typer(help="Plan and create local release packages")
-_PYTHON_FORMATS = (PackageFormat.SDIST, PackageFormat.WHEEL)
+_LOCAL_FORMATS = (
+    PackageFormat.SDIST,
+    PackageFormat.WHEEL,
+    PackageFormat.FRONTEND_ZIP,
+)
 
 
 @app.callback(invoke_without_command=True)
@@ -43,11 +47,11 @@ def _context(*, dry_run: bool = False, overwrite: bool = False) -> ReleaseContex
 
 @app.command(name="plan")
 def release_plan() -> None:
-    """Display the deterministic Python packaging plan and preconditions."""
+    """Display the deterministic local packaging plan and preconditions."""
 
-    execution = ReleaseService().plan(_context(dry_run=True), _PYTHON_FORMATS)
+    execution = ReleaseService().plan(_context(dry_run=True), _LOCAL_FORMATS)
     for index, spec in enumerate(execution.plan.specs, start=1):
-        console.print(f"{index}. package.python.{spec.package_format.value}")
+        console.print(f"{index}. {_package_id(spec.package_format)}")
     if execution.preconditions.passed:
         console.print("Release preconditions passed.")
         return
@@ -61,10 +65,10 @@ def release_run(
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     overwrite: Annotated[bool, typer.Option("--overwrite")] = False,
 ) -> None:
-    """Create inspected wheel and source-distribution packages locally."""
+    """Create inspected Python and frontend packages locally."""
 
     execution = ReleaseService().run(
-        _context(dry_run=dry_run, overwrite=overwrite), _PYTHON_FORMATS
+        _context(dry_run=dry_run, overwrite=overwrite), _LOCAL_FORMATS
     )
     for issue in execution.preconditions.issues:
         console.print(f"FAILED {issue.code}: {issue.message}")
@@ -72,8 +76,8 @@ def release_run(
         raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
     for result in execution.report.results:
         console.print(
-            f"{result.state.value.upper():9} package.python."
-            f"{result.package_format.value}: {result.message}"
+            f"{result.state.value.upper():9} "
+            f"{_package_id(result.package_format)}: {result.message}"
         )
     console.print(execution.report.summary)
     if execution.manifest_path is not None:
@@ -94,3 +98,9 @@ def release_clean() -> None:
         console.print(f"[green]Removed release output: {output_root}[/green]")
     else:
         console.print("[green]Release output is already clean.[/green]")
+
+
+def _package_id(package_format: PackageFormat) -> str:
+    if package_format == PackageFormat.FRONTEND_ZIP:
+        return "package.frontend.zip"
+    return f"package.python.{package_format.value}"

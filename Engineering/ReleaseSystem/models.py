@@ -16,6 +16,7 @@ class PackageFormat(Enum):
 
     SDIST = "sdist"
     WHEEL = "wheel"
+    FRONTEND_ZIP = "frontend-zip"
 
 
 class PackageState(Enum):

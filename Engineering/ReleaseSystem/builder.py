@@ -1,9 +1,12 @@
-"""Infrastructure adapter for local Python package builds."""
+"""Infrastructure adapters for local Python and frontend package builds."""
 
 from __future__ import annotations
 
+import json
+import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 from Engineering.core.exceptions import ReleaseError
@@ -51,3 +54,111 @@ class PythonPackageBuilder:
         if len(artifacts) != len(formats):
             raise ReleaseError("Python package build produced an unexpected artifact count.")
         return artifacts
+
+
+class FrontendPackageBuilder:
+    """Install locked npm dependencies and package a production Vite build."""
+
+    def build(
+        self,
+        project_root: Path,
+        output_directory: Path,
+        formats: tuple[PackageFormat, ...],
+    ) -> tuple[Path, ...]:
+        """Create a deterministic ZIP from the Vite distribution directory."""
+
+        if PackageFormat.FRONTEND_ZIP not in formats:
+            return ()
+        frontend = project_root / "Frontend"
+        package_path = frontend / "package.json"
+        lock_path = frontend / "package-lock.json"
+        if not lock_path.is_file():
+            raise ReleaseError("Frontend/package-lock.json is required for npm ci.")
+        try:
+            package = json.loads(package_path.read_text(encoding="utf-8"))
+            name = package["name"]
+            version = package["version"]
+            if not isinstance(name, str) or not isinstance(version, str):
+                raise TypeError("name and version must be strings")
+        except (OSError, UnicodeError, ValueError, KeyError, TypeError) as exc:
+            raise ReleaseError(f"Cannot read frontend package metadata: {exc}") from exc
+
+        npm = shutil.which("npm")
+        if npm is None:
+            raise ReleaseError("npm is required for frontend packaging.")
+        npm_cache = project_root / ".cache" / "npm"
+        self._run(
+            [npm, "ci", "--cache", str(npm_cache)],
+            frontend,
+            "npm ci",
+        )
+        self._run([npm, "run", "build"], frontend, "Vite build")
+
+        distribution = frontend / "dist"
+        files = tuple(sorted(path for path in distribution.rglob("*") if path.is_file()))
+        if not files:
+            raise ReleaseError("Vite build produced no frontend files.")
+        ensure_directory(output_directory)
+        artifact = output_directory / f"{name}-{version}.zip"
+        with zipfile.ZipFile(artifact, mode="w") as archive:
+            for path in files:
+                relative = path.relative_to(distribution).as_posix()
+                info = zipfile.ZipInfo(relative, date_time=(1980, 1, 1, 0, 0, 0))
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.create_system = 3
+                info.external_attr = (0o100644 & 0xFFFF) << 16
+                archive.writestr(info, path.read_bytes(), compresslevel=9)
+        return (artifact,)
+
+    @staticmethod
+    def _run(command: list[str], cwd: Path, operation: str) -> None:
+        completed = subprocess.run(
+            command,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            detail = completed.stderr.strip() or completed.stdout.strip()
+            raise ReleaseError(f"{operation} failed: {detail}")
+
+
+class CompositePackageBuilder:
+    """Route package formats to their local ecosystem builders."""
+
+    def __init__(
+        self,
+        python_builder: PythonPackageBuilder | None = None,
+        frontend_builder: FrontendPackageBuilder | None = None,
+    ) -> None:
+        self._python = python_builder or PythonPackageBuilder()
+        self._frontend = frontend_builder or FrontendPackageBuilder()
+
+    def build(
+        self,
+        project_root: Path,
+        output_directory: Path,
+        formats: tuple[PackageFormat, ...],
+    ) -> tuple[Path, ...]:
+        """Build every requested format into one isolated staging directory."""
+
+        python_formats = tuple(
+            item
+            for item in formats
+            if item in (PackageFormat.SDIST, PackageFormat.WHEEL)
+        )
+        artifacts: list[Path] = []
+        if python_formats:
+            artifacts.extend(
+                self._python.build(project_root, output_directory, python_formats)
+            )
+        if PackageFormat.FRONTEND_ZIP in formats:
+            artifacts.extend(
+                self._frontend.build(
+                    project_root,
+                    output_directory,
+                    (PackageFormat.FRONTEND_ZIP,),
+                )
+            )
+        return tuple(sorted(artifacts))

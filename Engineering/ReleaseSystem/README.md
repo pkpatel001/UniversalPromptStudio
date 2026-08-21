@@ -11,27 +11,31 @@ ReleaseContext
     -> deterministic PackagingPlan
     -> release preconditions
     -> E-010 full build
-    -> local Python package builder
+    -> Python and npm/Vite package builders
     -> archive inspection and SHA-256 checksums
     -> ReleaseManifest and ReleaseReport
 ```
 
-The first checkpoint supports Python source distributions and wheels. Vite
-packaging is deferred until the repository has a committed Node lockfile. Tauri
-bundling is deferred until a real Rust project, `Cargo.toml`, and `Cargo.lock`
-exist.
+The supported local formats are Python source distributions, Python wheels, and
+a deterministic ZIP of the production Vite frontend. npm is the selected
+frontend package manager; `Frontend/package-lock.json` and `npm ci` establish
+dependency reproducibility. Tauri bundling remains deferred until a real Rust
+project, `Cargo.toml`, and `Cargo.lock` exist.
 
 ## Safety
 
 - The Git working tree must be clean.
 - Versions and package metadata must agree.
-- Packaging tools must already be installed; release execution never installs
-  dependencies or accesses a publisher.
+- Python packaging tools and npm must already be installed.
+- Frontend dependency installation uses only the committed npm lockfile.
+- Release execution never accesses a publisher.
 - Output is restricted to the ignored `release/` directory.
 - Existing output is rejected unless `--overwrite` is explicit.
 - Dry-runs do not build packages or write release artifacts.
 - Archives are inspected without extraction and reject unsafe or secret-bearing
   member paths.
+- Frontend ZIP entries use stable ordering, timestamps, permissions, and
+  compression settings.
 - Manifests contain relative paths, sizes, formats, and SHA-256 hashes without
   timestamps or machine identifiers.
 

@@ -18,7 +18,7 @@ from Engineering.BuildSystem import (
 from Engineering.core.exceptions import ReleaseError
 from Engineering.core.filesystem import ensure_directory, write_text
 
-from .builder import PythonPackageBuilder
+from .builder import CompositePackageBuilder
 from .inspection import PackageInspector
 from .manifest import RELEASE_MANIFEST_NAME, ReleaseManifest
 from .models import (
@@ -50,7 +50,11 @@ class ReleaseExecution:
 class PreconditionChecker(Protocol):
     """Release-precondition port used by the application service."""
 
-    def check(self, context: ReleaseContext) -> ReleasePreconditionReport:
+    def check(
+        self,
+        context: ReleaseContext,
+        formats: tuple[PackageFormat, ...],
+    ) -> ReleasePreconditionReport:
         """Evaluate release readiness."""
 
 
@@ -107,7 +111,7 @@ class ReleaseService:
         self._planner = planner or ReleasePlanner()
         self._preconditions = preconditions or ReleasePreconditionChecker()
         self._build_gate = build_gate or DefaultBuildGate()
-        self._builder = builder or PythonPackageBuilder()
+        self._builder = builder or CompositePackageBuilder()
         self._inspector = inspector or PackageInspector()
 
     def plan(
@@ -118,7 +122,7 @@ class ReleaseService:
         """Create a plan and evaluate its preconditions without writing."""
 
         plan = self._planner.plan(context, formats)
-        return ReleaseExecution(plan, self._preconditions.check(context))
+        return ReleaseExecution(plan, self._preconditions.check(context, formats))
 
     def run(
         self,
@@ -173,9 +177,11 @@ class ReleaseService:
                 staged = self._builder.build(
                     context.project_root, Path(temporary), formats_to_build
                 )
-                package_root = context.output_root / "packages" / "python"
-                ensure_directory(package_root)
-                targets = tuple(package_root / item.name for item in staged)
+                targets = tuple(
+                    self._target_path(context.output_root, item) for item in staged
+                )
+                for target in targets:
+                    ensure_directory(target.parent)
                 for target in targets:
                     if target.exists() and not context.overwrite:
                         raise ReleaseError(f"Release artifact already exists: {target.name}")
@@ -188,7 +194,10 @@ class ReleaseService:
         except (OSError, ReleaseError) as exc:
             return self._failed(execution, str(exc))
 
-        manifest = ReleaseManifest(context.version, tuple(artifacts))
+        manifest = ReleaseManifest(
+            context.version,
+            tuple(sorted(artifacts, key=lambda artifact: artifact.relative_path)),
+        )
         manifest_path = context.output_root / RELEASE_MANIFEST_NAME
         checksum_path = context.output_root / "checksums" / "SHA256SUMS"
         manifest.write(manifest_path)
@@ -226,3 +235,8 @@ class ReleaseService:
             execution.preconditions,
             ReleaseReport(results),
         )
+
+    @staticmethod
+    def _target_path(output_root: Path, artifact: Path) -> Path:
+        ecosystem = "frontend" if artifact.suffix == ".zip" else "python"
+        return output_root / "packages" / ecosystem / artifact.name

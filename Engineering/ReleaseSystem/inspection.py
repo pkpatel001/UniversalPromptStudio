@@ -47,6 +47,11 @@ class PackageInspector:
             if path.suffix == ".whl":
                 with zipfile.ZipFile(path) as archive:
                     return PackageFormat.WHEEL, tuple(sorted(archive.namelist()))
+            if path.suffix == ".zip":
+                with zipfile.ZipFile(path) as archive:
+                    return PackageFormat.FRONTEND_ZIP, tuple(
+                        sorted(archive.namelist())
+                    )
             if path.name.endswith(".tar.gz"):
                 with tarfile.open(path, mode="r:gz") as archive:
                     return PackageFormat.SDIST, tuple(
@@ -71,6 +76,20 @@ class PackageInspector:
     def _validate_required(
         package_format: PackageFormat, members: tuple[str, ...]
     ) -> None:
+        if package_format == PackageFormat.FRONTEND_ZIP:
+            if "index.html" not in members:
+                raise ReleaseError("Frontend package is missing index.html.")
+            if not any(
+                member.startswith("assets/") and member.endswith(".js")
+                for member in members
+            ):
+                raise ReleaseError("Frontend package is missing a JavaScript asset.")
+            if not any(
+                member.startswith("assets/") and member.endswith(".css")
+                for member in members
+            ):
+                raise ReleaseError("Frontend package is missing a CSS asset.")
+            return
         for required in _COMMON_REQUIRED:
             if not any(member.endswith(required) for member in members):
                 raise ReleaseError(f"Package is missing required content: {required}")

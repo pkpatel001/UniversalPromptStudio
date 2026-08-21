@@ -3,6 +3,7 @@
 **Date:** 2026-08-21
 **Status:** Accepted
 **Milestone:** E-011
+**Follow-up:** ADR-0007 supersedes the Vite portion of decision 8.
 
 ## Context
 

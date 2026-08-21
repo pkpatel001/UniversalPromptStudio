@@ -1,6 +1,10 @@
 """E-011 safe, deterministic local release packaging."""
 
-from .builder import PythonPackageBuilder
+from .builder import (
+    CompositePackageBuilder,
+    FrontendPackageBuilder,
+    PythonPackageBuilder,
+)
 from .inspection import PackageInspector
 from .manifest import RELEASE_MANIFEST_NAME, ReleaseManifest
 from .models import (
@@ -22,6 +26,8 @@ from .service import DefaultBuildGate, ReleaseExecution, ReleaseService
 
 __all__ = [
     "PackageArtifact",
+    "CompositePackageBuilder",
+    "FrontendPackageBuilder",
     "PackageFormat",
     "PackageInspector",
     "PackageResult",

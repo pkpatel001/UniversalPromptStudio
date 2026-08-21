@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 import tomllib
 from pathlib import Path
@@ -14,6 +15,7 @@ from packaging.version import InvalidVersion, Version
 from Engineering.core.filesystem import read_yaml
 
 from .models import (
+    PackageFormat,
     ReleaseContext,
     ReleasePreconditionIssue,
     ReleasePreconditionReport,
@@ -34,7 +36,11 @@ _REQUIRED_BUILD_STEPS = {
 class ReleasePreconditionChecker:
     """Check metadata, tooling, build evidence, and local safety boundaries."""
 
-    def check(self, context: ReleaseContext) -> ReleasePreconditionReport:
+    def check(
+        self,
+        context: ReleaseContext,
+        formats: tuple[PackageFormat, ...],
+    ) -> ReleasePreconditionReport:
         """Return every deterministic release-readiness issue."""
 
         issues: list[ReleasePreconditionIssue] = []
@@ -42,7 +48,9 @@ class ReleasePreconditionChecker:
         self._check_required_files(context.project_root, issues)
         self._check_metadata(context, issues)
         self._check_build_manifest(context.project_root, issues)
-        self._check_tools(issues)
+        self._check_tools(issues, formats)
+        if PackageFormat.FRONTEND_ZIP in formats:
+            self._check_frontend_lock(context.project_root, issues)
         self._check_worktree(context.project_root, issues)
         return ReleasePreconditionReport(tuple(sorted(issues, key=lambda item: item.code)))
 
@@ -189,16 +197,53 @@ class ReleasePreconditionChecker:
                 f"A successful E-010 full build manifest is required: {exc}",
             )
 
-    def _check_tools(self, issues: list[ReleasePreconditionIssue]) -> None:
-        missing = [
-            name for name in ("build", "setuptools", "wheel")
-            if importlib.util.find_spec(name) is None
-        ]
+    def _check_tools(
+        self,
+        issues: list[ReleasePreconditionIssue],
+        formats: tuple[PackageFormat, ...],
+    ) -> None:
+        if any(item in formats for item in (PackageFormat.SDIST, PackageFormat.WHEEL)):
+            missing = [
+                name
+                for name in ("build", "setuptools", "wheel")
+                if importlib.util.find_spec(name) is None
+            ]
+        else:
+            missing = []
         if missing:
             self._add(
                 issues,
                 "packaging.python-tools",
                 f"Missing Python packaging tools: {', '.join(missing)}.",
+            )
+        if PackageFormat.FRONTEND_ZIP in formats and shutil.which("npm") is None:
+            self._add(issues, "packaging.npm-tool", "npm is required for frontend packaging.")
+
+    def _check_frontend_lock(
+        self, root: Path, issues: list[ReleasePreconditionIssue]
+    ) -> None:
+        package_path = root / "Frontend" / "package.json"
+        lock_path = root / "Frontend" / "package-lock.json"
+        try:
+            package = json.loads(package_path.read_text(encoding="utf-8"))
+            lock = json.loads(lock_path.read_text(encoding="utf-8"))
+            locked_root = lock["packages"][""]
+            if not isinstance(package, dict) or not isinstance(locked_root, dict):
+                raise TypeError("package roots must be mappings")
+            if lock.get("lockfileVersion") != 3:
+                raise ValueError("lockfileVersion must be 3")
+            for key in ("name", "version"):
+                if locked_root.get(key) != package.get(key):
+                    raise ValueError(f"locked frontend {key} does not match package.json")
+            if locked_root.get("dependencies") != package.get("dependencies"):
+                raise ValueError("locked frontend dependencies do not match package.json")
+            if locked_root.get("devDependencies") != package.get("devDependencies"):
+                raise ValueError("locked frontend devDependencies do not match package.json")
+        except (OSError, UnicodeError, ValueError, KeyError, TypeError) as exc:
+            self._add(
+                issues,
+                "packaging.frontend-lock",
+                f"A synchronized npm lockfile is required: {exc}",
             )
 
     def _check_worktree(

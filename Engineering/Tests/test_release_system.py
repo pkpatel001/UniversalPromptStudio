@@ -14,6 +14,7 @@ import pytest
 
 from Engineering.core.exceptions import ReleaseError
 from Engineering.ReleaseSystem import (
+    FrontendPackageBuilder,
     PackageArtifact,
     PackageFormat,
     PackageInspector,
@@ -49,12 +50,18 @@ class TestReleaseVersionAndPlanning:
 
     def test_plan_is_deterministic(self, tmp_path: Path) -> None:
         plan = ReleasePlanner().plan(
-            _context(tmp_path), (PackageFormat.WHEEL, PackageFormat.SDIST)
+            _context(tmp_path),
+            (
+                PackageFormat.FRONTEND_ZIP,
+                PackageFormat.WHEEL,
+                PackageFormat.SDIST,
+            ),
         )
 
         assert tuple(spec.package_format for spec in plan.specs) == (
             PackageFormat.SDIST,
             PackageFormat.WHEEL,
+            PackageFormat.FRONTEND_ZIP,
         )
 
     def test_rejects_empty_and_duplicate_formats(self, tmp_path: Path) -> None:
@@ -87,7 +94,27 @@ Engineering = ["config/*.yaml"]
     frontend = root / "Frontend"
     (frontend / "src-tauri").mkdir(parents=True)
     (frontend / "package.json").write_text(
-        '{"version":"0.2.0-alpha"}', encoding="utf-8"
+        (
+            '{"name":"example","version":"0.2.0-alpha",'
+            '"dependencies":{},"devDependencies":{}}'
+        ),
+        encoding="utf-8",
+    )
+    (frontend / "package-lock.json").write_text(
+        json.dumps(
+            {
+                "lockfileVersion": 3,
+                "packages": {
+                    "": {
+                        "name": "example",
+                        "version": "0.2.0-alpha",
+                        "dependencies": {},
+                        "devDependencies": {},
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
     )
     (frontend / "src-tauri" / "tauri.conf.json").write_text(
         '{"version":"0.2.0-alpha"}', encoding="utf-8"
@@ -126,7 +153,12 @@ class TestReleasePreconditions:
             lambda *args, **kwargs: subprocess.CompletedProcess([], 0, "", ""),
         )
 
-        report = ReleasePreconditionChecker().check(_context(tmp_path))
+        monkeypatch.setattr("shutil.which", lambda name: "npm")
+
+        report = ReleasePreconditionChecker().check(
+            _context(tmp_path),
+            (PackageFormat.SDIST, PackageFormat.WHEEL, PackageFormat.FRONTEND_ZIP),
+        )
 
         assert report.passed
 
@@ -143,7 +175,9 @@ class TestReleasePreconditions:
             lambda *args, **kwargs: subprocess.CompletedProcess([], 0, "", ""),
         )
 
-        report = ReleasePreconditionChecker().check(_context(tmp_path))
+        report = ReleasePreconditionChecker().check(
+            _context(tmp_path), (PackageFormat.SDIST, PackageFormat.WHEEL)
+        )
 
         assert any(issue.code.startswith("version.mismatch") for issue in report.issues)
 
@@ -204,6 +238,53 @@ class TestPackageInspection:
         with pytest.raises(ReleaseError, match="Unsafe"):
             PackageInspector().inspect(package, root)
 
+    def test_inspects_frontend_zip(self, tmp_path: Path) -> None:
+        root = tmp_path / "release"
+        package = root / "packages" / "frontend" / "frontend.zip"
+        package.parent.mkdir(parents=True)
+        with zipfile.ZipFile(package, mode="w") as archive:
+            archive.writestr("index.html", "<div id='app'></div>")
+            archive.writestr("assets/app.js", "console.log('ready')")
+            archive.writestr("assets/app.css", "body {}")
+
+        artifact = PackageInspector().inspect(package, root)
+
+        assert artifact.package_format == PackageFormat.FRONTEND_ZIP
+        assert artifact.relative_path == "packages/frontend/frontend.zip"
+
+
+class TestFrontendPackageBuilder:
+    def test_creates_deterministic_archive(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        frontend = tmp_path / "Frontend"
+        frontend.mkdir()
+        (frontend / "package.json").write_text(
+            '{"name":"frontend","version":"0.2.0-alpha"}', encoding="utf-8"
+        )
+        (frontend / "package-lock.json").write_text("{}", encoding="utf-8")
+        builder = FrontendPackageBuilder()
+
+        def fake_run(command: list[str], cwd: Path, operation: str) -> None:
+            if operation == "Vite build":
+                assets = cwd / "dist" / "assets"
+                assets.mkdir(parents=True, exist_ok=True)
+                (cwd / "dist" / "index.html").write_text("index", encoding="utf-8")
+                (assets / "app.js").write_text("script", encoding="utf-8")
+                (assets / "app.css").write_text("style", encoding="utf-8")
+
+        monkeypatch.setattr("shutil.which", lambda name: "npm")
+        monkeypatch.setattr(builder, "_run", fake_run)
+
+        first = builder.build(
+            tmp_path, tmp_path / "first", (PackageFormat.FRONTEND_ZIP,)
+        )[0].read_bytes()
+        second = builder.build(
+            tmp_path, tmp_path / "second", (PackageFormat.FRONTEND_ZIP,)
+        )[0].read_bytes()
+
+        assert first == second
+
 
 class TestReleaseManifest:
     def test_round_trip_is_deterministic(self, tmp_path: Path) -> None:
@@ -230,7 +311,11 @@ class TestReleaseReport:
 
 
 class PassingPreconditions:
-    def check(self, context: ReleaseContext) -> ReleasePreconditionReport:
+    def check(
+        self,
+        context: ReleaseContext,
+        formats: tuple[PackageFormat, ...],
+    ) -> ReleasePreconditionReport:
         return ReleasePreconditionReport()
 
 
@@ -249,7 +334,12 @@ class FakePackageBuilder:
         output_directory.mkdir(parents=True, exist_ok=True)
         paths: list[Path] = []
         for package_format in formats:
-            name = "example.tar.gz" if package_format == PackageFormat.SDIST else "example.whl"
+            names = {
+                PackageFormat.SDIST: "example.tar.gz",
+                PackageFormat.WHEEL: "example.whl",
+                PackageFormat.FRONTEND_ZIP: "frontend.zip",
+            }
+            name = names[package_format]
             path = output_directory / name
             path.write_bytes(package_format.value.encode())
             paths.append(path)
@@ -259,7 +349,11 @@ class FakePackageBuilder:
 class FakeInspector:
     def inspect(self, path: Path, output_root: Path) -> PackageArtifact:
         package_format = (
-            PackageFormat.WHEEL if path.suffix == ".whl" else PackageFormat.SDIST
+            PackageFormat.WHEEL
+            if path.suffix == ".whl"
+            else PackageFormat.FRONTEND_ZIP
+            if path.suffix == ".zip"
+            else PackageFormat.SDIST
         )
         data = path.read_bytes()
         return PackageArtifact(
@@ -280,7 +374,10 @@ class TestReleaseService:
             inspector=FakeInspector(),
         )
 
-        execution = service.run(context, (PackageFormat.SDIST, PackageFormat.WHEEL))
+        execution = service.run(
+            context,
+            (PackageFormat.SDIST, PackageFormat.WHEEL, PackageFormat.FRONTEND_ZIP),
+        )
 
         assert execution.report is not None
         assert execution.report.success
@@ -296,10 +393,13 @@ class TestReleaseService:
             inspector=FakeInspector(),
         )
 
-        execution = service.run(context, (PackageFormat.SDIST, PackageFormat.WHEEL))
+        execution = service.run(
+            context,
+            (PackageFormat.SDIST, PackageFormat.WHEEL, PackageFormat.FRONTEND_ZIP),
+        )
 
         assert execution.report is not None and execution.report.success
         assert execution.manifest_path is not None and execution.manifest_path.is_file()
         assert execution.checksum_path is not None and execution.checksum_path.is_file()
         assert ReleaseManifest.read(execution.manifest_path) == execution.manifest
-        assert len(execution.report.results) == 2
+        assert len(execution.report.results) == 3
