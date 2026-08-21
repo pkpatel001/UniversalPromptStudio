@@ -143,7 +143,7 @@ class TestFutureCommands:
         """Test build without subcommand."""
         result = runner.invoke(app, ["build"])
         assert result.exit_code == 0
-        assert "not yet implemented" in result.output.lower()
+        assert "build run" in result.output.lower()
 
     def test_generate_no_subcommand(self) -> None:
         """Test generate without subcommand."""

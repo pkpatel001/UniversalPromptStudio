@@ -46,6 +46,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .exceptions import EngineeringError
@@ -177,6 +178,7 @@ class ValidationContext:
         self,
         paths: ProjectPaths | None = None,
         config: Configuration | None = None,
+        project_root: Path | None = None,
     ) -> None:
         from .config import get_config
         from .filesystem import exists, is_directory, is_file, read_text
@@ -184,6 +186,7 @@ class ValidationContext:
 
         self.paths = paths if paths is not None else get_paths()
         self.config = config if config is not None else get_config()
+        self._root = project_root.resolve() if project_root is not None else self.paths.root
         self._read_text = read_text
         self._exists = exists
         self._is_directory = is_directory
@@ -204,7 +207,7 @@ class ValidationContext:
             File contents, or None if the file cannot be read.
         """
 
-        full_path = self.paths.root / relative_path
+        full_path = self._root / relative_path
         if not self._is_file(full_path):
             return None
         try:
@@ -226,7 +229,7 @@ class ValidationContext:
         bool
         """
 
-        return self._is_file(self.paths.root / relative_path)
+        return self._is_file(self._root / relative_path)
 
     def directory_exists(self, relative_path: str) -> bool:
         """
@@ -242,7 +245,7 @@ class ValidationContext:
         bool
         """
 
-        return self._is_directory(self.paths.root / relative_path)
+        return self._is_directory(self._root / relative_path)
 
 
 # -----------------------------------------------------------------------------
@@ -316,7 +319,7 @@ class Validator:
 
         self.rules.append(rule)
 
-    def validate(self) -> ValidationReport:
+    def validate(self, context: ValidationContext | None = None) -> ValidationReport:
         """
         Run all rules and return a validation report.
 
@@ -326,10 +329,10 @@ class Validator:
             Aggregated validation results.
         """
 
-        context = ValidationContext()
+        validation_context = context or ValidationContext()
         issues: list[ValidationIssue] = []
 
         for rule in self.rules:
-            issues.extend(rule.check(context))
+            issues.extend(rule.check(validation_context))
 
         return ValidationReport(issues=tuple(issues))
