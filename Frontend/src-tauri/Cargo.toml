@@ -4,6 +4,7 @@ version = "0.2.0-alpha"
 description = "Universal Prompt Studio desktop application"
 authors = ["The Patel Brothers Creative Solutions"]
 edition = "2024"
+rust-version = "1.98"
 license = "MIT"
 repository = "https://github.com/pkpatel001/UniversalPromptStudio"
 

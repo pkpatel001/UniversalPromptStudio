@@ -276,12 +276,32 @@ class ReleasePreconditionChecker:
         cargo_path = root / "Frontend" / "src-tauri" / "Cargo.toml"
         lock_path = root / "Frontend" / "src-tauri" / "Cargo.lock"
         config_path = root / "Frontend" / "src-tauri" / "tauri.conf.json"
+        toolchain_path = root / "rust-toolchain.toml"
         try:
             cargo = tomllib.loads(cargo_path.read_text(encoding="utf-8"))
             lock = tomllib.loads(lock_path.read_text(encoding="utf-8"))
             config = json.loads(config_path.read_text(encoding="utf-8"))
+            toolchain_data = tomllib.loads(toolchain_path.read_text(encoding="utf-8"))
+            package = cargo.get("package")
             dependencies = cargo.get("dependencies")
             build_dependencies = cargo.get("build-dependencies")
+            toolchain = toolchain_data.get("toolchain")
+            if not isinstance(package, dict) or not isinstance(toolchain, dict):
+                raise ValueError("Cargo package and Rust toolchain mappings are required")
+            rust_version = package.get("rust-version")
+            channel = toolchain.get("channel")
+            components = toolchain.get("components")
+            if (
+                not isinstance(rust_version, str)
+                or not isinstance(channel, str)
+                or re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", channel) is None
+                or Version(channel).release[:2] != Version(rust_version).release[:2]
+            ):
+                raise ValueError("Rust toolchain must be patch-pinned to Cargo rust-version")
+            if toolchain.get("profile") != "minimal" or not isinstance(components, list):
+                raise ValueError("Rust toolchain must use the minimal profile")
+            if not {"clippy", "rustfmt"}.issubset(components):
+                raise ValueError("Rust toolchain must include clippy and rustfmt")
             if not isinstance(dependencies, dict) or "tauri" not in dependencies:
                 raise ValueError("Cargo.toml must declare tauri")
             if (

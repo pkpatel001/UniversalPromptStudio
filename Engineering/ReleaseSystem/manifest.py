@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from Engineering.core.exceptions import ReleaseError
+from Engineering.core.exceptions import EngineeringError, ReleaseError
 from Engineering.core.filesystem import read_json, write_json
 
 from .models import PackageArtifact, PackageFormat, ReleaseVersion
@@ -82,5 +82,5 @@ class ReleaseManifest:
                     )
                 )
             return cls(ReleaseVersion(version), tuple(artifacts))
-        except (KeyError, TypeError, ValueError) as exc:
+        except (AttributeError, EngineeringError, KeyError, TypeError, ValueError) as exc:
             raise ReleaseError(f"Invalid release manifest {path}: {exc}") from exc

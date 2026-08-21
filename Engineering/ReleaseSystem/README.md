@@ -14,6 +14,7 @@ ReleaseContext
     -> Python, npm/Vite, and Rust/Tauri package builders
     -> artifact inspection and SHA-256 checksums
     -> ReleaseManifest and ReleaseReport
+    -> independent manifest, package-set, and checksum verification
 ```
 
 The supported local formats are Python source distributions, Python wheels, a
@@ -40,6 +41,8 @@ for the frontend and Rust dependency graphs.
 - Desktop installers must have valid DOS and PE executable signatures.
 - Manifests contain relative paths, sizes, formats, and SHA-256 hashes without
   timestamps or machine identifiers.
+- Post-build verification rejects missing, unexpected, unsafe, duplicate, or
+  modified artifacts and requires a canonical checksum file.
 
 ## CLI
 
@@ -48,6 +51,7 @@ python -m Engineering release plan
 python -m Engineering release run --dry-run
 python -m Engineering release run
 python -m Engineering release run --overwrite
+python -m Engineering release verify
 python -m Engineering release clean
 ```
 
@@ -55,3 +59,11 @@ python -m Engineering release clean
 
 The NSIS package produced by E-011.3 is intentionally unsigned. Signing,
 publication, MSI packaging, and updater metadata remain outside this checkpoint.
+
+## Automation
+
+`Scripts/package-desktop.ps1` is the local and CI acceptance entry point. The
+GitHub Actions workflow in `.github/workflows/desktop-package.yml` runs it on a
+Windows 2025 runner and retains the verified unsigned `release/` directory for
+14 days. The workflow has read-only repository permissions and cannot create a
+GitHub Release or publish packages.

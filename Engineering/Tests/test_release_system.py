@@ -21,6 +21,7 @@ from Engineering.ReleaseSystem import (
     PackageFormat,
     PackageInspector,
     PackageState,
+    ReleaseArtifactVerifier,
     ReleaseContext,
     ReleaseManifest,
     ReleasePlanner,
@@ -418,6 +419,77 @@ class FakeInspector:
             len(data),
             hashlib.sha256(data).hexdigest(),
         )
+
+
+def _write_verifiable_release(root: Path) -> Path:
+    output = root / "release"
+    definitions = (
+        (PackageFormat.SDIST, "packages/python/example.tar.gz"),
+        (PackageFormat.WHEEL, "packages/python/example.whl"),
+        (PackageFormat.FRONTEND_ZIP, "packages/frontend/frontend.zip"),
+        (PackageFormat.DESKTOP_NSIS, "packages/desktop/example_x64-setup.exe"),
+    )
+    artifacts: list[PackageArtifact] = []
+    for package_format, relative in definitions:
+        path = output / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data = package_format.value.encode()
+        path.write_bytes(data)
+        artifacts.append(
+            PackageArtifact(
+                relative,
+                package_format,
+                len(data),
+                hashlib.sha256(data).hexdigest(),
+            )
+        )
+    manifest = ReleaseManifest(ReleaseVersion("0.2.0-alpha"), tuple(artifacts))
+    manifest.write(output / "release-manifest.json")
+    checksum_path = output / "checksums" / "SHA256SUMS"
+    checksum_path.parent.mkdir(parents=True)
+    checksum_path.write_text(
+        "".join(
+            f"{item.sha256}  {item.relative_path}\n"
+            for item in sorted(artifacts, key=lambda item: item.relative_path)
+        ),
+        encoding="utf-8",
+    )
+    return output
+
+
+class TestReleaseArtifactVerifier:
+    def test_rejects_missing_manifest(self, tmp_path: Path) -> None:
+        with pytest.raises(ReleaseError, match="Invalid release manifest"):
+            ReleaseArtifactVerifier(FakeInspector()).verify(tmp_path / "release")
+
+    def test_verifies_complete_release(self, tmp_path: Path) -> None:
+        output = _write_verifiable_release(tmp_path)
+
+        report = ReleaseArtifactVerifier(FakeInspector()).verify(output)
+
+        assert len(report.artifacts) == 4
+        assert report.summary == "Release verification succeeded: 4 artifacts verified."
+
+    def test_rejects_tampered_artifact(self, tmp_path: Path) -> None:
+        output = _write_verifiable_release(tmp_path)
+        (output / "packages" / "frontend" / "frontend.zip").write_bytes(b"tampered")
+
+        with pytest.raises(ReleaseError, match="does not match its manifest"):
+            ReleaseArtifactVerifier(FakeInspector()).verify(output)
+
+    def test_rejects_missing_or_unexpected_packages(self, tmp_path: Path) -> None:
+        output = _write_verifiable_release(tmp_path)
+        (output / "packages" / "unexpected.bin").write_bytes(b"unexpected")
+
+        with pytest.raises(ReleaseError, match="unexpected"):
+            ReleaseArtifactVerifier(FakeInspector()).verify(output)
+
+    def test_rejects_checksum_file_drift(self, tmp_path: Path) -> None:
+        output = _write_verifiable_release(tmp_path)
+        (output / "checksums" / "SHA256SUMS").write_text("wrong\n", encoding="utf-8")
+
+        with pytest.raises(ReleaseError, match="SHA256SUMS"):
+            ReleaseArtifactVerifier(FakeInspector()).verify(output)
 
 
 class TestReleaseService:

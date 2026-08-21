@@ -9,10 +9,12 @@ import typer
 
 from Engineering.cli.errors import EXIT_CODE_VALIDATION_FAILURE
 from Engineering.cli.output.console import console
+from Engineering.core.exceptions import ReleaseError
 from Engineering.core.paths import get_paths
 from Engineering.core.version import VERSION
 from Engineering.ReleaseSystem import (
     PackageFormat,
+    ReleaseArtifactVerifier,
     ReleaseContext,
     ReleaseService,
     ReleaseVersion,
@@ -99,6 +101,18 @@ def release_clean() -> None:
         console.print(f"[green]Removed release output: {output_root}[/green]")
     else:
         console.print("[green]Release output is already clean.[/green]")
+
+
+@app.command(name="verify")
+def release_verify() -> None:
+    """Verify an existing release manifest, package set, and checksums."""
+
+    try:
+        report = ReleaseArtifactVerifier().verify(get_paths().root / "release")
+    except ReleaseError as exc:
+        console.print(f"FAILED release.verify: {exc}")
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    console.print(report.summary)
 
 
 def _package_id(package_format: PackageFormat) -> str:

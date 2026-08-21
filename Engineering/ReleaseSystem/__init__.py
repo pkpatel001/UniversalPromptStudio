@@ -24,6 +24,7 @@ from .models import (
 from .planner import ReleasePlanner
 from .preconditions import ReleasePreconditionChecker
 from .service import DefaultBuildGate, ReleaseExecution, ReleaseService
+from .verification import ReleaseArtifactVerifier, ReleaseVerificationReport
 
 __all__ = [
     "PackageArtifact",
@@ -49,4 +50,6 @@ __all__ = [
     "ReleaseReport",
     "ReleaseService",
     "ReleaseVersion",
+    "ReleaseArtifactVerifier",
+    "ReleaseVerificationReport",
 ]
