@@ -2,7 +2,21 @@
 
 from .catalog import ThemeCatalog
 from .compatibility import ThemeSdkContract
-from .discovery import DEFAULT_IGNORED_THEME_DIRECTORIES, ThemeDiscoveryService
+from .discovery import (
+    DEFAULT_IGNORED_THEME_DIRECTORIES,
+    THEME_STAGING_DIRECTORY_PREFIX,
+    ThemeDiscoveryService,
+)
+from .installation import (
+    THEME_INSTALLATION_RECEIPT_NAME,
+    THEME_INSTALLATION_RECEIPT_SCHEMA_VERSION,
+    THEME_MANAGED_DIRECTORY,
+    THEME_TRUST_POLICY_ID,
+    ThemeInstallationPlanner,
+    ThemeInstallationResult,
+    ThemeInstaller,
+    ThemeInstallPlan,
+)
 from .manifest import (
     THEME_MANIFEST_NAME,
     THEME_SCHEMA_VERSION,
@@ -24,6 +38,17 @@ from .models import (
     ThemeSdkVersion,
     ThemeValidationReport,
     ThemeVersion,
+)
+from .package import (
+    MAX_THEME_MANIFEST_BYTES,
+    MAX_THEME_PACKAGE_BYTES,
+    THEME_PACKAGE_SUFFIX,
+    ThemePackage,
+    ThemePackageEntry,
+    ThemePackageInspector,
+    ThemeTrustAssessment,
+    ThemeTrustPolicy,
+    ThemeTrustStatus,
 )
 from .scaffold import (
     THEME_SCAFFOLD_TEMPLATE_ID,
@@ -57,8 +82,16 @@ __all__ = [
     "THEME_SCHEMA_VERSION",
     "THEME_SDK_API_LEVEL",
     "THEME_CSS_VARIABLE_PREFIX",
+    "THEME_INSTALLATION_RECEIPT_NAME",
+    "THEME_INSTALLATION_RECEIPT_SCHEMA_VERSION",
+    "THEME_MANAGED_DIRECTORY",
+    "THEME_PACKAGE_SUFFIX",
     "THEME_SCAFFOLD_TEMPLATE_ID",
     "THEME_SCAFFOLD_TEMPLATE_VERSION",
+    "THEME_STAGING_DIRECTORY_PREFIX",
+    "THEME_TRUST_POLICY_ID",
+    "MAX_THEME_MANIFEST_BYTES",
+    "MAX_THEME_PACKAGE_BYTES",
     "DEFAULT_IGNORED_THEME_DIRECTORIES",
     "FRONTEND_THEME_CATALOG_PATH",
     "FRONTEND_THEME_CATALOG_SCHEMA_VERSION",
@@ -74,12 +107,19 @@ __all__ = [
     "ThemeFrontendSelection",
     "ThemeFrontendSyncResult",
     "ThemeId",
+    "ThemeInstallPlan",
+    "ThemeInstallationPlanner",
+    "ThemeInstallationResult",
+    "ThemeInstaller",
     "ThemeInspectionReport",
     "ThemeIssue",
     "ThemeManifest",
     "ThemeManifestReader",
     "ThemeMetadata",
     "ThemePalette",
+    "ThemePackage",
+    "ThemePackageEntry",
+    "ThemePackageInspector",
     "ThemeRecord",
     "ThemeSdkCompatibility",
     "ThemeSdkContract",
@@ -93,6 +133,9 @@ __all__ = [
     "ThemeTokenCompiler",
     "ThemeTokenName",
     "ThemeTokenSet",
+    "ThemeTrustAssessment",
+    "ThemeTrustPolicy",
+    "ThemeTrustStatus",
     "ThemeValidationReport",
     "ThemeVersion",
 ]

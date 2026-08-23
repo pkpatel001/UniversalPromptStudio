@@ -185,3 +185,24 @@ and Revert clear the record.
 This does not authenticate or install external themes, establish publisher
 provenance, migrate preferences, certify accessibility, or make untrusted
 content safe. Those boundaries remain deferred.
+
+E-015.7 adds a project-local external-theme ingress boundary. A canonical ZIP
+contains exactly one root declarative manifest; bounded inspection uses one byte
+snapshot, validates the strict schema without extraction, and hashes both the
+archive and manifest. Extra members, symlinked packages or members, encryption,
+unsupported compression, oversized content, malformed UTF-8/YAML, and identity
+mismatches are rejected.
+
+Installation requires an exact caller-supplied SHA-256 and a separate explicit
+external-theme acknowledgement. The host derives
+`Themes/Installed/<id>/<version>`, rejects symlinked components, compatibility or
+discovery failures, duplicates, and existing targets, and atomically moves a
+private staging directory into place. The installed manifest is the exact
+inspected content. A deterministic receipt records the caller's bounded source
+label, file identity, content hashes and sizes, and approval policy.
+
+Hash approval proves byte equality only. The source label is caller-provided
+provenance, not authenticated publisher identity. No signature, certificate,
+reputation, persistent trust grant, network acquisition, update, replacement,
+removal, or revocation mechanism is added. Installation does not transport the
+theme to the frontend or activate it; those remain separate explicit boundaries.

@@ -25,6 +25,7 @@ DEFAULT_IGNORED_THEME_DIRECTORIES = frozenset(
         "target",
     }
 )
+THEME_STAGING_DIRECTORY_PREFIX = ".ups-theme-"
 
 
 class ThemeDiscoveryService:
@@ -161,6 +162,7 @@ class ThemeDiscoveryService:
                 name
                 for name in names
                 if name not in DEFAULT_IGNORED_THEME_DIRECTORIES
+                and not name.startswith(THEME_STAGING_DIRECTORY_PREFIX)
                 and not (directory_path / name).is_symlink()
             )
             if THEME_MANIFEST_NAME in filenames:
@@ -168,4 +170,8 @@ class ThemeDiscoveryService:
         return tuple(paths)
 
 
-__all__ = ["DEFAULT_IGNORED_THEME_DIRECTORIES", "ThemeDiscoveryService"]
+__all__ = [
+    "DEFAULT_IGNORED_THEME_DIRECTORIES",
+    "THEME_STAGING_DIRECTORY_PREFIX",
+    "ThemeDiscoveryService",
+]

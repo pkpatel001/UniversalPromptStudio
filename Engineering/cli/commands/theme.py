@@ -17,13 +17,19 @@ from Engineering.ThemeSystem import (
     ThemeCssVariableSerializer,
     ThemeDiscoveryRoot,
     ThemeFrontendCatalogSynchronizer,
+    ThemeInstallationPlanner,
+    ThemeInstaller,
+    ThemeInstallPlan,
     ThemeManifestReader,
+    ThemePackageInspector,
     ThemeService,
     ThemeTokenCompiler,
     ThemeValidationReport,
 )
 
 app = typer.Typer(help="Inspect declarative theme metadata without applying styles")
+package_app = typer.Typer(help="Inspect canonical data-only theme packages")
+install_app = typer.Typer(help="Plan or apply controlled external-theme installation")
 
 
 @app.callback(invoke_without_command=True)
@@ -57,6 +63,113 @@ def theme_inspect(manifest: Path) -> None:
     console.print("Theme assets loaded: no")
     console.print("Styles applied: no")
     console.print("Code executed: no")
+
+
+@package_app.command(name="inspect")
+def theme_package_inspect(package: Path) -> None:
+    """Inspect and hash one canonical theme ZIP without extraction."""
+
+    try:
+        inspected = ThemePackageInspector().inspect(package)
+    except ThemeError as exc:
+        console.print(f"FAILED theme.package.inspect: {exc}", soft_wrap=True)
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    console.print(
+        f"PACKAGE {inspected.theme_id} version={inspected.version} "
+        f"sdk={inspected.manifest.metadata.sdk_version.api_level}"
+    )
+    console.print(f"Archive: {inspected.filename}")
+    console.print(f"SHA-256: {inspected.sha256}")
+    console.print(f"Manifest SHA-256: {inspected.entries[0].sha256}")
+    console.print("Package contents: theme-manifest.yaml only")
+    console.print("Publisher authentication: unavailable")
+    console.print("Archive extracted: no")
+    console.print("Styles applied: no")
+
+
+def _theme_install_root(root: Path | None) -> ThemeDiscoveryRoot:
+    return ThemeDiscoveryRoot("project", root or (get_paths().root / "Themes"))
+
+
+def _print_install_plan(plan: ThemeInstallPlan) -> None:
+    console.print(f"PACKAGE {plan.package.theme_id} version={plan.package.version}")
+    console.print(f"SHA-256: {plan.package.sha256}")
+    console.print(f"Trust: {plan.trust.status.value} (exact package bytes only)")
+    console.print(f"Target: {plan.root_id}:{plan.target_relative_path}")
+    for issue in plan.issues:
+        console.print(
+            f"BLOCKED {issue.code} root={issue.root_id} "
+            f"path={issue.relative_path}: {issue.message}",
+            soft_wrap=True,
+        )
+    console.print(plan.summary)
+
+
+@install_app.command(name="plan")
+def theme_install_plan(
+    package: Path,
+    root: Annotated[Path | None, typer.Option("--root")] = None,
+    approved_sha256: Annotated[
+        str | None, typer.Option("--approve-sha256")
+    ] = None,
+    acknowledge_external_theme: Annotated[
+        bool, typer.Option("--acknowledge-external-theme")
+    ] = False,
+) -> None:
+    """Plan installation without writing, extracting, syncing, or applying."""
+
+    try:
+        plan = ThemeInstallationPlanner().plan(
+            package,
+            _theme_install_root(root),
+            approved_sha256=approved_sha256,
+            acknowledge_external_theme=acknowledge_external_theme,
+        )
+        _print_install_plan(plan)
+    except ThemeError as exc:
+        console.print(f"FAILED theme.install.plan: {exc}", soft_wrap=True)
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    console.print("Filesystem changes: none")
+    if not plan.ready:
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
+
+
+@install_app.command(name="apply")
+def theme_install_apply(
+    package: Path,
+    approved_sha256: Annotated[str, typer.Option("--approve-sha256")],
+    source_label: Annotated[str, typer.Option("--source-label")],
+    acknowledge_external_theme: Annotated[
+        bool, typer.Option("--acknowledge-external-theme")
+    ] = False,
+    root: Annotated[Path | None, typer.Option("--root")] = None,
+) -> None:
+    """Install one exact approved external theme into the managed local root."""
+
+    install_root = _theme_install_root(root)
+    try:
+        plan = ThemeInstallationPlanner().plan(
+            package,
+            install_root,
+            approved_sha256=approved_sha256,
+            acknowledge_external_theme=acknowledge_external_theme,
+        )
+        _print_install_plan(plan)
+        if not plan.ready:
+            raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
+        result = ThemeInstaller().install(
+            plan,
+            install_root.path,
+            source_label=source_label,
+        )
+    except ThemeError as exc:
+        console.print(f"FAILED theme.install.apply: {exc}", soft_wrap=True)
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    console.print(f"INSTALLED {result.theme_id} version={result.version}")
+    console.print(f"Target: {result.target}")
+    console.print(f"Provenance receipt: {result.receipt}")
+    console.print("Frontend catalog synchronized: no")
+    console.print("Theme activated: no")
 
 
 @app.command(name="tokens")
@@ -224,6 +337,10 @@ def theme_sync_frontend(
     action = "updated" if result.changed else "current"
     console.print(f"Frontend theme catalog {action}: {result.path}")
     console.print(f"Selections transported: {result.selection_count}")
+
+
+app.add_typer(package_app, name="package")
+app.add_typer(install_app, name="install")
 
 
 __all__ = ["app"]

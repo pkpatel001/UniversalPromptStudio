@@ -44,6 +44,14 @@ before use, and desktop packaging rejects drift. Users may explicitly remember
 a selection; storage contains only schema version, theme ID, theme version, and
 appearance. Tokens are always resolved from the current transported catalog.
 
-Fonts, icons, arbitrary/custom tokens, asset paths, contrast scoring,
-external-theme installation, provenance, live preview, asset handling, and
-untrusted-theme policy remain later work.
+E-015.7 defines a canonical data-only external package containing exactly one
+root manifest. Inspection hashes one bounded archive snapshot without extraction.
+Installation requires both an exact SHA-256 and explicit external-theme
+acknowledgement, derives a managed project-local target, refuses replacement,
+and atomically writes the inspected manifest with a deterministic provenance
+receipt. Installation neither synchronizes the frontend catalog nor activates a
+theme.
+
+Fonts, icons, arbitrary/custom tokens, asset paths, contrast scoring, signatures,
+authenticated publishers, updates, removal, revocation, live preview, and asset
+handling remain later work.

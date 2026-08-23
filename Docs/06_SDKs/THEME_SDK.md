@@ -243,8 +243,27 @@ E-015.5 controller. Missing, malformed, oversized, unknown, or unavailable
 preferences are not applied. Selecting Default, reverting, or opting out clears
 the record.
 
+## Controlled external-theme installation
+
+External themes use a canonical `<theme-id>-<version>.ups-theme.zip` containing
+only root `theme-manifest.yaml`. Inspect the archive and copy its displayed
+SHA-256 through an independently reviewed workflow before planning or applying:
+
+```powershell
+python -m Engineering theme package inspect .\example.slate-1.0.0.ups-theme.zip
+python -m Engineering theme install plan .\example.slate-1.0.0.ups-theme.zip --approve-sha256 SHA256 --acknowledge-external-theme
+python -m Engineering theme install apply .\example.slate-1.0.0.ups-theme.zip --approve-sha256 SHA256 --acknowledge-external-theme --source-label reviewed-local
+```
+
+The installer derives `Themes/Installed/<id>/<version>`, refuses existing or
+duplicate identities, and writes `theme-installation.json` with source label,
+package identity, exact digests, and the approval policy. The label records what
+the caller asserted; it does not authenticate a publisher. Installation does not
+sync the generated frontend catalog or activate the theme. Those remain separate
+explicit actions.
+
 ## Deferred work
 
 Fonts, icons, asset paths, arbitrary/custom tokens, contrast scoring,
-external-theme installation, provenance, live preview, asset handling, and
-untrusted-theme policy remain later work.
+signatures, authenticated publishers, update/removal and revocation workflows,
+live preview, asset handling, and accessibility certification remain later work.
