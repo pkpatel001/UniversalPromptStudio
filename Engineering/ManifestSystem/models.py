@@ -11,6 +11,7 @@ class ManifestKind(Enum):
 
     BUILD = "build"
     DOCUMENTATION = "documentation"
+    AI_PROVIDER = "ai-provider"
     PLUGIN = "plugin"
     TEMPLATE_ARTIFACT = "template-artifact"
     RELEASE = "release"

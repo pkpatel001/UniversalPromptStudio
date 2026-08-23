@@ -1,6 +1,7 @@
 """E-012 typed manifest discovery, validation, and migration planning."""
 
 from .adapters import (
+    AIProviderManifestAdapter,
     BuildManifestAdapter,
     DocumentationManifestAdapter,
     PluginManifestAdapter,
@@ -36,6 +37,7 @@ from .relationships import (
 from .service import ManifestInspectionService, ManifestValidationService
 
 __all__ = [
+    "AIProviderManifestAdapter",
     "BuildManifestAdapter",
     "DocumentationManifestAdapter",
     "ManifestAdapter",

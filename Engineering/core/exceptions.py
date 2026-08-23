@@ -30,6 +30,7 @@ __all__ = [
     "ReleaseError",
     "ManifestError",
     "PluginError",
+    "ProviderError",
     "CodeGenerationError",
     "TemplateError",
     "TemplateNotFoundError",
@@ -149,6 +150,10 @@ class ManifestError(EngineeringError):
 
 class PluginError(EngineeringError):
     """Base exception for plugin metadata and catalog operations."""
+
+
+class ProviderError(EngineeringError):
+    """Base exception for AI-provider SDK and manifest operations."""
 
 
 # -----------------------------------------------------------------------------

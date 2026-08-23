@@ -46,6 +46,7 @@ class TestManifestRegistry:
         registry = ManifestRegistry(default_manifest_adapters())
 
         assert tuple(adapter.spec.manifest_id for adapter in registry.adapters) == (
+            "ups.ai-provider",
             "ups.build",
             "ups.documentation",
             "ups.plugin",
@@ -53,6 +54,7 @@ class TestManifestRegistry:
             "ups.template-artifact",
         )
         assert registry.resolve_filename("build-manifest.json") is not None
+        assert registry.resolve_filename("ai-provider-manifest.yaml") is not None
         assert registry.resolve_filename("documentation_manifest.yaml") is not None
         assert registry.resolve_filename("unrelated.json") is None
 
@@ -178,6 +180,7 @@ class TestManifestCli:
 
         assert result.exit_code == 0
         assert "ups.build: build-manifest.json (current: 1; readable: 1" in result.output
+        assert "ups.ai-provider: ai-provider-manifest.yaml" in result.output
         assert "ups.documentation: documentation_manifest.yaml" in result.output
         assert "current: 1; readable: 0, 1" in result.output
         assert "ups.release: release-manifest.json (current: 1; readable: 1" in result.output

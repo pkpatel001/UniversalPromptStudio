@@ -10,6 +10,10 @@ from Engineering.core.constants import DEFAULT_MANIFEST_FILENAME
 from Engineering.core.exceptions import EngineeringError, ManifestError
 from Engineering.core.filesystem import read_json, read_yaml
 from Engineering.PluginSystem import PLUGIN_MANIFEST_NAME, PluginManifestReader
+from Engineering.ProviderSystem import (
+    AI_PROVIDER_MANIFEST_NAME,
+    ProviderManifestReader,
+)
 from Engineering.ReleaseSystem import RELEASE_MANIFEST_NAME, ReleaseManifest
 from Engineering.Templates import ArtifactManifest
 from Engineering.Templates.executor import DEFAULT_MANIFEST_NAME
@@ -207,10 +211,33 @@ class PluginManifestAdapter(_ReaderAdapter):
         return self._reader.read(path).schema_version
 
 
+class AIProviderManifestAdapter(_ReaderAdapter):
+    """Validate E-014 AI-provider manifests through their owning subsystem."""
+
+    spec = ManifestSpec(
+        "ups.ai-provider",
+        ManifestKind.AI_PROVIDER,
+        AI_PROVIDER_MANIFEST_NAME,
+        (1,),
+        current_schema_version=1,
+        allow_multiple=True,
+    )
+    _reader = ProviderManifestReader()
+
+    def detect_schema_version(self, path: Path) -> int:
+        """Delegate YAML schema-envelope detection to the provider owner."""
+
+        return self._reader.detect_schema_version(path)
+
+    def _read_schema_version(self, path: Path) -> int:
+        return self._reader.read(path).schema_version
+
+
 def default_manifest_adapters() -> tuple[ManifestAdapter, ...]:
     """Return all built-in adapters in stable registration order."""
 
     return (
+        AIProviderManifestAdapter(),
         BuildManifestAdapter(),
         DocumentationManifestAdapter(),
         PluginManifestAdapter(),

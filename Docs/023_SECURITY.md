@@ -42,3 +42,15 @@ verification, revocation, subprocess boundary, or OS sandbox.
 - encryption;
 - secret and credential storage; and
 - future cloud-provider security.
+
+## AI-provider metadata
+
+E-014.1 provider manifests are portable metadata only. Their strict schema
+rejects unknown and secret-like fields and has no endpoint, header, credential,
+environment-variable, or machine-path fields. Authentication values describe a
+future mechanism but never locate or grant a credential.
+
+Provider inspection imports no code, performs no network request, and accesses
+no credentials. Runtime provider authentication, secure credential resolution,
+transport policy, TLS requirements, logging/redaction, and remote-service trust
+remain deferred.

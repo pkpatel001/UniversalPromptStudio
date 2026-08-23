@@ -15,6 +15,7 @@ from .commands import (
     generate,
     manifest,
     plugin,
+    provider,
     release,
     validate,
     version,
@@ -58,3 +59,4 @@ app.add_typer(generate.app, name="generate")
 app.add_typer(release.app, name="release")
 app.add_typer(manifest.app, name="manifest")
 app.add_typer(plugin.app, name="plugin")
+app.add_typer(provider.app, name="provider")
