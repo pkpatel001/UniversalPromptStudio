@@ -1,19 +1,21 @@
 # Universal Prompt Studio AI Provider SDK
 
-## Scope through E-014.3
+## Scope through E-014.4
 
 E-014.1 establishes portable provider identity and capability metadata.
 E-014.2 adds deterministic multi-root discovery, SDK compatibility
 classification, and catalog resolution. E-014.3 adds controlled provider
-scaffold generation through E-009 and E-008. Reading, discovering, validating,
-resolving, or generating provider metadata never imports its entry point,
-accesses credentials, performs network requests, discovers models, or executes
-prompts.
+scaffold generation through E-009 and E-008. E-014.4 adds typed text-runtime
+values and controlled registration of host-supplied instances. Reading,
+discovering, validating, resolving, generating, or registering provider
+metadata never imports its entry point, accesses credentials, performs network
+requests, discovers models, or executes prompts.
 
 The existing `Backend.interfaces.AIProvider` remains the phase-one synchronous
-application interface. It is not yet the completed AI Provider SDK execution
-contract. Streaming, cancellation, structured errors, retries, embeddings,
-multimodal payloads, and runtime configuration require later checkpoints.
+application interface. E-014.4 does not replace or connect that application
+flow. Streaming, cancellation mechanics, retries, embeddings, multimodal
+payloads, runtime configuration, loading, and execution orchestration require
+later checkpoints.
 
 ## Manifest schema 1
 
@@ -165,6 +167,34 @@ writes are owned by E-008.
 
 The destination must be one direct child of `Providers/`. Existing differing
 files are preserved unless `--overwrite` is explicit. The generated Python
-class is passive because the provider runtime request, response, streaming,
-cancellation, failure, configuration, and credential contracts are not yet
-defined.
+class remains passive: E-014.4 defines the text request, response, failure, and
+registration boundary, but scaffold generation does not opt generated code into
+that protocol or establish a loading and execution path.
+
+## Typed text runtime boundary
+
+The E-014.4 public API includes:
+
+- `ProviderTextRequest` with request identity, prompt, optional model, and an
+  immutable tuple of portable scalar options;
+- `ProviderTextResponse` with correlated request identity, text, optional
+  model, and non-negative usage values;
+- `ProviderFailure` and `ProviderFailureCode` for stable failure reporting;
+- the structural `RuntimeTextProvider` protocol; and
+- `ProviderRuntimeRegistry` for explicit metadata-to-instance binding.
+
+Request option names are stable lowercase identifiers, must be unique, and
+reject credential-like names. Values are strings, integers, finite floats, or
+booleans. These options are request data, not runtime configuration or a place
+to store credentials.
+
+The registry validates the manifest SDK level, requires the declared
+`text-generation` capability, checks exact provider ID/version equality, and
+rejects duplicates. It can resolve an exact version or the highest registered
+version and can explicitly unregister one binding. It never imports the
+manifest entry point and never calls `generate_text`.
+
+E-014.4 defines the boundary but does not execute requests. Structured timeout,
+rate-limit, and cancellation outcomes are classifications only; timeout,
+retry, and cancellation mechanisms remain deferred with provider loading,
+credentials, endpoints, model discovery, health checks, and real integrations.

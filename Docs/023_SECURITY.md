@@ -59,3 +59,15 @@ E-014.3 scaffold generation uses the controlled E-009/E-008 pipeline and writes
 only below one direct child of `Providers/`. The generated entry point is
 passive. Generation does not import code, contact a provider, access
 credentials, or grant trust.
+
+E-014.4 runtime registration accepts only an implementation instance explicitly
+created and supplied by trusted host composition. It validates SDK
+compatibility, exact manifest identity/version, and the declared
+`text-generation` capability; duplicate identities never replace an existing
+binding. Registration and resolution do not import entry points or invoke
+provider methods. Request option names that appear to carry credentials are
+rejected, but this is validation defense, not a credential-management system.
+
+The runtime protocol is not a sandbox or an authorization grant. Loading code,
+executing requests, resolving credentials, contacting services, and enforcing
+timeouts, retries, or cancellation remain outside E-014.4.

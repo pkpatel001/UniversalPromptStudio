@@ -2,11 +2,12 @@
 
 ## Current checkpoint
 
-Through E-014.3, the toolkit supports strict manifest authoring, explicit-root
+Through E-014.4, the toolkit supports strict manifest authoring, explicit-root
 discovery, SDK compatibility validation, deterministic catalog resolution, and
-controlled project-local scaffold generation. Begin with
-`AI_PROVIDER_SDK.md`, ADR-0018, ADR-0019, and ADR-0020. Do not place runtime
-configuration or credentials in a provider manifest.
+controlled project-local scaffold generation. It also defines immutable text
+request/response/failure contracts and explicit host-owned runtime
+registration. Begin with `AI_PROVIDER_SDK.md`, ADR-0018 through ADR-0021. Do
+not place runtime configuration or credentials in a provider manifest.
 
 ## Generate a scaffold
 
@@ -29,7 +30,23 @@ authentication metadata. Existing differing files are conflicts unless
 `--overwrite` is explicit.
 
 The generated `provider.py` is intentionally passive. Generation does not
-import it or establish the later runtime execution contract.
+import it or automatically opt it into runtime registration.
+
+## Implement the text runtime protocol
+
+`RuntimeTextProvider` exposes exact typed `provider_id` and `version`
+properties plus `generate_text(ProviderTextRequest)`. A result is either
+`ProviderTextResponse` or `ProviderFailure`; provider-specific exceptions must
+not become part of the portable SDK contract. Request options are immutable,
+scalar, uniquely named, and reject credential-like names.
+
+`ProviderRuntimeRegistry.register(record, implementation)` is controlled by
+the host. It accepts only SDK-compatible records that declare
+`text-generation`, requires the implementation identity and version to match,
+and rejects duplicates. The registry receives an already-created instance: it
+does not resolve the manifest entry point, import a module, or call
+`generate_text`. Registration therefore does not establish trust or service
+readiness.
 
 ## Author and inspect metadata
 
@@ -64,5 +81,8 @@ Manifest inspection does not import the entry point, call a provider, access the
 network, inspect environment variables, or read credentials. Authentication is
 descriptive metadata only.
 
-Runtime loading, configuration, credentials, requests, streaming, retries,
-cancellation, health checks, and model discovery remain later E-014 work.
+Provider loading, configuration, credentials, request orchestration, streaming,
+retries, cancellation mechanics, health checks, model discovery, and real
+provider integrations remain later E-014 work. A structured failure code names
+a portable outcome category; it does not implement timeout, retry, or
+cancellation policy.

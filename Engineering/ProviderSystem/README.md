@@ -25,6 +25,14 @@ executed through E-009 and E-008. Scaffolds are restricted to one direct child
 of `Providers/` and contain the canonical manifest, a passive Python
 entry-point class, and an author README.
 
-This subsystem does not yet define runtime execution, streaming event payloads,
-cancellation, retry policy, endpoint configuration, credential resolution,
-model discovery, provider loading, or application-container integration.
+E-014.4 adds immutable text request, response, usage, option, and structured
+failure values plus the structural `RuntimeTextProvider` protocol. Its
+host-owned registry binds only explicitly supplied instances whose identity,
+version, SDK level, and declared `text-generation` capability match validated
+metadata. Duplicate bindings are errors and registration never imports or
+invokes the implementation.
+
+This subsystem does not yet execute provider requests or define provider
+loading, streaming event payloads, cancellation mechanics, retry policy,
+endpoint configuration, credential resolution, model discovery, health checks,
+or application-container integration.

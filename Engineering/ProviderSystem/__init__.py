@@ -18,10 +18,10 @@ from .models import (
     ProviderDiscoveryRoot,
     ProviderEntryPoint,
     ProviderId,
-    ProviderManifest,
-    ProviderMetadata,
     ProviderInspectionReport,
     ProviderIssue,
+    ProviderManifest,
+    ProviderMetadata,
     ProviderRecord,
     ProviderSdkCompatibility,
     ProviderSdkVersion,
@@ -29,7 +29,19 @@ from .models import (
     ProviderValidationReport,
     ProviderVersion,
 )
-from .service import ProviderService
+from .runtime_api import (
+    ProviderFailure,
+    ProviderFailureCode,
+    ProviderOptionValue,
+    ProviderRequestOption,
+    ProviderRuntimeRegistration,
+    ProviderRuntimeRegistry,
+    ProviderTextRequest,
+    ProviderTextResponse,
+    ProviderTextResult,
+    ProviderUsage,
+    RuntimeTextProvider,
+)
 from .scaffold import (
     PROVIDER_SCAFFOLD_TEMPLATE_ID,
     PROVIDER_SCAFFOLD_TEMPLATE_VERSION,
@@ -37,6 +49,7 @@ from .scaffold import (
     ProviderScaffoldResult,
     ProviderScaffoldService,
 )
+from .service import ProviderService
 
 __all__ = [
     "AI_PROVIDER_MANIFEST_NAME",
@@ -51,6 +64,8 @@ __all__ = [
     "ProviderDiscoveryRoot",
     "ProviderDiscoveryService",
     "ProviderEntryPoint",
+    "ProviderFailure",
+    "ProviderFailureCode",
     "ProviderId",
     "ProviderManifest",
     "ProviderManifestReader",
@@ -58,6 +73,10 @@ __all__ = [
     "ProviderInspectionReport",
     "ProviderIssue",
     "ProviderRecord",
+    "ProviderOptionValue",
+    "ProviderRequestOption",
+    "ProviderRuntimeRegistration",
+    "ProviderRuntimeRegistry",
     "ProviderSdkCompatibility",
     "ProviderSdkContract",
     "ProviderSdkVersion",
@@ -66,6 +85,11 @@ __all__ = [
     "ProviderScaffoldService",
     "ProviderService",
     "ProviderTransport",
+    "ProviderTextRequest",
+    "ProviderTextResponse",
+    "ProviderTextResult",
+    "ProviderUsage",
     "ProviderValidationReport",
     "ProviderVersion",
+    "RuntimeTextProvider",
 ]
