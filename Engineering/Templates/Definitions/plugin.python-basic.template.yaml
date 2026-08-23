@@ -3,7 +3,7 @@ metadata:
   name: Python plugin scaffold
   version: 1.0.0
   category: plugin
-  description: A schema-1 manifest, passive entry-point skeleton, and author guide.
+  description: A schema-1 manifest, explicit lifecycle skeleton, and author guide.
   tags:
     - built-in
     - plugin
@@ -41,7 +41,7 @@ artifacts:
     template: plugin.module
     type: source
     name: Plugin entry point
-    description: Passive Python entry-point skeleton.
+    description: Trusted runtime lifecycle entry-point skeleton.
   - path: README.md
     template: plugin.readme
     type: documentation

@@ -15,7 +15,10 @@ from Engineering.PluginSystem import (
     PluginCatalog,
     PluginDiscoveryRoot,
     PluginInstallationPlanner,
+    PluginLifecycleState,
     PluginPackageInspector,
+    PluginRuntimeApproval,
+    PluginRuntimeManager,
     PluginService,
     PluginValidationReport,
 )
@@ -23,6 +26,7 @@ from Engineering.PluginSystem import (
 app = typer.Typer(help="Discover, validate, and inspect plugin metadata")
 package_app = typer.Typer(help="Inspect canonical plugin packages without extraction")
 install_app = typer.Typer(help="Plan plugin installation without filesystem changes")
+runtime_app = typer.Typer(help="Explicitly inspect or probe trusted local plugin runtime")
 
 
 @app.callback(invoke_without_command=True)
@@ -210,5 +214,82 @@ def plugin_install_plan(
         raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
 
 
+def _runtime_root(root: Path | None) -> PluginDiscoveryRoot:
+    return PluginDiscoveryRoot("project", root or get_paths().plugins)
+
+
+@runtime_app.command(name="digest")
+def plugin_runtime_digest(
+    plugin_id: str,
+    version: Annotated[str | None, typer.Option("--version")] = None,
+    root: Annotated[Path | None, typer.Option("--root")] = None,
+) -> None:
+    """Report the exact directory digest required for runtime approval."""
+
+    try:
+        status = PluginRuntimeManager().digest(
+            _runtime_root(root), plugin_id, version
+        )
+    except PluginError as exc:
+        console.print(f"FAILED plugin.runtime.digest: {exc}")
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    console.print(
+        f"PLUGIN {status.plugin_id} version={status.version} root={status.root_id}"
+    )
+    console.print(
+        f"Directory SHA-256: {status.directory_sha256}",
+        soft_wrap=True,
+    )
+    console.print("Plugin code imported: no")
+    console.print("Trust persistence: none")
+
+
+@runtime_app.command(name="probe")
+def plugin_runtime_probe(
+    plugin_id: str,
+    approved_sha256: Annotated[str, typer.Option("--approve-sha256")],
+    acknowledge_full_trust: Annotated[
+        bool, typer.Option("--acknowledge-full-trust")
+    ] = False,
+    version: Annotated[str | None, typer.Option("--version")] = None,
+    root: Annotated[Path | None, typer.Option("--root")] = None,
+) -> None:
+    """Activate then deactivate one exact trusted plugin in this CLI process."""
+
+    runtime_root = _runtime_root(root)
+    manager = PluginRuntimeManager()
+    try:
+        selected = manager.digest(runtime_root, plugin_id, version)
+        approval = PluginRuntimeApproval(
+            selected.plugin_id,
+            selected.version,
+            selected.root_id,
+            approved_sha256,
+            acknowledge_full_trust,
+        )
+        activated = manager.activate(
+            runtime_root, selected.plugin_id, selected.version, approval
+        )
+    except PluginError as exc:
+        console.print(f"FAILED plugin.runtime.probe: {exc}")
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    console.print(
+        f"Runtime activation: {activated.state.value} "
+        f"contributions={len(activated.contributions)}"
+    )
+    if activated.state != PluginLifecycleState.ACTIVE:
+        console.print(f"FAILED plugin.runtime.activate: {activated.error}")
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
+    unloaded = manager.deactivate(
+        activated.root_id, activated.plugin_id, activated.version
+    )
+    console.print(f"Runtime deactivation: {unloaded.state.value}")
+    console.print("Trust persistence: none")
+    if unloaded.state != PluginLifecycleState.INACTIVE:
+        console.print(f"FAILED plugin.runtime.deactivate: {unloaded.error}")
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
+
+
 app.add_typer(package_app, name="package")
 app.add_typer(install_app, name="install")
+app.add_typer(runtime_app, name="runtime")

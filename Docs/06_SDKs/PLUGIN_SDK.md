@@ -2,17 +2,61 @@
 
 ## Scope
 
-The Plugin SDK is a metadata contract. Through E-013.4 it can describe,
+Through E-013.5 the Plugin SDK can describe,
 validate, discover, compatibility-check, dependency-check, and catalog plugins
-and generate a controlled project-local scaffold without loading them. It can
-also inspect a bounded package and produce a non-mutating installation plan. A
-valid manifest or package is not a trust decision and does not make a plugin
-safe to execute.
+and generate a controlled project-local scaffold. It can inspect a bounded
+package, produce a non-mutating installation plan, and explicitly activate an
+exact approved project-local source snapshot through the trusted runtime. A
+valid manifest, package, or digest is not a publisher identity or code-safety
+claim.
 
-Runtime lifecycle, activation, deactivation, permission enforcement, archive
-creation or extraction, installation, trust persistence, signature
-verification, remote repositories, marketplaces, and UI management are not
-implemented.
+Permission enforcement, archive creation or extraction, installation, trust
+persistence, signature verification, process or OS isolation, remote
+repositories, marketplaces, automatic startup loading, and UI management are
+not implemented.
+
+## Trusted runtime lifecycle
+
+The E-013.5 runtime is deliberately explicit and project-local:
+
+1. `plugin runtime digest` validates the selected plugin and captures a
+   bounded immutable directory snapshot without importing code.
+2. The caller independently reviews the code and supplies the exact snapshot
+   SHA-256 plus `--acknowledge-full-trust`.
+3. The host re-captures the directory, verifies the digest and manifest, loads
+   source bytes under a private namespace, instantiates the declared class, and
+   calls `activate(context)`.
+4. Staged contributions commit only after activation returns successfully.
+5. Explicit deactivation calls `deactivate(context)`, clears host-owned
+   contributions, and removes every loader-owned module.
+
+The default `TrustedInProcessLoader` sits behind `PluginModuleLoader`, so a
+future process-isolated implementation can replace it without changing the
+lifecycle manager. The current loader does not modify persistent `sys.path`
+state and executes Python source from the approved snapshot bytes. Dotted entry
+points and relative plugin imports use the same private snapshot namespace.
+
+The runtime is not a sandbox. Plugin code has the host process's full Python and
+operating-system authority. Permission requests cannot be enforced, so any
+non-empty manifest `permissions` list blocks runtime digest approval and
+activation. Trust and lifecycle state are in memory only; nothing loads
+automatically on startup.
+
+The entry-point class structurally implements:
+
+```python
+class ExamplePlugin:
+    def activate(self, context: PluginRegistrationContext) -> None:
+        context.register("commands", "example.echo", object())
+
+    def deactivate(self, context: PluginRegistrationContext) -> None:
+        pass
+```
+
+Registration accepts only manifest-declared capability IDs and unique
+contribution IDs. Activation failures roll back all staged contributions and
+module state. Deactivation failures still clear host-owned contributions and
+module state, but the lifecycle ends in `failed`.
 
 ## Package and trust planning
 
@@ -94,8 +138,9 @@ the string grammar. Inspection does not:
 - call activation logic; or
 - execute plugin code.
 
-The existing `Backend.interfaces.Plugin` abstraction remains a placeholder
-runtime interface. It is not the E-013.1 manifest contract.
+`Engineering.PluginSystem.RuntimePlugin` is the structural runtime contract.
+`Backend.interfaces.Plugin` is retained as a compatible abstract base class
+for application code and now includes both lifecycle methods.
 
 ## Capabilities
 
@@ -195,6 +240,8 @@ python -m Engineering generate plugin example.echo --capability commands --dry-r
 python -m Engineering generate plugin example.echo --capability commands
 python -m Engineering plugin package inspect example.echo-1.0.0.ups-plugin.zip
 python -m Engineering plugin install plan example.echo-1.0.0.ups-plugin.zip --approve-sha256 SHA256
+python -m Engineering plugin runtime digest example.echo
+python -m Engineering plugin runtime probe example.echo --approve-sha256 SHA256 --acknowledge-full-trust
 ```
 
 The generation command writes only below one direct child of `Plugins/`. It
@@ -203,6 +250,8 @@ rendering, path safety checks, conflict handling, dry runs, and writes. Use
 repeatable `--permission` and `--dependency ID=SPECIFIER` options as needed.
 `--overwrite` is explicit; the default preserves differing existing files.
 Generation never imports, activates, installs, or grants trust to a plugin.
-Package inspection and installation planning are also read-only. No command
-extracts, installs, updates, removes, signs, trusts persistently, or loads a
-plugin.
+Package inspection and installation planning are also read-only. The runtime
+`digest` command is read-only. The `probe` command is the only execution
+adapter: it explicitly activates and then deactivates one plugin inside that CLI
+process. No command extracts, installs, updates, removes, signs, trusts
+persistently, or configures automatic loading.

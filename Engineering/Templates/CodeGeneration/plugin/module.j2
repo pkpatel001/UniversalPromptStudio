@@ -1,11 +1,15 @@
-"""Passive entry-point skeleton for {{ values.plugin_id }}.
-
-This module is generated but is not imported or activated by scaffold generation.
-Runtime lifecycle and registration contracts are intentionally deferred.
-"""
+"""Explicitly activated entry point for {{ values.plugin_id }}."""
 
 from __future__ import annotations
 
+from Engineering.PluginSystem import PluginRegistrationContext
+
 
 class {{ values.class_name }}:
-    """Entry-point type reserved for the future controlled plugin runtime."""
+    """Trusted in-process plugin entry point."""
+
+    def activate(self, context: PluginRegistrationContext) -> None:
+        """Register manifest-declared contributions through context."""
+
+    def deactivate(self, context: PluginRegistrationContext) -> None:
+        """Release plugin-owned resources before deterministic host cleanup."""

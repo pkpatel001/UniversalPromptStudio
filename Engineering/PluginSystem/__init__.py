@@ -1,4 +1,4 @@
-"""E-013 typed, deterministic, non-executing plugin metadata foundation."""
+"""Typed plugin metadata, packaging, and approval-gated runtime foundation."""
 
 from .catalog import PluginCatalog
 from .compatibility import PluginSdkContract
@@ -41,6 +41,26 @@ from .package import (
     PluginTrustPolicy,
     PluginTrustStatus,
 )
+from .runtime import (
+    PluginLifecycleState,
+    PluginRuntimeApproval,
+    PluginRuntimeEvent,
+    PluginRuntimeEventSink,
+    PluginRuntimeManager,
+    PluginRuntimeStatus,
+)
+from .runtime_api import (
+    PluginContribution,
+    PluginContributionRegistry,
+    PluginRegistrationContext,
+    RuntimePlugin,
+)
+from .runtime_loader import LoadedPlugin, PluginModuleLoader, TrustedInProcessLoader
+from .runtime_snapshot import (
+    PluginDirectorySnapshot,
+    PluginDirectorySnapshotter,
+    PluginSnapshotFile,
+)
 from .scaffold import (
     PLUGIN_SCAFFOLD_TEMPLATE_ID,
     PLUGIN_SCAFFOLD_TEMPLATE_VERSION,
@@ -64,6 +84,8 @@ __all__ = [
     "PluginDependencyReport",
     "PluginDependencyResolution",
     "PluginDependencyResolver",
+    "PluginDirectorySnapshot",
+    "PluginDirectorySnapshotter",
     "PluginDiscoveryRoot",
     "PluginDiscoveryService",
     "PluginEntryPoint",
@@ -72,12 +94,17 @@ __all__ = [
     "PluginInstallPlan",
     "PluginInstallationPlanner",
     "PluginIssue",
+    "PluginLifecycleState",
+    "PluginContribution",
+    "PluginContributionRegistry",
+    "PluginRegistrationContext",
     "PluginManifest",
     "PluginManifestReader",
     "PluginMetadata",
     "PluginPackage",
     "PluginPackageEntry",
     "PluginPackageInspector",
+    "PluginModuleLoader",
     "PluginPermission",
     "PluginRecord",
     "PluginSdkVersion",
@@ -86,10 +113,19 @@ __all__ = [
     "PluginScaffoldRequest",
     "PluginScaffoldResult",
     "PluginScaffoldService",
+    "PluginRuntimeApproval",
+    "PluginRuntimeEvent",
+    "PluginRuntimeEventSink",
+    "PluginRuntimeManager",
+    "PluginRuntimeStatus",
+    "PluginSnapshotFile",
     "PluginService",
     "PluginTrustAssessment",
     "PluginTrustPolicy",
     "PluginTrustStatus",
     "PluginValidationReport",
     "PluginVersion",
+    "LoadedPlugin",
+    "RuntimePlugin",
+    "TrustedInProcessLoader",
 ]

@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING
 
 from Backend.domain.models import Prompt, PromptExecutionRequest, PromptExecutionResult
+
+if TYPE_CHECKING:
+    from Engineering.PluginSystem import PluginRegistrationContext
 
 
 class AIProvider(ABC):
@@ -79,7 +82,7 @@ class ExportProvider(ABC):
 
 
 class Plugin(ABC):
-    """Contract implemented by dynamically loaded plugins."""
+    """Compatibility ABC for the E-013.5 structural runtime contract."""
 
     @property
     @abstractmethod
@@ -87,8 +90,12 @@ class Plugin(ABC):
         """Return the plugin name."""
 
     @abstractmethod
-    def activate(self, registry: Any) -> None:
+    def activate(self, context: PluginRegistrationContext) -> None:
         """Activate the plugin and register contributions."""
+
+    @abstractmethod
+    def deactivate(self, context: PluginRegistrationContext) -> None:
+        """Release plugin-owned resources before host cleanup."""
 
 
 class SearchProvider(ABC):
@@ -129,4 +136,3 @@ class SettingsProvider(ABC):
     @abstractmethod
     def set(self, key: str, value: str) -> None:
         """Persist a setting value."""
-

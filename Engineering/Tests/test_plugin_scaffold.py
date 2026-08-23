@@ -72,7 +72,8 @@ def test_generates_valid_scaffold_through_e009_and_e008(tmp_path: Path) -> None:
     ]
     source = (root / "plugin.py").read_text(encoding="utf-8")
     assert "class EchoToolsPlugin:" in source
-    assert "activate(" not in source
+    assert "def activate(self, context: PluginRegistrationContext)" in source
+    assert "def deactivate(self, context: PluginRegistrationContext)" in source
 
 
 def test_dry_run_writes_nothing(tmp_path: Path) -> None:

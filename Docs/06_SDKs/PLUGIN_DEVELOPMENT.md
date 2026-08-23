@@ -2,11 +2,12 @@
 
 ## Current checkpoint
 
-E-013.4 supports controlled scaffold generation in addition to authoring,
+E-013.5 supports controlled scaffold generation in addition to authoring,
 multi-root discovery, SDK compatibility checks, and local metadata dependency
-validation. It also inspects bounded package archives and produces read-only
-installation plans. It does not install, load, or run a plugin. Start
-with the contract in
+validation. It inspects bounded package archives, produces read-only
+installation plans, and provides explicit project-local trusted runtime
+activation. It does not install plugins or load them automatically. Start with
+the contract in
 `Docs/06_SDKs/PLUGIN_SDK.md` and the architecture decision in ADR-0013.
 
 ## Project layout
@@ -22,8 +23,9 @@ Plugins/
     └── .ups-artifact-manifest.json
 ```
 
-The Python file is a passive skeleton. E-013 validates the entry-point string
-but does not import, instantiate, activate, or execute that file.
+The Python file contains `activate(context)` and `deactivate(context)`
+lifecycle methods. Scaffold generation and metadata validation do not import or
+execute it. Only the explicit E-013.5 runtime probe does.
 
 ## Generate a scaffold
 
@@ -80,6 +82,27 @@ python -m Engineering manifest validate
 Use `--root` only for a directory you explicitly intend to inspect. Commands
 are read-only.
 
+## Review and probe the trusted runtime
+
+First validate and review the complete project-local plugin directory. Then
+capture its exact digest without importing code:
+
+```powershell
+python -m Engineering plugin runtime digest example.echo
+```
+
+Supply that exact digest only after deciding to give the code full host
+authority:
+
+```powershell
+python -m Engineering plugin runtime probe example.echo --approve-sha256 SHA256 --acknowledge-full-trust
+```
+
+The probe activates and deactivates the plugin in one CLI process. The approval
+and lifecycle state are not persisted. A changed file changes the digest and
+blocks activation. Plugins with permission requests are blocked because this
+runtime cannot enforce permissions.
+
 ## Inspect a package and plan installation
 
 A canonical package is named `example.echo-1.0.0.ups-plugin.zip`, has no
@@ -124,19 +147,20 @@ publisher or establish code safety.
 
 ## Security boundary
 
-Capabilities and permissions are descriptive metadata only. They are neither
-grants nor enforced restrictions. Passing validation does not mean a plugin is
-trusted, isolated, installable, or safe to execute.
+Capabilities scope the contribution IDs accepted during explicit activation.
+Permission labels remain descriptive metadata and are neither grants nor
+enforced restrictions; a non-empty list therefore blocks activation.
 
-Do not build loading or activation logic around E-013 inspection or install
-plans. Runtime
-work must first define lifecycle, typed registration context, failure isolation,
-permission enforcement, and trust policy.
+The trusted loader is in-process, not isolated or sandboxed. Plugin code has the
+same filesystem, network, environment, credential, Python, and operating-system
+authority as the host. Manifest validity, dependency satisfaction, and an exact
+digest do not make code safe or authenticate its publisher. Activate only code
+you fully trust.
 
 ## Generation boundary
 
 The generator validates plugin-owned metadata, then delegates the scaffold to
 the E-009 template system and E-008 generation pipeline. It does not install,
-package, sign, trust, import, or activate the result. E-013.4 does not yet build
-archives or extract/install them; it defines and inspects the package boundary
-and reports installation readiness only.
+package, sign, trust, import, or activate the result. E-013.5 does not yet build
+archives or extract/install them. Runtime approval is a separate ephemeral
+decision over an existing project-local directory.

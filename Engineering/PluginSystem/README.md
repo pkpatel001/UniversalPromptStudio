@@ -28,7 +28,19 @@ compatibility, identity conflicts, and dependencies, then reports a target and
 issues without changing the filesystem. The hash approval is ephemeral and is
 not a signature, publisher identity, trust-store record, or code-safety claim.
 
-Runtime loading, activation, permission enforcement, installation, trust,
-signature verification, trust persistence, archive extraction, updates,
-removal, remote synchronization, and marketplace behavior are intentionally
-outside this checkpoint.
+E-013.5 adds an explicit trusted runtime for project-local source directories.
+It hashes one bounded immutable directory snapshot, requires an exact ephemeral
+digest approval plus a full-trust acknowledgment, loads source bytes under a
+private namespace through a replaceable loader interface, and provides typed
+activation/deactivation with scoped transactional contributions. Activation
+failure rolls back registrations and modules; deactivation always clears
+host-owned contributions and loader state.
+
+This fast-track loader runs in the host process and is not a sandbox. A plugin
+has the host's operating-system and Python authority. Plugins with permission
+requests are blocked because permissions cannot be enforced. Loading is never
+automatic, and trust is never persisted.
+
+Installation, permission enforcement, process or OS isolation, signature
+verification, trust persistence, archive extraction, updates, removal, remote
+synchronization, and marketplace behavior remain outside this checkpoint.
