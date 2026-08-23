@@ -10,6 +10,7 @@ _PROVIDER_ID = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\.[a-z][a-z0-9]*(?:
 _ENTRY_POINT = re.compile(
     r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*" r":[A-Za-z_][A-Za-z0-9_]*$"
 )
+_METADATA_ID = re.compile(r"^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$")
 
 
 def require_provider_id(value: str) -> str:
@@ -38,4 +39,12 @@ def require_nonempty_text(value: str, label: str, *, maximum: int) -> str:
         raise ProviderError(
             f"{label} must be non-empty, trimmed text of at most {maximum} characters."
         )
+    return value
+
+
+def require_metadata_id(value: str, label: str) -> str:
+    """Validate a stable discovery-root label."""
+
+    if len(value) > 128 or not _METADATA_ID.fullmatch(value):
+        raise ProviderError(f"{label} must be a lowercase dot- or hyphen-separated identifier.")
     return value

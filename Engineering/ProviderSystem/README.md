@@ -10,7 +10,16 @@ code, contacts a model service, resolves models, accesses credentials, or
 executes a request. E-012 registers the plural `ups.ai-provider` manifest
 family and delegates schema meaning to this subsystem.
 
-This checkpoint does not define runtime execution, streaming event payloads,
+E-014.2 adds deterministic exact-filename discovery below explicitly approved
+roots, stable root provenance, duplicate identity rejection, SDK API-level
+compatibility, and a catalog that resolves exact or highest versions with
+optional host-recognized capability requirements. Multiple roots never imply
+precedence; the same provider ID/version in two roots is an error.
+
+Discovery, validation, and catalog resolution still never import an entry point,
+contact a service, resolve models, or access credentials.
+
+This subsystem does not yet define runtime execution, streaming event payloads,
 cancellation, retry policy, endpoint configuration, credential resolution,
 model discovery, provider loading, scaffolding, or application-container
 integration.

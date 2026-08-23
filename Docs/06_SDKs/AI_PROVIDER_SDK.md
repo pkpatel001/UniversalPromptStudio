@@ -1,11 +1,12 @@
 # Universal Prompt Studio AI Provider SDK
 
-## E-014.1 scope
+## Scope through E-014.2
 
-E-014.1 establishes portable provider identity and capability metadata before
-provider generation or runtime integration. Reading or validating a provider
-manifest never imports its entry point, accesses credentials, performs network
-requests, discovers models, or executes prompts.
+E-014.1 establishes portable provider identity and capability metadata.
+E-014.2 adds deterministic multi-root discovery, SDK compatibility
+classification, and catalog resolution. Reading, discovering, validating, or
+resolving provider metadata never imports its entry point, accesses credentials,
+performs network requests, discovers models, or executes prompts.
 
 The existing `Backend.interfaces.AIProvider` remains the phase-one synchronous
 application interface. It is not yet the completed AI Provider SDK execution
@@ -49,8 +50,35 @@ canonical PEP 440 with exactly three release components. `sdk_version` is a
 positive integer API level and is independent of both manifest schema and
 implementation version.
 
-The current metadata API level is 1. Compatibility classification and catalog
-resolution are deferred to E-014.2.
+The current metadata API level is 1. The default host supports exactly level 1.
+Structurally valid future levels remain inspectable but are classified as
+`too-new`; older unsupported levels are `too-old`. Compatibility does not
+establish trust or runtime readiness.
+
+## Discovery and provenance
+
+Provider discovery is recursive, sorted, exact-filename, and read-only below
+one or more explicitly approved `--root` paths. Each root receives a stable
+label retained by records and issues. VCS, cache, virtual-environment,
+dependency, build, distribution, and Rust target directories are ignored.
+Symlinked roots, directories, and manifests are not followed.
+
+Root IDs and resolved root paths must be unique. Duplicate provider ID/version
+pairs across or within roots are errors. Roots have no implicit precedence, and
+one source never silently replaces another.
+
+## Catalog resolution
+
+The in-memory catalog contains SDK-compatible metadata only. It provides:
+
+- stable provider and version ordering;
+- exact-version resolution;
+- highest-version resolution when no version is supplied;
+- filtering by one or more required capabilities; and
+- stable version inventory for a provider ID.
+
+Capability matching is set inclusion over manifest declarations. It does not
+probe a service or claim that a particular model supports the behavior.
 
 ## Capabilities
 
@@ -101,11 +129,16 @@ cardinality:     many
 
 ```powershell
 python -m Engineering provider inspect C:\path\to\ai-provider-manifest.yaml
+python -m Engineering provider list --root C:\path\to\providers
+python -m Engineering provider validate --root C:\project\providers --root C:\approved\providers
+python -m Engineering provider resolve example.echo-ai --root C:\path\to\providers
+python -m Engineering provider resolve example.echo-ai --root C:\path\to\providers --capability streaming
 python -m Engineering manifest types
 python -m Engineering manifest inspect
 python -m Engineering manifest validate
 ```
 
-`provider inspect` is read-only and non-executing. Provider discovery,
-cataloging, generation, loading, runtime configuration, and request execution
-are not implemented by this checkpoint.
+`provider inspect` preserves E-014.1 exact-file inspection. Catalog commands
+require at least one explicit root and remain read-only and non-executing.
+Provider generation, loading, runtime configuration, credential resolution, and
+request execution are not implemented by this checkpoint.

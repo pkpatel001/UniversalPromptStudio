@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum, StrEnum
+from pathlib import Path
 
 from packaging.version import InvalidVersion, Version
 
 from Engineering.core.exceptions import ProviderError
 
-from .validation import require_entry_point, require_nonempty_text, require_provider_id
+from .validation import (
+    require_entry_point,
+    require_metadata_id,
+    require_nonempty_text,
+    require_provider_id,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +74,14 @@ class ProviderSdkVersion:
     def __post_init__(self) -> None:
         if type(self.api_level) is not int or self.api_level < 1:
             raise ProviderError("Provider sdk_version must be a positive integer API level.")
+
+
+class ProviderSdkCompatibility(Enum):
+    """Compatibility of a provider SDK level with the current host."""
+
+    COMPATIBLE = "compatible"
+    TOO_OLD = "too-old"
+    TOO_NEW = "too-new"
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,3 +159,86 @@ class ProviderManifest:
             raise ProviderError("Provider manifest must declare at least one capability.")
         if len(set(self.capabilities)) != len(self.capabilities):
             raise ProviderError("Provider manifest capabilities must be unique.")
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderDiscoveryRoot:
+    """One explicitly approved, stable-labeled provider discovery root."""
+
+    root_id: str
+    path: Path
+
+    def __post_init__(self) -> None:
+        require_metadata_id(self.root_id, "Provider discovery root id")
+        if not isinstance(self.path, Path):
+            raise ProviderError("Provider discovery root path must be a pathlib Path.")
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderRecord:
+    """One valid provider manifest with portable root provenance."""
+
+    relative_path: str
+    manifest: ProviderManifest
+    root_id: str = "project"
+
+    def __post_init__(self) -> None:
+        require_metadata_id(self.root_id, "Provider discovery root id")
+
+    @property
+    def provider_id(self) -> str:
+        return self.manifest.metadata.provider_id.value
+
+    @property
+    def version(self) -> str:
+        return self.manifest.metadata.version.value
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderIssue:
+    """One deterministic provider discovery or compatibility problem."""
+
+    relative_path: str
+    code: str
+    message: str
+    root_id: str = "project"
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderInspectionReport:
+    """Aggregate structural provider discovery result."""
+
+    records: tuple[ProviderRecord, ...] = ()
+    issues: tuple[ProviderIssue, ...] = ()
+
+    @property
+    def passed(self) -> bool:
+        return not self.issues
+
+    @property
+    def summary(self) -> str:
+        state = "succeeded" if self.passed else "failed"
+        return (
+            f"Provider inspection {state}: {len(self.records)} valid, "
+            f"{len(self.issues)} issues."
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderValidationReport:
+    """Aggregate SDK-compatible provider metadata result."""
+
+    records: tuple[ProviderRecord, ...] = ()
+    issues: tuple[ProviderIssue, ...] = ()
+
+    @property
+    def passed(self) -> bool:
+        return not self.issues
+
+    @property
+    def summary(self) -> str:
+        state = "succeeded" if self.passed else "failed"
+        return (
+            f"Provider validation {state}: {len(self.records)} compatible, "
+            f"{len(self.issues)} issues."
+        )
