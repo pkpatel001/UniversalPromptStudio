@@ -1,0 +1,19 @@
+# {{ values.plugin_name }}
+
+{{ values.description }}
+
+Plugin ID: `{{ values.plugin_id }}`  
+Version: `{{ values.plugin_version }}`  
+SDK API level: `{{ values.sdk_version }}`  
+Entry point: `{{ values.entry_point }}`
+
+This scaffold contains validated metadata and a passive Python class skeleton.
+Generation does not install, trust, import, instantiate, activate, or execute the
+plugin. Capabilities and permissions are declarations only.
+
+Validate the project metadata with:
+
+```powershell
+python -m Engineering plugin validate
+python -m Engineering manifest validate
+```

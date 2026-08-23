@@ -2,8 +2,9 @@
 
 ## Current checkpoint
 
-E-013.2 supports authoring, multi-root discovery, SDK compatibility checks, and
-local metadata dependency validation. It does not load or run a plugin. Start
+E-013.3 supports controlled scaffold generation in addition to authoring,
+multi-root discovery, SDK compatibility checks, and local metadata dependency
+validation. It does not load or run a plugin. Start
 with the contract in
 `Docs/06_SDKs/PLUGIN_SDK.md` and the architecture decision in ADR-0013.
 
@@ -15,12 +16,32 @@ Place each project plugin below the tracked `Plugins/` root:
 Plugins/
 └── example-echo/
     ├── plugin-manifest.yaml
-    └── example_echo/
-        └── plugin.py
+    ├── plugin.py
+    ├── README.md
+    └── .ups-artifact-manifest.json
 ```
 
-The Python file is illustrative. E-013.1 will validate the entry-point string but
-will not read, import, instantiate, or execute that file.
+The Python file is a passive skeleton. E-013 validates the entry-point string
+but does not import, instantiate, activate, or execute that file.
+
+## Generate a scaffold
+
+Preview without writing:
+
+```powershell
+python -m Engineering generate plugin example.echo --capability commands --dry-run
+```
+
+Generate the scaffold:
+
+```powershell
+python -m Engineering generate plugin example.echo --name "Echo Plugin" --capability commands
+```
+
+The default destination is `Plugins/example-echo`. A custom `--destination`
+must still name one direct child of `Plugins/`. Use repeatable `--capability`,
+`--permission`, and `--dependency example.base=">=1,<2"` options. Existing
+different files are conflicts unless `--overwrite` is explicitly supplied.
 
 ## Author a manifest
 
@@ -87,9 +108,8 @@ Do not build loading or activation logic around E-013 inspection. Runtime
 work must first define lifecycle, typed registration context, failure isolation,
 permission enforcement, and trust policy.
 
-## Future generation
+## Generation boundary
 
-The current `generate plugin` command remains intentionally unimplemented
-until E-013.3.
-When plugin scaffolding is added, it must use an E-009 template definition and
-the E-008 generation pipeline instead of writing files directly.
+The generator validates plugin-owned metadata, then delegates the scaffold to
+the E-009 template system and E-008 generation pipeline. It does not install,
+package, sign, trust, import, or activate the result.

@@ -1,0 +1,11 @@
+schema_version: 1
+plugin:
+  id: {{ values.plugin_id | tojson }}
+  name: {{ values.plugin_name | tojson }}
+  version: {{ values.plugin_version | tojson }}
+  sdk_version: {{ values.sdk_version }}
+  description: {{ values.description | tojson }}
+  entry_point: {{ values.entry_point | tojson }}
+  capabilities: {{ values.capabilities | tojson }}
+  permissions: {{ values.permissions | tojson }}
+  dependencies: {{ values.dependencies | tojson }}

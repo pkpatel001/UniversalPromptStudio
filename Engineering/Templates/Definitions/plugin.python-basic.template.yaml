@@ -1,0 +1,49 @@
+metadata:
+  id: plugin.python-basic
+  name: Python plugin scaffold
+  version: 1.0.0
+  category: plugin
+  description: A schema-1 manifest, passive entry-point skeleton, and author guide.
+  tags:
+    - built-in
+    - plugin
+    - python
+
+variables:
+  - name: plugin_id
+    type: string
+  - name: plugin_name
+    type: string
+  - name: plugin_version
+    type: string
+  - name: sdk_version
+    type: integer
+  - name: description
+    type: string
+  - name: entry_point
+    type: string
+  - name: class_name
+    type: string
+  - name: capabilities
+    type: list
+  - name: permissions
+    type: list
+  - name: dependencies
+    type: list
+
+artifacts:
+  - path: plugin-manifest.yaml
+    template: plugin.manifest
+    type: manifest
+    name: Plugin manifest
+    description: Canonical UPS plugin metadata.
+  - path: plugin.py
+    template: plugin.module
+    type: source
+    name: Plugin entry point
+    description: Passive Python entry-point skeleton.
+  - path: README.md
+    template: plugin.readme
+    type: documentation
+    name: Plugin README
+    description: Scaffold usage and security boundary.

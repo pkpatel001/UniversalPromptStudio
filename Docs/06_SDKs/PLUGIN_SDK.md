@@ -2,9 +2,9 @@
 
 ## Scope
 
-The Plugin SDK is a metadata contract. Through E-013.2 it can describe,
+The Plugin SDK is a metadata contract. Through E-013.3 it can describe,
 validate, discover, compatibility-check, dependency-check, and catalog plugins
-without loading them. A valid manifest is not a
+and generate a controlled project-local scaffold without loading them. A valid manifest is not a
 trust decision and does not make a plugin safe to execute.
 
 Runtime lifecycle, activation, deactivation, permission enforcement,
@@ -165,7 +165,7 @@ cardinality:     many
 The Plugin System owns schema meaning. The shared Manifest System owns recursive
 inventory, hashing, compatibility classification, and cardinality.
 
-## Read-only commands
+## Commands
 
 ```powershell
 python -m Engineering plugin list
@@ -174,7 +174,13 @@ python -m Engineering plugin inspect example.echo --version 1.0.0
 python -m Engineering plugin validate
 python -m Engineering plugin validate --root C:\path\to\approved\plugins
 python -m Engineering plugin dependencies --root C:\project\plugins --root C:\user\plugins
+python -m Engineering generate plugin example.echo --capability commands --dry-run
+python -m Engineering generate plugin example.echo --capability commands
 ```
 
-`python -m Engineering generate plugin` remains a placeholder until a later
-checkpoint adds an E-009 plugin template and delegates writes to E-008.
+The generation command writes only below one direct child of `Plugins/`. It
+uses the built-in E-009 `plugin.python-basic` definition, and E-008 performs
+rendering, path safety checks, conflict handling, dry runs, and writes. Use
+repeatable `--permission` and `--dependency ID=SPECIFIER` options as needed.
+`--overwrite` is explicit; the default preserves differing existing files.
+Generation never imports, activates, installs, or grants trust to a plugin.

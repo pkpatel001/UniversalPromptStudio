@@ -16,8 +16,14 @@ from Engineering.CodeGeneration import (
     project_context_from_config,
 )
 from Engineering.core.config import get_config
-from Engineering.core.exceptions import GenerationValidationError
+from Engineering.core.exceptions import EngineeringError, GenerationValidationError
 from Engineering.core.paths import get_paths
+from Engineering.PluginSystem import (
+    PluginDependency,
+    PluginId,
+    PluginScaffoldRequest,
+    PluginScaffoldService,
+)
 from Engineering.Templates import (
     TemplateDefinition,
     TemplateExecutor,
@@ -161,9 +167,69 @@ def generate_provider() -> None:
 
 
 @app.command(name="plugin")
-def generate_plugin() -> None:
-    """Generate plugin."""
-    console.print("[yellow]Plugin generation is not yet implemented.[/yellow]")
+def generate_plugin(
+    plugin_id: str,
+    name: Annotated[str | None, typer.Option("--name")] = None,
+    description: Annotated[str | None, typer.Option("--description")] = None,
+    version: Annotated[str, typer.Option("--version")] = "1.0.0",
+    sdk_version: Annotated[int, typer.Option("--sdk-version")] = 1,
+    capability: Annotated[list[str] | None, typer.Option("--capability")] = None,
+    permission: Annotated[list[str] | None, typer.Option("--permission")] = None,
+    dependency: Annotated[list[str] | None, typer.Option("--dependency")] = None,
+    class_name: Annotated[str | None, typer.Option("--class-name")] = None,
+    destination: Annotated[str | None, typer.Option("--destination", "-d")] = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    overwrite: Annotated[bool, typer.Option("--overwrite")] = False,
+) -> None:
+    """Generate a controlled project-local Python plugin scaffold."""
+
+    try:
+        short_name = plugin_id.rsplit(".", 1)[-1].replace("-", " ").title()
+        request = PluginScaffoldRequest(
+            plugin_id=plugin_id,
+            name=name or f"{short_name} Plugin",
+            description=description or f"UPS plugin {plugin_id}.",
+            version=version,
+            sdk_version=sdk_version,
+            capabilities=tuple(capability or ()),
+            permissions=tuple(permission or ()),
+            dependencies=_parse_dependencies(dependency or ()),
+            class_name=class_name,
+            destination=destination,
+            overwrite=(
+                OverwritePolicy.ALLOWED if overwrite else OverwritePolicy.NEVER
+            ),
+            dry_run=dry_run,
+        )
+        result = PluginScaffoldService.built_in(
+            get_paths().root,
+            project_context_from_config(get_config()),
+        ).generate(request)
+    except EngineeringError as exc:
+        console.print(f"FAILED plugin.generate: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print(result.execution.report.summary)
+    console.print(f"Destination: {result.destination}")
+    if result.execution.manifest_path is not None:
+        console.print(f"Artifact manifest: {result.execution.manifest_path}")
+    if not result.execution.report.success:
+        raise typer.Exit(code=1)
+
+
+def _parse_dependencies(values: list[str] | tuple[str, ...]) -> tuple[PluginDependency, ...]:
+    """Parse repeatable PLUGIN_ID=SPECIFIER dependency options."""
+
+    parsed: list[PluginDependency] = []
+    for value in values:
+        plugin_id, separator, specifier = value.partition("=")
+        if not separator or not plugin_id or not specifier:
+            raise GenerationValidationError(
+                "Plugin dependencies must use PLUGIN_ID=SPECIFIER syntax: "
+                f"{value!r}"
+            )
+        parsed.append(PluginDependency(PluginId(plugin_id), specifier))
+    return tuple(parsed)
 
 
 app.add_typer(templates_app, name="templates")

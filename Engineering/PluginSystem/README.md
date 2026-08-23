@@ -14,6 +14,12 @@ compatibility classification, constrained dependency selection, cycle
 detection, and compatibility-aware catalogs. Dependency resolution inspects
 only already-discovered metadata; it never installs or downloads anything.
 
+E-013.3 adds controlled project-local scaffold generation. The Plugin System
+validates plugin-owned inputs and composes the built-in `plugin.python-basic`
+E-009 template. E-009 resolves variables and records the artifact manifest;
+E-008 owns rendering, destination safety, conflicts, dry runs, and writes.
+Scaffolds are restricted to one direct child of `Plugins/`.
+
 Runtime loading, activation, permission enforcement, installation, trust,
 signatures, package archives, remote synchronization, and marketplace behavior
 are intentionally outside this checkpoint.

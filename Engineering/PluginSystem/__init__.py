@@ -31,6 +31,13 @@ from .models import (
     PluginValidationReport,
     PluginVersion,
 )
+from .scaffold import (
+    PLUGIN_SCAFFOLD_TEMPLATE_ID,
+    PLUGIN_SCAFFOLD_TEMPLATE_VERSION,
+    PluginScaffoldRequest,
+    PluginScaffoldResult,
+    PluginScaffoldService,
+)
 from .service import PluginService
 
 __all__ = [
@@ -38,6 +45,8 @@ __all__ = [
     "PLUGIN_MANIFEST_NAME",
     "PLUGIN_SCHEMA_VERSION",
     "PLUGIN_SDK_API_LEVEL",
+    "PLUGIN_SCAFFOLD_TEMPLATE_ID",
+    "PLUGIN_SCAFFOLD_TEMPLATE_VERSION",
     "PluginCapability",
     "PluginCatalog",
     "PluginDependency",
@@ -58,6 +67,9 @@ __all__ = [
     "PluginSdkVersion",
     "PluginSdkCompatibility",
     "PluginSdkContract",
+    "PluginScaffoldRequest",
+    "PluginScaffoldResult",
+    "PluginScaffoldService",
     "PluginService",
     "PluginValidationReport",
     "PluginVersion",
