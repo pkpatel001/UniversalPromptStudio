@@ -30,11 +30,20 @@ from .models import (
     ProviderVersion,
 )
 from .service import ProviderService
+from .scaffold import (
+    PROVIDER_SCAFFOLD_TEMPLATE_ID,
+    PROVIDER_SCAFFOLD_TEMPLATE_VERSION,
+    ProviderScaffoldRequest,
+    ProviderScaffoldResult,
+    ProviderScaffoldService,
+)
 
 __all__ = [
     "AI_PROVIDER_MANIFEST_NAME",
     "AI_PROVIDER_SCHEMA_VERSION",
     "AI_PROVIDER_SDK_API_LEVEL",
+    "PROVIDER_SCAFFOLD_TEMPLATE_ID",
+    "PROVIDER_SCAFFOLD_TEMPLATE_VERSION",
     "DEFAULT_IGNORED_PROVIDER_DIRECTORIES",
     "ProviderAuthentication",
     "ProviderCapability",
@@ -52,6 +61,9 @@ __all__ = [
     "ProviderSdkCompatibility",
     "ProviderSdkContract",
     "ProviderSdkVersion",
+    "ProviderScaffoldRequest",
+    "ProviderScaffoldResult",
+    "ProviderScaffoldService",
     "ProviderService",
     "ProviderTransport",
     "ProviderValidationReport",

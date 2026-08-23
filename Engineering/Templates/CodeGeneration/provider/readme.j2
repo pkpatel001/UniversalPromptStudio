@@ -1,0 +1,26 @@
+# {{ values.provider_name }}
+
+{{ values.description }}
+
+Provider ID: `{{ values.provider_id }}`  
+Version: `{{ values.provider_version }}`  
+SDK API level: `{{ values.sdk_version }}`  
+Entry point: `{{ values.entry_point }}`  
+Transport: `{{ values.transport }}`  
+Authentication: `{{ values.authentication }}`
+
+This scaffold contains validated portable metadata and a passive Python class.
+Generation does not import provider code, contact a service, discover models,
+access credentials, register a provider, or execute requests.
+
+Validate the generated metadata with:
+
+```powershell
+python -m Engineering provider inspect .\ai-provider-manifest.yaml
+python -m Engineering provider validate --root ..
+python -m Engineering manifest validate
+```
+
+Do not add endpoints, credential names or values, environment-variable names,
+headers, model inventories, retry settings, or machine-local paths to the
+manifest. Those belong to future runtime configuration.

@@ -1,0 +1,11 @@
+schema_version: 1
+provider:
+  id: {{ values.provider_id | tojson }}
+  name: {{ values.provider_name | tojson }}
+  version: {{ values.provider_version | tojson }}
+  sdk_version: {{ values.sdk_version }}
+  description: {{ values.description | tojson }}
+  entry_point: {{ values.entry_point | tojson }}
+  transport: {{ values.transport | tojson }}
+  authentication: {{ values.authentication | tojson }}
+  capabilities: {{ values.capabilities | tojson }}

@@ -54,3 +54,8 @@ Provider inspection imports no code, performs no network request, and accesses
 no credentials. Runtime provider authentication, secure credential resolution,
 transport policy, TLS requirements, logging/redaction, and remote-service trust
 remain deferred.
+
+E-014.3 scaffold generation uses the controlled E-009/E-008 pipeline and writes
+only below one direct child of `Providers/`. The generated entry point is
+passive. Generation does not import code, contact a provider, access
+credentials, or grant trust.

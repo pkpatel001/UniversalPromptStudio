@@ -24,6 +24,11 @@ from Engineering.PluginSystem import (
     PluginScaffoldRequest,
     PluginScaffoldService,
 )
+from Engineering.ProviderSystem import (
+    ProviderCapability,
+    ProviderScaffoldRequest,
+    ProviderScaffoldService,
+)
 from Engineering.Templates import (
     TemplateDefinition,
     TemplateExecutor,
@@ -161,9 +166,54 @@ def _parse_values(
 
 
 @app.command(name="provider")
-def generate_provider() -> None:
-    """Generate provider."""
-    console.print("[yellow]Provider generation is not yet implemented.[/yellow]")
+def generate_provider(
+    provider_id: str,
+    name: Annotated[str | None, typer.Option("--name")] = None,
+    description: Annotated[str | None, typer.Option("--description")] = None,
+    version: Annotated[str, typer.Option("--version")] = "1.0.0",
+    sdk_version: Annotated[int, typer.Option("--sdk-version")] = 1,
+    transport: Annotated[str, typer.Option("--transport")] = "local",
+    authentication: Annotated[str, typer.Option("--authentication")] = "none",
+    capability: Annotated[list[str] | None, typer.Option("--capability")] = None,
+    class_name: Annotated[str | None, typer.Option("--class-name")] = None,
+    destination: Annotated[str | None, typer.Option("--destination", "-d")] = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    overwrite: Annotated[bool, typer.Option("--overwrite")] = False,
+) -> None:
+    """Generate a controlled project-local Python AI-provider scaffold."""
+
+    try:
+        short_name = provider_id.rsplit(".", 1)[-1].replace("-", " ").title()
+        request = ProviderScaffoldRequest(
+            provider_id=provider_id,
+            name=name or f"{short_name} Provider",
+            description=description or f"UPS AI provider {provider_id}.",
+            version=version,
+            sdk_version=sdk_version,
+            transport=transport,
+            authentication=authentication,
+            capabilities=tuple(capability or (ProviderCapability.TEXT_GENERATION.value,)),
+            class_name=class_name,
+            destination=destination,
+            overwrite=(
+                OverwritePolicy.ALLOWED if overwrite else OverwritePolicy.NEVER
+            ),
+            dry_run=dry_run,
+        )
+        result = ProviderScaffoldService.built_in(
+            get_paths().root,
+            project_context_from_config(get_config()),
+        ).generate(request)
+    except EngineeringError as exc:
+        console.print(f"FAILED provider.generate: {exc}", soft_wrap=True)
+        raise typer.Exit(code=1) from exc
+
+    console.print(result.execution.report.summary)
+    console.print(f"Destination: {result.destination}")
+    if result.execution.manifest_path is not None:
+        console.print(f"Artifact manifest: {result.execution.manifest_path}")
+    if not result.execution.report.success:
+        raise typer.Exit(code=1)
 
 
 @app.command(name="plugin")

@@ -122,6 +122,7 @@ Engineering = [
     "config/*.yaml",
     "Templates/CodeGeneration/markdown/*.j2",
     "Templates/CodeGeneration/plugin/*.j2",
+    "Templates/CodeGeneration/provider/*.j2",
     "Templates/CodeGeneration/python/*.j2",
     "Templates/CodeGeneration/yaml/*.j2",
     "Templates/Definitions/*.template.yaml",

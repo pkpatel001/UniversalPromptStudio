@@ -1,12 +1,14 @@
 # Universal Prompt Studio AI Provider SDK
 
-## Scope through E-014.2
+## Scope through E-014.3
 
 E-014.1 establishes portable provider identity and capability metadata.
 E-014.2 adds deterministic multi-root discovery, SDK compatibility
-classification, and catalog resolution. Reading, discovering, validating, or
-resolving provider metadata never imports its entry point, accesses credentials,
-performs network requests, discovers models, or executes prompts.
+classification, and catalog resolution. E-014.3 adds controlled provider
+scaffold generation through E-009 and E-008. Reading, discovering, validating,
+resolving, or generating provider metadata never imports its entry point,
+accesses credentials, performs network requests, discovers models, or executes
+prompts.
 
 The existing `Backend.interfaces.AIProvider` remains the phase-one synchronous
 application interface. It is not yet the completed AI Provider SDK execution
@@ -133,6 +135,8 @@ python -m Engineering provider list --root C:\path\to\providers
 python -m Engineering provider validate --root C:\project\providers --root C:\approved\providers
 python -m Engineering provider resolve example.echo-ai --root C:\path\to\providers
 python -m Engineering provider resolve example.echo-ai --root C:\path\to\providers --capability streaming
+python -m Engineering generate provider example.echo-ai --capability text-generation --dry-run
+python -m Engineering generate provider example.echo-ai --capability text-generation
 python -m Engineering manifest types
 python -m Engineering manifest inspect
 python -m Engineering manifest validate
@@ -140,5 +144,27 @@ python -m Engineering manifest validate
 
 `provider inspect` preserves E-014.1 exact-file inspection. Catalog commands
 require at least one explicit root and remain read-only and non-executing.
-Provider generation, loading, runtime configuration, credential resolution, and
-request execution are not implemented by this checkpoint.
+Provider loading, runtime configuration, credential resolution, and request
+execution are not implemented by this checkpoint.
+
+## Controlled scaffold generation
+
+The built-in `provider.python-basic` template generates exactly:
+
+```text
+Providers/<provider-directory>/
+├── ai-provider-manifest.yaml
+├── provider.py
+├── README.md
+└── .ups-artifact-manifest.json
+```
+
+The artifact manifest is owned by E-009. Rendering, portable destination
+validation, conflict handling, dry runs, secret-context checks, and controlled
+writes are owned by E-008.
+
+The destination must be one direct child of `Providers/`. Existing differing
+files are preserved unless `--overwrite` is explicit. The generated Python
+class is passive because the provider runtime request, response, streaming,
+cancellation, failure, configuration, and credential contracts are not yet
+defined.

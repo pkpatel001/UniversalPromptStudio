@@ -1,0 +1,49 @@
+metadata:
+  id: provider.python-basic
+  name: Python AI-provider scaffold
+  version: 1.0.0
+  category: provider
+  description: A schema-1 provider manifest, passive entry point, and author guide.
+  tags:
+    - built-in
+    - provider
+    - python
+
+variables:
+  - name: provider_id
+    type: string
+  - name: provider_name
+    type: string
+  - name: provider_version
+    type: string
+  - name: sdk_version
+    type: integer
+  - name: description
+    type: string
+  - name: entry_point
+    type: string
+  - name: class_name
+    type: string
+  - name: transport
+    type: string
+  - name: authentication
+    type: string
+  - name: capabilities
+    type: list
+
+artifacts:
+  - path: ai-provider-manifest.yaml
+    template: provider.manifest
+    type: manifest
+    name: AI-provider manifest
+    description: Canonical UPS AI-provider metadata.
+  - path: provider.py
+    template: provider.module
+    type: source
+    name: Provider entry point
+    description: Passive Python provider entry-point skeleton.
+  - path: README.md
+    template: provider.readme
+    type: documentation
+    name: Provider README
+    description: Provider authoring and security boundary.

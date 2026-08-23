@@ -19,7 +19,12 @@ precedence; the same provider ID/version in two roots is an error.
 Discovery, validation, and catalog resolution still never import an entry point,
 contact a service, resolve models, or access credentials.
 
+E-014.3 adds controlled project-local scaffolding. Provider-owned inputs are
+validated here, then the built-in `provider.python-basic` definition is
+executed through E-009 and E-008. Scaffolds are restricted to one direct child
+of `Providers/` and contain the canonical manifest, a passive Python
+entry-point class, and an author README.
+
 This subsystem does not yet define runtime execution, streaming event payloads,
 cancellation, retry policy, endpoint configuration, credential resolution,
-model discovery, provider loading, scaffolding, or application-container
-integration.
+model discovery, provider loading, or application-container integration.
