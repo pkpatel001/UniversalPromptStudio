@@ -1,0 +1,24 @@
+# {{ values.theme_name }}
+
+{{ values.description }}
+
+Theme ID: `{{ values.theme_id }}`  
+Version: `{{ values.theme_version }}`  
+SDK API level: `{{ values.sdk_version }}`  
+Default appearance: `{{ values.default_appearance }}`
+
+This scaffold contains validated declarative metadata only. Generation does not
+load assets, emit or inject CSS, modify the frontend, install the theme, or
+apply styles.
+
+Validate and resolve the generated metadata with:
+
+```powershell
+python -m Engineering theme inspect .\theme-manifest.yaml
+python -m Engineering theme validate --root ..
+python -m Engineering manifest validate
+```
+
+Schema 1 accepts only fixed semantic color roles and opaque `#RRGGBB` values.
+Do not add CSS, scripts, URLs, assets, fonts, icons, credentials, or
+machine-local paths to the manifest.

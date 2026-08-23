@@ -121,3 +121,13 @@ ID/version pairs fail instead of creating implicit precedence.
 SDK compatibility and appearance matching are metadata classifications only.
 They do not load palette values into the UI, validate contrast, establish
 publisher trust, or make a theme safe to install or apply.
+
+E-015.3 scaffold generation uses the controlled E-009/E-008 pipeline and writes
+only below one direct child of `Themes/`. It generates a strict declarative
+manifest, an author README, and the E-009 artifact manifest. Dry runs write
+nothing, replacement requires explicit overwrite, and a successful real write
+is re-read through the theme-owned parser for exact equality.
+
+Generated themes contain no CSS, scripts, URLs, assets, fonts, icons, commands,
+or credentials. Generation does not modify frontend files, install or select a
+theme, evaluate contrast, apply styles, or grant trust.

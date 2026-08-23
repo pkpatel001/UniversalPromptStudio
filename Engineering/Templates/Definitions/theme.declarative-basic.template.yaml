@@ -1,0 +1,38 @@
+metadata:
+  id: theme.declarative-basic
+  name: Declarative theme scaffold
+  version: 1.0.0
+  category: theme
+  description: A schema-1 theme manifest and author guide.
+  tags:
+    - built-in
+    - declarative
+    - theme
+
+variables:
+  - name: theme_id
+    type: string
+  - name: theme_name
+    type: string
+  - name: theme_version
+    type: string
+  - name: sdk_version
+    type: integer
+  - name: description
+    type: string
+  - name: default_appearance
+    type: string
+  - name: palettes
+    type: list
+
+artifacts:
+  - path: theme-manifest.yaml
+    template: theme.manifest
+    type: manifest
+    name: Theme manifest
+    description: Canonical UPS declarative theme metadata.
+  - path: README.md
+    template: theme.readme
+    type: documentation
+    name: Theme README
+    description: Theme authoring and non-applying boundary.

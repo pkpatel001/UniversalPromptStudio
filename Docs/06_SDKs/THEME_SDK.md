@@ -1,13 +1,15 @@
 # Universal Prompt Studio Theme SDK
 
-## Scope through E-015.2
+## Scope through E-015.3
 
 E-015.1 establishes portable declarative theme identity, versions, SDK
 compatibility metadata, recognized appearances, and strict semantic color
 palettes. E-015.2 adds deterministic multi-root discovery, SDK compatibility
 classification, identity/version policy, and appearance-aware catalog
-resolution. Reading, discovering, validating, or resolving a theme never loads
-an asset, parses or injects CSS, modifies the frontend, or applies styles.
+resolution. E-015.3 adds bounded scaffold generation through the shared E-009
+and E-008 pipeline. Reading, discovering, validating, resolving, or generating
+a theme never loads an asset, parses or injects CSS, modifies the frontend, or
+applies styles.
 
 ## Manifest schema 1
 
@@ -121,6 +123,8 @@ python -m Engineering theme list --root C:\path\to\themes
 python -m Engineering theme validate --root C:\project\themes --root C:\approved\themes
 python -m Engineering theme resolve example.slate --root C:\path\to\themes
 python -m Engineering theme resolve example.slate --root C:\path\to\themes --appearance dark
+python -m Engineering generate theme example.slate --dry-run
+python -m Engineering generate theme example.slate --appearance light --appearance dark
 python -m Engineering manifest types
 python -m Engineering manifest inspect --root C:\path\to\project
 python -m Engineering manifest validate --root C:\path\to\project
@@ -131,9 +135,30 @@ default appearance, and available palettes. It performs no writes or runtime
 theme operations. Catalog commands require at least one explicit root and retain
 the same non-applying boundary.
 
+## Controlled scaffold generation
+
+`generate theme` validates theme-owned inputs, selects deterministic built-in
+palettes for the requested appearances, and delegates rendering and writes to
+E-009 and E-008. The destination must be exactly one direct child of the
+project-local `Themes/` directory. The default is derived from the theme ID.
+
+```text
+Themes/example-slate/
+  theme-manifest.yaml
+  README.md
+  .ups-artifact-manifest.json
+```
+
+Different existing files are conflicts unless `--overwrite` is explicit.
+`--dry-run` performs validation, rendering, and planning without writing the
+directory or artifact manifest. After a successful real generation, the theme
+reader verifies that the written manifest exactly equals the validated request.
+The built-in palette colors are starting values, not an accessibility or visual
+quality certification.
+
 ## Deferred work
 
 Fonts, icons, asset paths, arbitrary/custom tokens, contrast scoring,
-scaffold generation through E-009/E-008, installation, selection, persistence,
-CSS variable emission, frontend integration, live preview, and runtime theme
-application remain later E-015 work.
+installation, selection, persistence, CSS variable emission, frontend
+integration, live preview, and runtime theme application remain later E-015
+work.

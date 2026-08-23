@@ -25,12 +25,21 @@ from .models import (
     ThemeValidationReport,
     ThemeVersion,
 )
+from .scaffold import (
+    THEME_SCAFFOLD_TEMPLATE_ID,
+    THEME_SCAFFOLD_TEMPLATE_VERSION,
+    ThemeScaffoldRequest,
+    ThemeScaffoldResult,
+    ThemeScaffoldService,
+)
 from .service import ThemeService
 
 __all__ = [
     "THEME_MANIFEST_NAME",
     "THEME_SCHEMA_VERSION",
     "THEME_SDK_API_LEVEL",
+    "THEME_SCAFFOLD_TEMPLATE_ID",
+    "THEME_SCAFFOLD_TEMPLATE_VERSION",
     "DEFAULT_IGNORED_THEME_DIRECTORIES",
     "ThemeAppearance",
     "ThemeColor",
@@ -48,6 +57,9 @@ __all__ = [
     "ThemeSdkCompatibility",
     "ThemeSdkContract",
     "ThemeSdkVersion",
+    "ThemeScaffoldRequest",
+    "ThemeScaffoldResult",
+    "ThemeScaffoldService",
     "ThemeService",
     "ThemeValidationReport",
     "ThemeVersion",

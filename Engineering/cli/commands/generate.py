@@ -34,6 +34,11 @@ from Engineering.Templates import (
     TemplateExecutor,
     built_in_definition_repository,
 )
+from Engineering.ThemeSystem import (
+    ThemeAppearance,
+    ThemeScaffoldRequest,
+    ThemeScaffoldService,
+)
 
 app = typer.Typer(help="Generate project assets")
 templates_app = typer.Typer(help="Discover and validate template definitions")
@@ -257,6 +262,53 @@ def generate_plugin(
         ).generate(request)
     except EngineeringError as exc:
         console.print(f"FAILED plugin.generate: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print(result.execution.report.summary)
+    console.print(f"Destination: {result.destination}")
+    if result.execution.manifest_path is not None:
+        console.print(f"Artifact manifest: {result.execution.manifest_path}")
+    if not result.execution.report.success:
+        raise typer.Exit(code=1)
+
+
+@app.command(name="theme")
+def generate_theme(
+    theme_id: str,
+    name: Annotated[str | None, typer.Option("--name")] = None,
+    description: Annotated[str | None, typer.Option("--description")] = None,
+    version: Annotated[str, typer.Option("--version")] = "1.0.0",
+    sdk_version: Annotated[int, typer.Option("--sdk-version")] = 1,
+    default_appearance: Annotated[
+        str, typer.Option("--default-appearance")
+    ] = ThemeAppearance.LIGHT.value,
+    appearance: Annotated[list[str] | None, typer.Option("--appearance")] = None,
+    destination: Annotated[str | None, typer.Option("--destination", "-d")] = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    overwrite: Annotated[bool, typer.Option("--overwrite")] = False,
+) -> None:
+    """Generate a controlled project-local declarative theme scaffold."""
+
+    try:
+        short_name = theme_id.rsplit(".", 1)[-1].replace("-", " ").title()
+        request = ThemeScaffoldRequest(
+            theme_id=theme_id,
+            name=name or f"{short_name} Theme",
+            description=description or f"UPS declarative theme {theme_id}.",
+            version=version,
+            sdk_version=sdk_version,
+            default_appearance=default_appearance,
+            appearances=tuple(appearance or (default_appearance,)),
+            destination=destination,
+            overwrite=(OverwritePolicy.ALLOWED if overwrite else OverwritePolicy.NEVER),
+            dry_run=dry_run,
+        )
+        result = ThemeScaffoldService.built_in(
+            get_paths().root,
+            project_context_from_config(get_config()),
+        ).generate(request)
+    except EngineeringError as exc:
+        console.print(f"FAILED theme.generate: {exc}", soft_wrap=True)
         raise typer.Exit(code=1) from exc
 
     console.print(result.execution.report.summary)

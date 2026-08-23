@@ -1,0 +1,16 @@
+schema_version: 1
+theme:
+  id: {{ values.theme_id | tojson }}
+  name: {{ values.theme_name | tojson }}
+  version: {{ values.theme_version | tojson }}
+  sdk_version: {{ values.sdk_version }}
+  description: {{ values.description | tojson }}
+  default_appearance: {{ values.default_appearance | tojson }}
+  palettes:
+{% for palette in values.palettes %}
+    - appearance: {{ palette.appearance | tojson }}
+      colors:
+{% for name, value in palette.colors.items() %}
+        {{ name }}: {{ value | tojson }}
+{% endfor %}
+{% endfor %}

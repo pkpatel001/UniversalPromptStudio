@@ -2,10 +2,33 @@
 
 ## Current checkpoint
 
-Through E-015.2, the toolkit supports strict declarative manifest authoring,
+Through E-015.3, the toolkit supports strict declarative manifest authoring,
 shared-manifest inventory, explicit-root discovery, Theme SDK compatibility,
-deterministic catalog resolution, and appearance filtering. Begin with
-`THEME_SDK.md`, ADR-0024, and ADR-0025.
+deterministic catalog resolution, appearance filtering, and controlled scaffold
+generation. Begin with `THEME_SDK.md`, ADR-0024, ADR-0025, and ADR-0026.
+
+## Generate a starting theme
+
+Preview a new project-local scaffold without writing files:
+
+```powershell
+python -m Engineering generate theme example.slate --dry-run
+```
+
+Generate one or more deterministic built-in palettes:
+
+```powershell
+python -m Engineering generate theme example.slate --appearance light --appearance dark
+```
+
+The default destination is `Themes/example-slate/`. A custom `--destination`
+must still name one direct child of `Themes/`. Existing differing files fail by
+default; use `--overwrite` only after reviewing the planned replacement.
+
+The result contains the strict manifest, an author README, and an E-009 artifact
+manifest. Edit palette values afterward and validate the manifest again. The
+generator creates no CSS or assets and does not install, select, preview, or
+apply the theme.
 
 ## Author a manifest
 
