@@ -32,6 +32,12 @@ opaque hexadecimal values. Compilation defaults to the manifest appearance or
 requires an explicitly declared appearance; it performs no writes or style
 application.
 
+E-015.5 adds a dependency-free frontend application controller for the same
+closed token set. Host-authored light, dark, and high-contrast selections are
+applied only after an explicit session action. Theme replacement is atomic,
+failed writes restore the previously active values, and revert restores the
+exact pre-theme properties, priorities, and selection attributes.
+
 Fonts, icons, arbitrary/custom tokens, asset paths, contrast scoring,
-installation, selection, persistence, selector ownership, frontend integration,
-and runtime theme application remain later E-015 work.
+external-theme transport, installation, persistence, automatic startup
+selection, live preview, and untrusted-theme policy remain later work.

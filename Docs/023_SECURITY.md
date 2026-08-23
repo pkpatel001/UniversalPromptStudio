@@ -143,3 +143,22 @@ references, arbitrary properties, or writes. It does not inject CSS, modify the
 DOM or frontend, install or select a theme, evaluate contrast, apply styles, or
 grant trust. Selector ownership and runtime application remain a separate trust
 and integration boundary.
+
+E-015.5 implements that application boundary for host-authored frontend
+selections only. The controller requires exact identity, version, appearance,
+and token keys; rejects missing, unknown, malformed, or non-hexadecimal data
+before mutation; and maps values only to the eleven fixed `--ups-color-*`
+properties. It never accepts selectors, property names, stylesheet text, HTML,
+URLs, paths, scripts, or commands from the payload.
+
+Application snapshots current property values, priorities, and bounded
+`data-ups-*` attributes. Failed replacement rolls back to the previous snapshot,
+while explicit revert restores the original pre-theme baseline. The UI performs
+If revert fails, the complete active snapshot is restored. The UI performs no
+automatic activation, persistence, file access, network access, Tauri command,
+or capability expansion.
+
+The built-in selections are trusted host code, not installed theme packages.
+External-manifest transport, provenance, installation, persisted selection,
+startup activation, untrusted-theme handling, and accessibility certification
+remain deferred.

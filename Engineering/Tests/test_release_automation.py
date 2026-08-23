@@ -71,6 +71,7 @@ def test_desktop_script_runs_locked_validation_and_post_build_verification() -> 
 
     assert '"clippy", "--locked"' in content
     assert '"ruff", "check", "--no-fix"' in content
+    assert '"test", "--prefix", "Frontend"' in content
     assert '"release", "verify"' in content
     assert "$LASTEXITCODE -ne 0" in content
 

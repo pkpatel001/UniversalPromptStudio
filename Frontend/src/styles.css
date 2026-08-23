@@ -1,6 +1,17 @@
 :root {
-  color: #182026;
-  background: #f6f8f8;
+  --ups-color-canvas: #f6f8f8;
+  --ups-color-surface: #ffffff;
+  --ups-color-surface-muted: #edf3f2;
+  --ups-color-text: #182026;
+  --ups-color-text-muted: #627277;
+  --ups-color-border: #dfe7e7;
+  --ups-color-primary: #276a73;
+  --ups-color-primary-text: #ffffff;
+  --ups-color-sidebar: #12181c;
+  --ups-color-sidebar-text: #f7fbfb;
+  --ups-color-focus: #2f7d89;
+  color: var(--ups-color-text);
+  background: var(--ups-color-canvas);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -9,12 +20,22 @@
 }
 
 body {
+  background: var(--ups-color-canvas);
+  color: var(--ups-color-text);
   margin: 0;
 }
 
 button,
+select,
 textarea {
   font: inherit;
+}
+
+button:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--ups-color-focus);
+  outline-offset: 2px;
 }
 
 .app-shell {
@@ -24,8 +45,8 @@ textarea {
 }
 
 .sidebar {
-  background: #12181c;
-  color: #f7fbfb;
+  background: var(--ups-color-sidebar);
+  color: var(--ups-color-sidebar-text);
   padding: 24px 18px;
 }
 
@@ -51,11 +72,12 @@ textarea {
 
 .sidebar button {
   background: transparent;
-  color: #d9e7e7;
+  color: var(--ups-color-sidebar-text);
 }
 
 .sidebar button.active {
-  background: #243138;
+  background: var(--ups-color-primary);
+  color: var(--ups-color-primary-text);
 }
 
 .workspace {
@@ -75,7 +97,7 @@ textarea {
 }
 
 .workspace p {
-  color: #627277;
+  color: var(--ups-color-text-muted);
   font-size: 13px;
 }
 
@@ -84,12 +106,50 @@ textarea {
 }
 
 .primary {
-  background: #276a73;
+  background: var(--ups-color-primary);
   border: 0;
   border-radius: 6px;
-  color: white;
+  color: var(--ups-color-primary-text);
   cursor: pointer;
   padding: 10px 14px;
+}
+
+.header-actions {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.theme-control {
+  color: var(--ups-color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  gap: 4px;
+}
+
+.theme-control select,
+.secondary {
+  background: var(--ups-color-surface);
+  border: 1px solid var(--ups-color-border);
+  border-radius: 6px;
+  color: var(--ups-color-text);
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.secondary {
+  cursor: pointer;
+}
+
+.secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.workspace .theme-status {
+  margin: -12px 0 18px;
 }
 
 .builder-grid {
@@ -101,8 +161,8 @@ textarea {
 .block-list,
 .editor,
 .preview {
-  background: white;
-  border: 1px solid #dfe7e7;
+  background: var(--ups-color-surface);
+  border: 1px solid var(--ups-color-border);
   border-radius: 8px;
   padding: 14px;
 }
@@ -113,8 +173,8 @@ textarea {
 }
 
 .block-list button {
-  background: #edf3f2;
-  color: #273237;
+  background: var(--ups-color-surface-muted);
+  color: var(--ups-color-text);
 }
 
 .editor {
@@ -123,18 +183,20 @@ textarea {
 }
 
 label {
-  color: #3a474c;
+  color: var(--ups-color-text);
   display: grid;
   font-weight: 700;
   gap: 8px;
 }
 
 textarea {
-  border: 1px solid #ccd8d8;
+  background: var(--ups-color-surface);
+  border: 1px solid var(--ups-color-border);
   border-radius: 6px;
   min-height: 140px;
   padding: 12px;
   resize: vertical;
+  color: var(--ups-color-text);
 }
 
 .preview h3 {
@@ -142,7 +204,8 @@ textarea {
 }
 
 pre {
-  background: #f3f6f6;
+  background: var(--ups-color-surface-muted);
+  color: var(--ups-color-text);
   border-radius: 6px;
   line-height: 1.5;
   margin: 0;
@@ -161,4 +224,3 @@ pre {
     grid-template-columns: 1fr;
   }
 }
-

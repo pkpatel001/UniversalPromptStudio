@@ -1,6 +1,6 @@
 # Universal Prompt Studio Theme SDK
 
-## Scope through E-015.4
+## Scope through E-015.5
 
 E-015.1 establishes portable declarative theme identity, versions, SDK
 compatibility metadata, recognized appearances, and strict semantic color
@@ -8,9 +8,10 @@ palettes. E-015.2 adds deterministic multi-root discovery, SDK compatibility
 classification, identity/version policy, and appearance-aware catalog
 resolution. E-015.3 adds bounded scaffold generation through the shared E-009
 and E-008 pipeline. E-015.4 adds deterministic typed token compilation and
-selector-free CSS-variable serialization. Reading, discovering, validating,
-resolving, generating, or compiling a theme never loads an asset, modifies the
-frontend, or applies styles.
+selector-free CSS-variable serialization. E-015.5 adds explicit, reversible
+frontend application for host-authored selections. Metadata and compilation
+remain non-applying; only the frontend controller mutates the fixed properties,
+and only after a user action.
 
 ## Manifest schema 1
 
@@ -177,8 +178,32 @@ application boundary must decide where and whether to attach the declarations.
 Compilation never falls back to another appearance; requesting an undeclared
 palette is an error.
 
+## Controlled frontend application
+
+The frontend `ThemeApplicationController` accepts one exact selection payload:
+
+```text
+themeId, version, appearance, tokens
+```
+
+Every top-level field and all eleven tokens are required, and unknown fields are
+rejected before the DOM is changed. Theme IDs, versions, appearances, and opaque
+hexadecimal colors are revalidated at the frontend boundary. Token names map
+only to the fixed `--ups-color-*` properties.
+
+The first successful application captures the exact baseline property values,
+priorities, and `data-ups-*` attributes. Switching themes retains that original
+baseline. A failed application restores the previously active snapshot; an
+explicit revert restores the original baseline and clears the active selection.
+If baseline restoration fails, the controller restores the complete active
+snapshot instead of accepting a partial revert.
+
+The current UI offers host-authored light, dark, and high-contrast selections.
+It does not automatically activate a theme or persist selection. High contrast
+is an appearance label, not a WCAG conformance claim.
+
 ## Deferred work
 
 Fonts, icons, asset paths, arbitrary/custom tokens, contrast scoring,
-installation, selection, persistence, selector ownership, frontend integration,
-live preview, and runtime theme application remain later E-015 work.
+external-theme transport, installation, persistence, automatic startup
+selection, live preview, and untrusted-theme policy remain later work.

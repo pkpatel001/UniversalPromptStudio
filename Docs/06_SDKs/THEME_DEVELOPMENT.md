@@ -2,11 +2,11 @@
 
 ## Current checkpoint
 
-Through E-015.4, the toolkit supports strict declarative manifest authoring,
+Through E-015.5, the toolkit supports strict declarative manifest authoring,
 shared-manifest inventory, explicit-root discovery, Theme SDK compatibility,
 deterministic catalog resolution, appearance filtering, and controlled scaffold
-generation plus typed token compilation. Begin with `THEME_SDK.md`, ADR-0024
-through ADR-0027.
+generation plus typed token compilation and reversible frontend application.
+Begin with `THEME_SDK.md`, ADR-0024 through ADR-0028.
 
 ## Generate a starting theme
 
@@ -49,6 +49,30 @@ The command emits exactly eleven fixed `--ups-color-*` declarations in stable
 host order. It writes no file and emits no selector or CSS rule. Treat the
 output as a deterministic inspection and integration input, not as an installed
 or applied theme. Do not add arbitrary token names to schema 1.
+
+## Apply and revert a session theme
+
+The application header exposes a Theme selector and Revert theme button. The
+selector applies one host-authored light, dark, or high-contrast payload to the
+document root. Revert restores the exact colors and selection attributes that
+existed before the first theme was applied.
+
+Theme switching is session-only. It does not write settings, modify manifests,
+call Tauri commands, read files, or make network requests. Refreshing or
+restarting the application returns to the stylesheet defaults.
+
+Validate the frontend controller and production bundle with:
+
+```powershell
+cd Frontend
+npm test
+npm run build
+```
+
+When extending the adapter, retain exact payload keys, the fixed token list,
+validate-before-write behavior, atomic rollback, and original-baseline revert.
+Do not accept arbitrary CSS property names or use `cssText`, style elements, or
+HTML injection for theme application.
 
 ## Author a manifest
 
