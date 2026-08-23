@@ -7,6 +7,7 @@ from .adapters import (
     PluginManifestAdapter,
     ReleaseManifestAdapter,
     TemplateArtifactManifestAdapter,
+    ThemeManifestAdapter,
     default_manifest_adapters,
 )
 from .migrations import (
@@ -63,6 +64,7 @@ __all__ = [
     "ReleaseManifestAdapter",
     "SchemaCompatibility",
     "TemplateArtifactManifestAdapter",
+    "ThemeManifestAdapter",
     "default_manifest_adapters",
     "default_manifest_dependencies",
     "default_manifest_migrations",

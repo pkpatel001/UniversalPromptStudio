@@ -14,6 +14,7 @@ class ManifestKind(Enum):
     AI_PROVIDER = "ai-provider"
     PLUGIN = "plugin"
     TEMPLATE_ARTIFACT = "template-artifact"
+    THEME = "theme"
     RELEASE = "release"
 
 

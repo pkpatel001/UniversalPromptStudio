@@ -31,6 +31,7 @@ __all__ = [
     "ManifestError",
     "PluginError",
     "ProviderError",
+    "ThemeError",
     "CodeGenerationError",
     "TemplateError",
     "TemplateNotFoundError",
@@ -154,6 +155,10 @@ class PluginError(EngineeringError):
 
 class ProviderError(EngineeringError):
     """Base exception for AI-provider SDK and manifest operations."""
+
+
+class ThemeError(EngineeringError):
+    """Base exception for theme SDK and manifest operations."""
 
 
 # -----------------------------------------------------------------------------

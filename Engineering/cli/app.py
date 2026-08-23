@@ -17,6 +17,7 @@ from .commands import (
     plugin,
     provider,
     release,
+    theme,
     validate,
     version,
 )
@@ -60,3 +61,4 @@ app.add_typer(release.app, name="release")
 app.add_typer(manifest.app, name="manifest")
 app.add_typer(plugin.app, name="plugin")
 app.add_typer(provider.app, name="provider")
+app.add_typer(theme.app, name="theme")

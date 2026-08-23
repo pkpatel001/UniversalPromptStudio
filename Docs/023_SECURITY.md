@@ -96,3 +96,18 @@ executable. There is still no entry-point loader, trust store, endpoint or
 credential configuration, remote provider, automatic retry, or runtime
 sandbox. The generic execution API must continue to receive only instances
 explicitly created by trusted host composition.
+
+## Theme metadata
+
+E-015.1 theme manifests are declarative metadata only. Their exact schema
+accepts identity, version, SDK level, appearance categories, and a fixed set of
+opaque hexadecimal semantic colors. Unknown and secret-like fields are
+rejected.
+
+Schema 1 contains no CSS, scripts, URLs, asset paths, fonts, icons, commands,
+credentials, or machine-local values. Theme inspection loads no assets, injects
+no styles, modifies no frontend files, executes no code, and grants no trust.
+
+The metadata reader is not a CSS sanitizer or accessibility certification
+system. Asset handling, CSS emission, frontend application, live preview,
+contrast enforcement, installation, and untrusted-theme policy remain deferred.

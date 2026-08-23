@@ -52,10 +52,12 @@ class TestManifestRegistry:
             "ups.plugin",
             "ups.release",
             "ups.template-artifact",
+            "ups.theme",
         )
         assert registry.resolve_filename("build-manifest.json") is not None
         assert registry.resolve_filename("ai-provider-manifest.yaml") is not None
         assert registry.resolve_filename("documentation_manifest.yaml") is not None
+        assert registry.resolve_filename("theme-manifest.yaml") is not None
         assert registry.resolve_filename("unrelated.json") is None
 
     def test_rejects_duplicate_ids_and_filenames(self) -> None:

@@ -17,6 +17,7 @@ from Engineering.ProviderSystem import (
 from Engineering.ReleaseSystem import RELEASE_MANIFEST_NAME, ReleaseManifest
 from Engineering.Templates import ArtifactManifest
 from Engineering.Templates.executor import DEFAULT_MANIFEST_NAME
+from Engineering.ThemeSystem import THEME_MANIFEST_NAME, ThemeManifestReader
 
 from .models import ManifestKind, ManifestSpec
 from .registry import ManifestAdapter
@@ -233,6 +234,28 @@ class AIProviderManifestAdapter(_ReaderAdapter):
         return self._reader.read(path).schema_version
 
 
+class ThemeManifestAdapter(_ReaderAdapter):
+    """Validate E-015 theme manifests through their owning subsystem."""
+
+    spec = ManifestSpec(
+        "ups.theme",
+        ManifestKind.THEME,
+        THEME_MANIFEST_NAME,
+        (1,),
+        current_schema_version=1,
+        allow_multiple=True,
+    )
+    _reader = ThemeManifestReader()
+
+    def detect_schema_version(self, path: Path) -> int:
+        """Delegate YAML schema-envelope detection to the theme owner."""
+
+        return self._reader.detect_schema_version(path)
+
+    def _read_schema_version(self, path: Path) -> int:
+        return self._reader.read(path).schema_version
+
+
 def default_manifest_adapters() -> tuple[ManifestAdapter, ...]:
     """Return all built-in adapters in stable registration order."""
 
@@ -243,4 +266,5 @@ def default_manifest_adapters() -> tuple[ManifestAdapter, ...]:
         PluginManifestAdapter(),
         ReleaseManifestAdapter(),
         TemplateArtifactManifestAdapter(),
+        ThemeManifestAdapter(),
     )
