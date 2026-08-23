@@ -158,7 +158,30 @@ If revert fails, the complete active snapshot is restored. The UI performs no
 automatic activation, persistence, file access, network access, Tauri command,
 or capability expansion.
 
-The built-in selections are trusted host code, not installed theme packages.
-External-manifest transport, provenance, installation, persisted selection,
-startup activation, untrusted-theme handling, and accessibility certification
-remain deferred.
+The E-015.5 built-in selections are trusted host code, not installed theme
+packages. E-015.6 replaces their duplicated source and adds bounded opt-in
+preferences below; external installation, provenance, untrusted-theme handling,
+and accessibility certification remain deferred.
+
+E-015.6 replaces duplicated frontend presets with a deterministic generated
+catalog compiled from compatible manifests below explicitly approved roots. The
+synchronizer writes only the fixed frontend module, rejects symlinked path
+components and oversized existing output, and uses atomic replacement. Check
+mode writes nothing, and desktop packaging rejects stale generated data.
+
+Generated selections contain only validated identity, bounded display name,
+recognized appearance, and the eleven fixed color tokens. The frontend validates
+the entire generated module again before lookup. Transport adds no YAML parser,
+filesystem API, Tauri command, permission, capability, or network request to the
+runtime application.
+
+Preference persistence is explicit and browser-local. It stores only schema
+version, theme ID, theme version, and appearance in a bounded exact-shape record.
+It never stores tokens, CSS, paths, assets, or manifest content. Startup restore
+requires an exact match in the current validated catalog; invalid, stale,
+oversized, unknown, or inaccessible records are not applied. Opt-out, Default,
+and Revert clear the record.
+
+This does not authenticate or install external themes, establish publisher
+provenance, migrate preferences, certify accessibility, or make untrusted
+content safe. Those boundaries remain deferred.

@@ -41,6 +41,16 @@ from .tokens import (
     ThemeTokenName,
     ThemeTokenSet,
 )
+from .transport import (
+    FRONTEND_THEME_CATALOG_PATH,
+    FRONTEND_THEME_CATALOG_SCHEMA_VERSION,
+    ThemeFrontendCatalog,
+    ThemeFrontendCatalogCompiler,
+    ThemeFrontendCatalogSerializer,
+    ThemeFrontendCatalogSynchronizer,
+    ThemeFrontendSelection,
+    ThemeFrontendSyncResult,
+)
 
 __all__ = [
     "THEME_MANIFEST_NAME",
@@ -50,11 +60,19 @@ __all__ = [
     "THEME_SCAFFOLD_TEMPLATE_ID",
     "THEME_SCAFFOLD_TEMPLATE_VERSION",
     "DEFAULT_IGNORED_THEME_DIRECTORIES",
+    "FRONTEND_THEME_CATALOG_PATH",
+    "FRONTEND_THEME_CATALOG_SCHEMA_VERSION",
     "ThemeAppearance",
     "ThemeColor",
     "ThemeCatalog",
     "ThemeDiscoveryRoot",
     "ThemeDiscoveryService",
+    "ThemeFrontendCatalog",
+    "ThemeFrontendCatalogCompiler",
+    "ThemeFrontendCatalogSerializer",
+    "ThemeFrontendCatalogSynchronizer",
+    "ThemeFrontendSelection",
+    "ThemeFrontendSyncResult",
     "ThemeId",
     "ThemeInspectionReport",
     "ThemeIssue",

@@ -1,6 +1,6 @@
 # Universal Prompt Studio Theme SDK
 
-## Scope through E-015.5
+## Scope through E-015.6
 
 E-015.1 establishes portable declarative theme identity, versions, SDK
 compatibility metadata, recognized appearances, and strict semantic color
@@ -11,7 +11,8 @@ and E-008 pipeline. E-015.4 adds deterministic typed token compilation and
 selector-free CSS-variable serialization. E-015.5 adds explicit, reversible
 frontend application for host-authored selections. Metadata and compilation
 remain non-applying; only the frontend controller mutates the fixed properties,
-and only after a user action.
+and only after a user action. E-015.6 adds deterministic build-time catalog
+transport and opt-in identity-only preference restoration.
 
 ## Manifest schema 1
 
@@ -199,11 +200,51 @@ If baseline restoration fails, the controller restores the complete active
 snapshot instead of accepting a partial revert.
 
 The current UI offers host-authored light, dark, and high-contrast selections.
-It does not automatically activate a theme or persist selection. High contrast
-is an appearance label, not a WCAG conformance claim.
+Selection remains session-only unless the user explicitly enables the E-015.6
+Remember theme option described below. High contrast is an appearance label,
+not a WCAG conformance claim.
+
+## Catalog-to-frontend transport
+
+The project-local built-in theme is authored as the strict manifest
+`Themes/ups-built-in/theme-manifest.yaml`. Synchronize all compatible palettes
+below explicitly approved roots with:
+
+```powershell
+python -m Engineering theme sync-frontend --root Themes
+python -m Engineering theme sync-frontend --root Themes --check
+```
+
+The command always targets exactly
+`Frontend/src/generated/theme-catalog.generated.js`; callers cannot select an
+arbitrary output. It compiles every palette through `ThemeTokenCompiler`, sorts
+by identity, numeric version, and appearance, emits data only, rejects symlinked
+output paths, and uses an atomic same-directory replacement. Check mode performs
+no writes and fails when the tracked module differs.
+
+The frontend revalidates the generated schema, exact fields, selection count,
+stable order, uniqueness, identity, version, appearance, fixed tokens, colors,
+and bounded display name before exposing catalog lookups. The desktop packaging
+gate checks catalog freshness before running frontend tests and builds.
+
+## Opt-in preference persistence
+
+The Remember theme checkbox is disabled until a theme is actively selected. If
+enabled, the browser-local record contains exactly:
+
+```text
+schemaVersion, themeId, version, appearance
+```
+
+No token, color, CSS, path, or manifest content is stored. On startup, the
+identity is restored only when it exactly resolves in the current transported
+catalog; the current catalog tokens are then revalidated and applied through the
+E-015.5 controller. Missing, malformed, oversized, unknown, or unavailable
+preferences are not applied. Selecting Default, reverting, or opting out clears
+the record.
 
 ## Deferred work
 
 Fonts, icons, asset paths, arbitrary/custom tokens, contrast scoring,
-external-theme transport, installation, persistence, automatic startup
-selection, live preview, and untrusted-theme policy remain later work.
+external-theme installation, provenance, live preview, asset handling, and
+untrusted-theme policy remain later work.

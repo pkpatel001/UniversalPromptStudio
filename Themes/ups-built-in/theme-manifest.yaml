@@ -1,0 +1,48 @@
+schema_version: 1
+theme:
+  id: ups.built-in
+  name: Universal Prompt Studio
+  version: 1.0.0
+  sdk_version: 1
+  description: Host-authored built-in application appearances.
+  default_appearance: light
+  palettes:
+    - appearance: light
+      colors:
+        canvas: "#F6F8F8"
+        surface: "#FFFFFF"
+        surface_muted: "#EDF3F2"
+        text: "#182026"
+        text_muted: "#627277"
+        border: "#DFE7E7"
+        primary: "#276A73"
+        primary_text: "#FFFFFF"
+        sidebar: "#12181C"
+        sidebar_text: "#F7FBFB"
+        focus: "#2F7D89"
+    - appearance: dark
+      colors:
+        canvas: "#101417"
+        surface: "#182026"
+        surface_muted: "#243138"
+        text: "#F7FBFB"
+        text_muted: "#B8C7CA"
+        border: "#33434A"
+        primary: "#58A6B3"
+        primary_text: "#081012"
+        sidebar: "#0A0D0F"
+        sidebar_text: "#F7FBFB"
+        focus: "#72C7D2"
+    - appearance: high-contrast
+      colors:
+        canvas: "#000000"
+        surface: "#000000"
+        surface_muted: "#1A1A1A"
+        text: "#FFFFFF"
+        text_muted: "#FFFFFF"
+        border: "#FFFFFF"
+        primary: "#FFFF00"
+        primary_text: "#000000"
+        sidebar: "#000000"
+        sidebar_text: "#FFFFFF"
+        focus: "#00FFFF"

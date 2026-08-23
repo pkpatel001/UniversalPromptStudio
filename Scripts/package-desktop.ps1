@@ -48,6 +48,9 @@ try {
         "clippy", "--locked", "--manifest-path", "Frontend/src-tauri/Cargo.toml",
         "--", "-D", "warnings"
     )
+    Invoke-Checked "python" @(
+        "-m", "Engineering", "theme", "sync-frontend", "--root", "Themes", "--check"
+    )
     Invoke-Checked "npm" @("test", "--prefix", "Frontend")
     Invoke-Checked "npm" @(
         "audit", "--prefix", "Frontend", "--audit-level=low", "--cache", ".cache/npm"

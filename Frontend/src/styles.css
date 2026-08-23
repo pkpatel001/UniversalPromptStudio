@@ -139,6 +139,21 @@ textarea:focus-visible {
   padding: 8px 10px;
 }
 
+.remember-theme {
+  align-items: center;
+  color: var(--ups-color-text-muted);
+  display: flex;
+  font-size: 12px;
+  gap: 6px;
+  min-height: 38px;
+}
+
+.remember-theme input {
+  accent-color: var(--ups-color-primary);
+  height: 16px;
+  width: 16px;
+}
+
 .secondary {
   cursor: pointer;
 }

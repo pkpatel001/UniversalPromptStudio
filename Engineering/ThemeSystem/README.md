@@ -38,6 +38,12 @@ applied only after an explicit session action. Theme replacement is atomic,
 failed writes restore the previously active values, and revert restores the
 exact pre-theme properties, priorities, and selection attributes.
 
+E-015.6 compiles compatible palettes from explicit theme roots into one
+deterministic generated frontend module. The module is independently validated
+before use, and desktop packaging rejects drift. Users may explicitly remember
+a selection; storage contains only schema version, theme ID, theme version, and
+appearance. Tokens are always resolved from the current transported catalog.
+
 Fonts, icons, arbitrary/custom tokens, asset paths, contrast scoring,
-external-theme transport, installation, persistence, automatic startup
-selection, live preview, and untrusted-theme policy remain later work.
+external-theme installation, provenance, live preview, asset handling, and
+untrusted-theme policy remain later work.

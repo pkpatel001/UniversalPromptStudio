@@ -10,11 +10,13 @@ import typer
 from Engineering.cli.errors import EXIT_CODE_VALIDATION_FAILURE
 from Engineering.cli.output.console import console
 from Engineering.core.exceptions import ThemeError
+from Engineering.core.paths import get_paths
 from Engineering.ThemeSystem import (
     ThemeAppearance,
     ThemeCatalog,
     ThemeCssVariableSerializer,
     ThemeDiscoveryRoot,
+    ThemeFrontendCatalogSynchronizer,
     ThemeManifestReader,
     ThemeService,
     ThemeTokenCompiler,
@@ -196,6 +198,32 @@ def theme_resolve(
     )
     console.print("Theme assets loaded: no")
     console.print("Styles applied: no")
+
+
+@app.command(name="sync-frontend")
+def theme_sync_frontend(
+    root: Annotated[list[Path] | None, typer.Option("--root")] = None,
+    check: Annotated[bool, typer.Option("--check")] = False,
+) -> None:
+    """Check or update the exact generated frontend theme catalog."""
+
+    try:
+        roots = _roots(root)
+        catalog = ThemeService().catalog_roots(roots)
+        result = ThemeFrontendCatalogSynchronizer().synchronize(
+            get_paths().root,
+            catalog,
+            check=check,
+        )
+    except ThemeError as exc:
+        console.print(f"FAILED theme.sync-frontend: {exc}", soft_wrap=True)
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    if check and not result.current:
+        console.print(f"FAILED frontend theme catalog is stale: {result.path}")
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
+    action = "updated" if result.changed else "current"
+    console.print(f"Frontend theme catalog {action}: {result.path}")
+    console.print(f"Selections transported: {result.selection_count}")
 
 
 __all__ = ["app"]

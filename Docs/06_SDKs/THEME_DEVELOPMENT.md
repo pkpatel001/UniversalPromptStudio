@@ -2,11 +2,12 @@
 
 ## Current checkpoint
 
-Through E-015.5, the toolkit supports strict declarative manifest authoring,
+Through E-015.6, the toolkit supports strict declarative manifest authoring,
 shared-manifest inventory, explicit-root discovery, Theme SDK compatibility,
 deterministic catalog resolution, appearance filtering, and controlled scaffold
-generation plus typed token compilation and reversible frontend application.
-Begin with `THEME_SDK.md`, ADR-0024 through ADR-0028.
+generation plus typed token compilation, reversible frontend application,
+catalog transport, and opt-in preferences. Begin with `THEME_SDK.md`, ADR-0024
+through ADR-0029.
 
 ## Generate a starting theme
 
@@ -57,9 +58,10 @@ selector applies one host-authored light, dark, or high-contrast payload to the
 document root. Revert restores the exact colors and selection attributes that
 existed before the first theme was applied.
 
-Theme switching is session-only. It does not write settings, modify manifests,
-call Tauri commands, read files, or make network requests. Refreshing or
-restarting the application returns to the stylesheet defaults.
+Theme switching is session-only by default. It does not modify manifests, call
+Tauri commands, read files, or make network requests. Refreshing or restarting
+returns to the stylesheet defaults unless the user explicitly enables the
+E-015.6 Remember theme option described below.
 
 Validate the frontend controller and production bundle with:
 
@@ -73,6 +75,33 @@ When extending the adapter, retain exact payload keys, the fixed token list,
 validate-before-write behavior, atomic rollback, and original-baseline revert.
 Do not accept arbitrary CSS property names or use `cssText`, style elements, or
 HTML injection for theme application.
+
+## Synchronize the frontend catalog
+
+After adding or changing an approved theme manifest, update and verify the
+generated frontend module:
+
+```powershell
+python -m Engineering theme sync-frontend --root Themes
+python -m Engineering theme sync-frontend --root Themes --check
+npm test --prefix Frontend
+npm run build --prefix Frontend
+```
+
+Commit the manifest and generated module together. Never edit the generated
+module by hand. Desktop CI watches `Themes/**` and rejects stale transport data.
+
+## Preference behavior
+
+Selecting a theme remains session-only unless the user checks Remember theme.
+The saved record identifies a current catalog selection but does not copy its
+tokens. On reload, an exact catalog match is required before application.
+Unchecking Remember theme, choosing Default, or using Revert theme clears the
+saved record.
+
+Do not persist token values or automatically migrate an unknown preference to a
+different version or appearance. Catalog removal must safely return the user to
+the default application colors.
 
 ## Author a manifest
 

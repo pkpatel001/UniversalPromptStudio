@@ -7,7 +7,11 @@ import {
   ThemeApplicationError,
   validateThemeSelection,
 } from "./theme-controller.js";
-import { BUILT_IN_THEME_SELECTIONS } from "./theme-presets.js";
+import { THEME_CATALOG } from "./theme-catalog.js";
+
+const BUILT_IN_THEME_SELECTIONS = Object.fromEntries(
+  THEME_CATALOG.entries.map((entry) => [entry.selection.appearance, entry.selection]),
+);
 
 class FakeStyle {
   constructor() {
