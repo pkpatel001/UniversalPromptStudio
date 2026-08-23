@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
-from enum import StrEnum
+from enum import Enum, StrEnum
+from pathlib import Path
 
 from packaging.version import InvalidVersion, Version
 
 from Engineering.core.exceptions import ThemeError
 
-from .validation import require_hex_color, require_nonempty_text, require_theme_id
+from .validation import (
+    require_hex_color,
+    require_metadata_id,
+    require_nonempty_text,
+    require_theme_id,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +74,14 @@ class ThemeSdkVersion:
     def __post_init__(self) -> None:
         if type(self.api_level) is not int or self.api_level < 1:
             raise ThemeError("Theme sdk_version must be a positive integer API level.")
+
+
+class ThemeSdkCompatibility(Enum):
+    """Compatibility of a theme SDK level with the current host."""
+
+    COMPATIBLE = "compatible"
+    TOO_OLD = "too-old"
+    TOO_NEW = "too-new"
 
 
 class ThemeAppearance(StrEnum):
@@ -156,13 +170,102 @@ class ThemeManifest:
             raise ThemeError("Theme default_appearance must have a matching palette.")
 
 
+@dataclass(frozen=True, slots=True)
+class ThemeDiscoveryRoot:
+    """One explicitly approved, stable-labeled theme discovery root."""
+
+    root_id: str
+    path: Path
+
+    def __post_init__(self) -> None:
+        require_metadata_id(self.root_id, "Theme discovery root id")
+        if not isinstance(self.path, Path):
+            raise ThemeError("Theme discovery root path must be a pathlib Path.")
+
+
+@dataclass(frozen=True, slots=True)
+class ThemeRecord:
+    """One valid theme manifest with portable root provenance."""
+
+    relative_path: str
+    manifest: ThemeManifest
+    root_id: str = "project"
+
+    def __post_init__(self) -> None:
+        require_metadata_id(self.root_id, "Theme discovery root id")
+
+    @property
+    def theme_id(self) -> str:
+        return self.manifest.metadata.theme_id.value
+
+    @property
+    def version(self) -> str:
+        return self.manifest.metadata.version.value
+
+
+@dataclass(frozen=True, slots=True)
+class ThemeIssue:
+    """One deterministic theme discovery or compatibility problem."""
+
+    relative_path: str
+    code: str
+    message: str
+    root_id: str = "project"
+
+
+@dataclass(frozen=True, slots=True)
+class ThemeInspectionReport:
+    """Aggregate structural theme discovery result."""
+
+    records: tuple[ThemeRecord, ...] = ()
+    issues: tuple[ThemeIssue, ...] = ()
+
+    @property
+    def passed(self) -> bool:
+        return not self.issues
+
+    @property
+    def summary(self) -> str:
+        state = "succeeded" if self.passed else "failed"
+        return (
+            f"Theme inspection {state}: {len(self.records)} valid, "
+            f"{len(self.issues)} issues."
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ThemeValidationReport:
+    """Aggregate SDK-compatible theme metadata result."""
+
+    records: tuple[ThemeRecord, ...] = ()
+    issues: tuple[ThemeIssue, ...] = ()
+
+    @property
+    def passed(self) -> bool:
+        return not self.issues
+
+    @property
+    def summary(self) -> str:
+        state = "succeeded" if self.passed else "failed"
+        return (
+            f"Theme validation {state}: {len(self.records)} compatible, "
+            f"{len(self.issues)} issues."
+        )
+
+
 __all__ = [
     "ThemeAppearance",
     "ThemeColor",
+    "ThemeDiscoveryRoot",
     "ThemeId",
+    "ThemeInspectionReport",
+    "ThemeIssue",
     "ThemeManifest",
     "ThemeMetadata",
     "ThemePalette",
+    "ThemeRecord",
+    "ThemeSdkCompatibility",
     "ThemeSdkVersion",
+    "ThemeValidationReport",
     "ThemeVersion",
 ]

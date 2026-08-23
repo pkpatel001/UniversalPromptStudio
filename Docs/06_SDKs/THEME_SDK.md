@@ -1,11 +1,13 @@
 # Universal Prompt Studio Theme SDK
 
-## Scope through E-015.1
+## Scope through E-015.2
 
 E-015.1 establishes portable declarative theme identity, versions, SDK
 compatibility metadata, recognized appearances, and strict semantic color
-palettes. Reading or inspecting a theme never loads an asset, parses or injects
-CSS, modifies the frontend, or applies styles.
+palettes. E-015.2 adds deterministic multi-root discovery, SDK compatibility
+classification, identity/version policy, and appearance-aware catalog
+resolution. Reading, discovering, validating, or resolving a theme never loads
+an asset, parses or injects CSS, modifies the frontend, or applies styles.
 
 ## Manifest schema 1
 
@@ -47,9 +49,9 @@ Theme IDs are stable lowercase vendor-qualified identifiers such as
 with exactly three release components. `sdk_version` is a positive integer API
 level independent of the manifest schema and theme implementation version.
 
-The current Theme SDK metadata API level is 1. Compatibility classification
-and multi-version resolution are deferred to E-015.2; E-015.1 records and
-validates the declared level.
+The current Theme SDK metadata API level is 1 and the default host supports
+exactly level 1. Structurally valid future levels remain discoverable but are
+classified as `too-new`; older unsupported levels are `too-old`.
 
 ## Appearances
 
@@ -89,10 +91,36 @@ cardinality:     many
 The theme-owned reader remains the source of schema meaning. Shared manifest
 inspection delegates structural validation without reinterpreting the theme.
 
+## Discovery and provenance
+
+Theme discovery is recursive, sorted, exact-filename, and read-only below one
+or more explicitly approved roots. Each root has a stable ID retained by
+records and issues. VCS, cache, virtual-environment, dependency, build,
+distribution, and Rust target directories are ignored. Symlinked roots,
+directories, and manifests are not followed.
+
+Root IDs and resolved root paths must be unique. Duplicate theme ID/version
+pairs across or within roots are errors. Roots have no implicit precedence and
+one source never silently replaces another.
+
+## Catalog resolution
+
+The catalog contains SDK-compatible metadata only. It provides stable
+identity/version ordering, exact-version resolution, highest-version resolution
+when no version is supplied, version inventories, and filtering by one or more
+required appearances.
+
+Appearance matching is set inclusion over declared palettes. It does not load
+colors, evaluate contrast, or claim frontend compatibility.
+
 ## Commands
 
 ```powershell
 python -m Engineering theme inspect C:\path\to\theme-manifest.yaml
+python -m Engineering theme list --root C:\path\to\themes
+python -m Engineering theme validate --root C:\project\themes --root C:\approved\themes
+python -m Engineering theme resolve example.slate --root C:\path\to\themes
+python -m Engineering theme resolve example.slate --root C:\path\to\themes --appearance dark
 python -m Engineering manifest types
 python -m Engineering manifest inspect --root C:\path\to\project
 python -m Engineering manifest validate --root C:\path\to\project
@@ -100,12 +128,12 @@ python -m Engineering manifest validate --root C:\path\to\project
 
 `theme inspect` validates one exact document and reports identity, version,
 default appearance, and available palettes. It performs no writes or runtime
-theme operations.
+theme operations. Catalog commands require at least one explicit root and retain
+the same non-applying boundary.
 
 ## Deferred work
 
 Fonts, icons, asset paths, arbitrary/custom tokens, contrast scoring,
-multi-root discovery, SDK compatibility classification, catalog resolution,
 scaffold generation through E-009/E-008, installation, selection, persistence,
 CSS variable emission, frontend integration, live preview, and runtime theme
 application remain later E-015 work.

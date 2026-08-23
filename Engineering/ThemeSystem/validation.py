@@ -10,6 +10,7 @@ _THEME_ID = re.compile(
     r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*)+$"
 )
 _HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
+_METADATA_ID = re.compile(r"^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$")
 
 
 def require_theme_id(value: str) -> str:
@@ -38,4 +39,12 @@ def require_hex_color(value: str, label: str) -> str:
 
     if not isinstance(value, str) or not _HEX_COLOR.fullmatch(value):
         raise ThemeError(f"{label} must be an opaque #RRGGBB hexadecimal color.")
+    return value
+
+
+def require_metadata_id(value: str, label: str) -> str:
+    """Validate a stable discovery-root label."""
+
+    if len(value) > 128 or not _METADATA_ID.fullmatch(value):
+        raise ThemeError(f"{label} must be a lowercase dot- or hyphen-separated identifier.")
     return value

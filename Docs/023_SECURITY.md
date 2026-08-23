@@ -111,3 +111,13 @@ no styles, modifies no frontend files, executes no code, and grants no trust.
 The metadata reader is not a CSS sanitizer or accessibility certification
 system. Asset handling, CSS emission, frontend application, live preview,
 contrast enforcement, installation, and untrusted-theme policy remain deferred.
+
+E-015.2 discovery scans only explicitly approved roots for the exact theme
+manifest filename. It does not follow symlinked roots, directories, or
+manifests, and ignores dependency, cache, VCS, build, distribution, and Rust
+target directories. Root provenance is retained and duplicate theme
+ID/version pairs fail instead of creating implicit precedence.
+
+SDK compatibility and appearance matching are metadata classifications only.
+They do not load palette values into the UI, validate contrast, establish
+publisher trust, or make a theme safe to install or apply.

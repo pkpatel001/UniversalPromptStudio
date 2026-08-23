@@ -13,6 +13,11 @@ The strict reader rejects missing, unknown, duplicate, malformed, and
 secret-like data. Inspection does not load assets, parse or inject CSS, modify
 the frontend, or apply a theme.
 
+E-015.2 adds deterministic exact-filename discovery below explicitly approved
+roots, stable root provenance, duplicate identity rejection, Theme SDK API-level
+compatibility, and an in-memory catalog that resolves exact or highest versions
+with optional required appearances. Root order never establishes precedence.
+
 Fonts, icons, arbitrary/custom tokens, asset paths, contrast scoring,
-discovery, compatibility catalogs, scaffold generation, installation,
-selection, persistence, and runtime theme application remain later E-015 work.
+scaffold generation, installation, selection, persistence, and runtime theme
+application remain later E-015 work.

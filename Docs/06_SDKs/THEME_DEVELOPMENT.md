@@ -2,8 +2,10 @@
 
 ## Current checkpoint
 
-E-015.1 supports strict declarative manifest authoring, shared-manifest
-inventory, and read-only inspection. Begin with `THEME_SDK.md` and ADR-0024.
+Through E-015.2, the toolkit supports strict declarative manifest authoring,
+shared-manifest inventory, explicit-root discovery, Theme SDK compatibility,
+deterministic catalog resolution, and appearance filtering. Begin with
+`THEME_SDK.md`, ADR-0024, and ADR-0025.
 
 ## Author a manifest
 
@@ -23,9 +25,30 @@ Inventory theme manifests with the shared E-012 system:
 python -m Engineering manifest validate --root C:\path\to\project
 ```
 
-Multiple theme manifests are allowed. E-015.1 does not yet resolve duplicate
-theme identities or versions because the theme discovery/catalog contract is a
-later checkpoint.
+Multiple theme manifests are allowed by E-012. The E-015.2 discovery service
+additionally rejects duplicate theme ID/version pairs across all approved
+roots.
+
+## Discover and resolve themes
+
+Validate compatible themes below explicit roots:
+
+```powershell
+python -m Engineering theme validate --root C:\path\to\themes
+python -m Engineering theme list --root C:\path\to\themes
+```
+
+Resolve an exact or highest compatible version, optionally requiring palettes:
+
+```powershell
+python -m Engineering theme resolve example.slate --root C:\path\to\themes
+python -m Engineering theme resolve example.slate --version 1.0.0 --root C:\path\to\themes
+python -m Engineering theme resolve example.slate --root C:\path\to\themes --appearance dark
+```
+
+Repeat `--root` only for directories you explicitly approve. Root order is not
+a priority or fallback policy. Duplicate root IDs, resolved paths, and theme
+identities are deterministic errors.
 
 ## Palette guidance
 
@@ -43,4 +66,6 @@ quality or accessibility conformance.
 Do not place CSS, scripts, URLs, file paths, fonts, icons, credentials, or
 machine-local values in schema 1. Unknown and secret-like fields are rejected.
 Inspection does not load assets, modify `Frontend/src/styles.css`, or apply a
-theme.
+theme. Discovery does not follow symlinks and ignores dependency, cache, VCS,
+build, distribution, and Rust target directories. Resolution is metadata-only
+and does not establish installation, trust, visual quality, or runtime readiness.
