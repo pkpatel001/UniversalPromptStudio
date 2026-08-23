@@ -1,24 +1,23 @@
 # Universal Prompt Studio AI Provider SDK
 
-## Scope through E-014.5
+## Scope through E-014.6
 
 E-014.1 establishes portable provider identity and capability metadata.
 E-014.2 adds deterministic multi-root discovery, SDK compatibility
 classification, and catalog resolution. E-014.3 adds controlled provider
 scaffold generation through E-009 and E-008. E-014.4 adds typed text-runtime
 values and controlled registration of host-supplied instances. E-014.5 adds
-controlled synchronous invocation of those explicit registrations. Reading,
+controlled synchronous invocation of those explicit registrations. E-014.6
+adds an offline reference provider and Backend infrastructure adapter. Reading,
 discovering, validating, resolving, generating, or registering provider
 metadata never imports its entry point, accesses credentials, performs network
 requests, discovers models, or executes prompts.
 
 The existing `Backend.interfaces.AIProvider` remains the phase-one synchronous
-application interface. E-014.5 does not replace or connect that application
-flow. Streaming, cancellation mechanics, retries, embeddings, multimodal
-payloads, runtime configuration, loading, and execution orchestration require
-later checkpoints. Here, execution orchestration means application-level prompt
-validation, history, events, configuration, and transport policy; E-014.5 owns
-only one controlled SDK invocation.
+application interface. E-014.6 connects it through an infrastructure adapter
+without changing the application service contract. Streaming, cancellation
+mechanics, retries, embeddings, multimodal payloads, runtime configuration, and
+loading require later checkpoints.
 
 ## Manifest schema 1
 
@@ -227,5 +226,29 @@ errors because no provider was successfully invoked.
 
 This service does not load provider code, instantiate entry points, configure
 models or endpoints, resolve credentials, retry, cancel, stream, or connect the
-Backend application flow. It invokes trusted host-supplied Python code and is
-not a sandbox; that code retains the host process's authority.
+Backend application flow by itself. It invokes trusted host-supplied Python code
+and is not a sandbox; that code retains the host process's authority.
+
+## Offline application integration
+
+`OfflineEchoProvider` is a built-in, deterministic implementation with identity
+`ups.offline-echo` version `1.0.0`. Its host-owned metadata declares local
+transport, no authentication, and `text-generation`. It returns a predictable
+response and character-count usage without filesystem, environment, credential,
+or network access.
+
+`ProviderRuntimeAIAdapter` lives in the Backend infrastructure layer and
+implements the existing `AIProvider` ABC. It translates application parameters
+to immutable SDK options, treating `model` specially and converting underscores
+to hyphens. Credential-like option names and normalized duplicate names remain
+errors.
+
+On success, the adapter returns the existing `PromptExecutionResult` with
+provider identity, version, correlated request ID, usage, and optional model in
+metadata. A structured SDK failure becomes `AIProviderExecutionError`, which
+retains the safe message, stable code, provider name, and retryability.
+
+The application composition root registers `ups.offline-echo` alongside the
+legacy `dummy` implementation and exposes the host-owned runtime registry. No
+manifest is imported or dynamically loaded. This is a reference integration,
+not remote-provider support or a generic trust policy.

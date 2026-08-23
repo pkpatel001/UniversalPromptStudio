@@ -20,8 +20,15 @@ The current scaffold defines:
 - Event bus.
 - Application services.
 - In-memory and dummy implementations for early development.
+- A controlled AI-provider SDK adapter and deterministic offline reference
+  provider registered at the composition root.
 - Whoosh-backed search adapter behind the `SearchProvider` interface.
 
 ## Composition Root
 
 `Backend/core/container.py` is the dependency-injection composition root. Presentation adapters should request services from an application container instead of constructing repositories, providers, validators, or optimizers directly.
+
+The provider SDK adapter lives in `Backend/infrastructure/providers/`. The
+application service continues to depend only on `Backend.interfaces.AIProvider`;
+the composition root owns the concrete SDK registry, execution service, offline
+reference implementation, and adapter wiring.

@@ -84,3 +84,15 @@ network operations on its own. E-014.5 adds no provider loader, credential
 resolver, endpoint configuration, authorization grant, or remote provider.
 Only instances supplied by trusted host composition should be registered and
 invoked.
+
+E-014.6 wires only the host-authored `ups.offline-echo` implementation into the
+application composition root. It uses local deterministic string operations
+and does not read files, inspect the environment, resolve credentials, or make
+network requests. The adapter rejects credential-like request option names and
+translates SDK failures without exposing contained provider exceptions.
+
+This reference integration does not make arbitrary provider manifests
+executable. There is still no entry-point loader, trust store, endpoint or
+credential configuration, remote provider, automatic retry, or runtime
+sandbox. The generic execution API must continue to receive only instances
+explicitly created by trusted host composition.

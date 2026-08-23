@@ -38,7 +38,11 @@ that runtime identity has not drifted, invokes it exactly once, correlates the
 result to the request, and contains exceptions or invalid results as safe
 structured failures.
 
+E-014.6 adds the host-authored `ups.offline-echo` reference provider and a
+Backend infrastructure adapter. The composition root registers the reference
+runtime and exposes it to the unchanged application execution service alongside
+the legacy `dummy` provider.
+
 This subsystem does not define provider loading, streaming event payloads,
 cancellation mechanics, retry policy, endpoint configuration, credential
-resolution, model discovery, health checks, or application-container
-integration.
+resolution, model discovery, health checks, or external provider integration.

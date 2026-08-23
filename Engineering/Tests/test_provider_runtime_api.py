@@ -129,6 +129,10 @@ def test_runtime_values_reject_invalid_or_secret_bearing_inputs(
         factory()
 
 
+def test_request_options_allow_non_secret_token_count_names() -> None:
+    assert ProviderRequestOption("max-tokens", 20).value == 20
+
+
 def test_registry_binds_explicit_instances_without_executing_them() -> None:
     runtime = _EchoRuntime()
     registry = ProviderRuntimeRegistry()

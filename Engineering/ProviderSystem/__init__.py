@@ -30,6 +30,12 @@ from .models import (
     ProviderValidationReport,
     ProviderVersion,
 )
+from .reference import (
+    OFFLINE_ECHO_PROVIDER_ID,
+    OFFLINE_ECHO_PROVIDER_VERSION,
+    OfflineEchoProvider,
+    offline_echo_provider_record,
+)
 from .runtime_api import (
     ProviderFailure,
     ProviderFailureCode,
@@ -59,6 +65,9 @@ __all__ = [
     "PROVIDER_SCAFFOLD_TEMPLATE_ID",
     "PROVIDER_SCAFFOLD_TEMPLATE_VERSION",
     "DEFAULT_IGNORED_PROVIDER_DIRECTORIES",
+    "OFFLINE_ECHO_PROVIDER_ID",
+    "OFFLINE_ECHO_PROVIDER_VERSION",
+    "OfflineEchoProvider",
     "ProviderAuthentication",
     "ProviderCapability",
     "ProviderCatalog",
@@ -95,4 +104,5 @@ __all__ = [
     "ProviderValidationReport",
     "ProviderVersion",
     "RuntimeTextProvider",
+    "offline_echo_provider_record",
 ]

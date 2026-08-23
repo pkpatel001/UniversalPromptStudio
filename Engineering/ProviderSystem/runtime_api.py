@@ -15,15 +15,20 @@ from .validation import require_metadata_id, require_nonempty_text
 
 type ProviderOptionValue = str | int | float | bool
 
-_SECRET_KEY_PARTS = (
+_SECRET_KEY_PHRASES = (
     "access-key",
     "api-key",
-    "auth",
-    "credential",
-    "password",
     "private-key",
-    "secret",
-    "token",
+)
+_SECRET_KEY_SEGMENTS = frozenset(
+    {
+        "auth",
+        "credential",
+        "credentials",
+        "password",
+        "secret",
+        "token",
+    }
 )
 
 
@@ -37,7 +42,11 @@ class ProviderRequestOption:
     def __post_init__(self) -> None:
         require_metadata_id(self.name, "Provider request option")
         normalized = self.name.replace(".", "-")
-        if any(part in normalized for part in _SECRET_KEY_PARTS):
+        segments = frozenset(normalized.split("-"))
+        if segments.intersection(_SECRET_KEY_SEGMENTS) or any(
+            normalized == phrase or normalized.endswith(f"-{phrase}")
+            for phrase in _SECRET_KEY_PHRASES
+        ):
             raise ProviderError(
                 f"Provider request option must not carry credential material: {self.name!r}."
             )

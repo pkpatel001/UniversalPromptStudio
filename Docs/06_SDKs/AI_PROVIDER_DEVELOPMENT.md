@@ -2,13 +2,13 @@
 
 ## Current checkpoint
 
-Through E-014.5, the toolkit supports strict manifest authoring, explicit-root
+Through E-014.6, the toolkit supports strict manifest authoring, explicit-root
 discovery, SDK compatibility validation, deterministic catalog resolution, and
 controlled project-local scaffold generation. It also defines immutable text
 request/response/failure contracts and explicit host-owned runtime
-registration plus controlled invocation. Begin with `AI_PROVIDER_SDK.md`,
-ADR-0018 through ADR-0022. Do
-not place runtime configuration or credentials in a provider manifest.
+registration, controlled invocation, and an offline application integration
+reference. Begin with `AI_PROVIDER_SDK.md`, ADR-0018 through ADR-0023. Do not
+place runtime configuration or credentials in a provider manifest.
 
 ## Generate a scaffold
 
@@ -62,6 +62,29 @@ preserved. Exceptions, invalid return types, and mismatched request IDs become
 a non-retryable `provider-error` with a bounded host message. Provider exception
 text is not exposed.
 
+## Use the offline application integration
+
+The application composition root registers `ups.offline-echo` alongside the
+legacy `dummy` provider. A normal application request can select it by name:
+
+```python
+PromptExecutionRequest(
+    prompt="Build safely",
+    provider_name="ups.offline-echo",
+    parameters={"model": "offline-model", "max_tokens": 20},
+)
+```
+
+`ProviderRuntimeAIAdapter` normalizes underscores in option names to hyphens,
+extracts the optional string `model`, and sends a typed request through the
+controlled execution service. Successful application metadata includes the
+exact provider ID/version, request ID, usage, and model when present. Structured
+SDK failures become `AIProviderExecutionError` with code and retryability.
+
+The offline echo implementation is host-authored and deterministic. It is an
+integration fixture, not a model or fallback policy. The legacy `dummy`
+provider remains registered for compatibility.
+
 ## Author and inspect metadata
 
 Create `ai-provider-manifest.yaml` beside the future provider implementation,
@@ -96,7 +119,7 @@ network, inspect environment variables, or read credentials. Authentication is
 descriptive metadata only.
 
 Provider loading, configuration, credentials, streaming, retries, cancellation
-mechanics, health checks, model discovery, Backend application integration, and
-real provider integrations remain later E-014 work. A structured failure code
+mechanics, health checks, model discovery, and real provider integrations remain
+later work. A structured failure code
 names a portable outcome category; it does not implement timeout, retry, or
 cancellation policy.
