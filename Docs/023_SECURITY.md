@@ -206,3 +206,23 @@ provenance, not authenticated publisher identity. No signature, certificate,
 reputation, persistent trust grant, network acquisition, update, replacement,
 removal, or revocation mechanism is added. Installation does not transport the
 theme to the frontend or activate it; those remain separate explicit boundaries.
+
+E-015.8 makes E-015.7 provenance an admission requirement for managed themes.
+The exact bounded JSON receipt rejects duplicate or unknown keys and validates
+identity, version, canonical package filename, digests, size, trust policy, and
+acknowledgement. Discovery accepts a manifest beneath `Themes/Installed/` only
+when its directory contains exactly the regular manifest and receipt files, its
+current bytes match the recorded size and SHA-256, and manifest, receipt, and
+directory identities agree. Failures are excluded and block catalog compilation.
+
+Disable and restore require the exact recorded package digest, a separate action
+acknowledgement, a verified unchanged source, and an absent target. The operation
+is an atomic same-volume move between `Installed/` and the ignored
+`.ups-theme-disabled/` holding area. It never merges, overwrites, rewrites, or
+deletes installed evidence and does not synchronize or apply frontend themes.
+
+The receipt is unsigned local evidence. Verification detects inconsistent or
+accidentally modified state, but it cannot authenticate a publisher or resist a
+malicious local writer able to replace both manifest and receipt. Signatures,
+certificates, remote revocation, secure deletion, network acquisition, and
+automatic repair remain outside this boundary.

@@ -2,12 +2,30 @@
 
 ## Current checkpoint
 
-Through E-015.6, the toolkit supports strict declarative manifest authoring,
+Through E-015.8, the toolkit supports strict declarative manifest authoring,
 shared-manifest inventory, explicit-root discovery, Theme SDK compatibility,
 deterministic catalog resolution, appearance filtering, and controlled scaffold
 generation plus typed token compilation, reversible frontend application,
-catalog transport, and opt-in preferences. Begin with `THEME_SDK.md`, ADR-0024
-through ADR-0029.
+catalog transport, opt-in preferences, controlled external installation,
+managed provenance verification, and reversible disable/restore. Begin with
+`THEME_SDK.md`, ADR-0024 through ADR-0031.
+
+## Verify and manage installed themes
+
+Before catalog synchronization, verify all active and disabled managed themes:
+
+```powershell
+python -m Engineering theme install verify
+```
+
+Use the reported package digest for an explicitly acknowledged disable or
+restore. Without `--apply`, lifecycle commands only print the deterministic
+plan. Applied changes preserve both installed files and move the exact version
+atomically between `Installed/` and `.ups-theme-disabled/`.
+
+After a disable or restore, explicitly regenerate and test the frontend catalog.
+No lifecycle operation performs synchronization, selection, preference
+migration, or permanent deletion automatically.
 
 ## Generate a starting theme
 

@@ -1,6 +1,6 @@
 # Universal Prompt Studio Theme SDK
 
-## Scope through E-015.6
+## Scope through E-015.8
 
 E-015.1 establishes portable declarative theme identity, versions, SDK
 compatibility metadata, recognized appearances, and strict semantic color
@@ -12,7 +12,10 @@ selector-free CSS-variable serialization. E-015.5 adds explicit, reversible
 frontend application for host-authored selections. Metadata and compilation
 remain non-applying; only the frontend controller mutates the fixed properties,
 and only after a user action. E-015.6 adds deterministic build-time catalog
-transport and opt-in identity-only preference restoration.
+transport and opt-in identity-only preference restoration. E-015.7 adds
+exact-hash-approved, data-only external-theme installation with a deterministic
+provenance receipt. E-015.8 enforces that receipt during managed discovery and
+adds read-only verification plus reversible atomic disable and restore.
 
 ## Manifest schema 1
 
@@ -262,8 +265,45 @@ the caller asserted; it does not authenticate a publisher. Installation does not
 sync the generated frontend catalog or activate the theme. Those remain separate
 explicit actions.
 
+## Managed integrity and reversible lifecycle
+
+Verify every active and disabled managed installation without writing:
+
+```powershell
+python -m Engineering theme install verify
+```
+
+The verifier requires the exact manifest and receipt files, validates the
+receipt schema, and recalculates manifest size and SHA-256 before parsing the
+theme. Managed themes with missing or inconsistent evidence are excluded from
+catalog admission. Project-authored and built-in themes outside `Installed/`
+retain their existing manifest-only contract.
+
+Plan a reversible disable, then repeat with `--apply` after review:
+
+```powershell
+python -m Engineering theme install disable example.slate --version 1.0.0 --approve-package-sha256 SHA256 --acknowledge-disable
+python -m Engineering theme install disable example.slate --version 1.0.0 --approve-package-sha256 SHA256 --acknowledge-disable --apply
+```
+
+Restore the unchanged installation with:
+
+```powershell
+python -m Engineering theme install restore example.slate --version 1.0.0 --approve-package-sha256 SHA256 --acknowledge-restore --apply
+```
+
+Disabled themes remain under `.ups-theme-disabled/`, which discovery ignores.
+Lifecycle commands never delete evidence, replace a target, sync the frontend,
+activate a theme, or migrate a preference. Run `theme sync-frontend` separately
+after an applied state change.
+
+Receipt verification detects inconsistency and accidental modification. Because
+receipts are unsigned local files, it does not defend against an attacker who
+can replace both the receipt and manifest.
+
 ## Deferred work
 
 Fonts, icons, asset paths, arbitrary/custom tokens, contrast scoring,
-signatures, authenticated publishers, update/removal and revocation workflows,
-live preview, asset handling, and accessibility certification remain later work.
+signatures, authenticated publishers, automatic updates, permanent removal,
+remote revocation, live preview, asset handling, and accessibility certification
+remain later work.

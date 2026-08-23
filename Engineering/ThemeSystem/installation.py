@@ -22,11 +22,13 @@ from .package import (
     ThemeTrustAssessment,
     ThemeTrustPolicy,
 )
-
-THEME_INSTALLATION_RECEIPT_NAME = "theme-installation.json"
-THEME_INSTALLATION_RECEIPT_SCHEMA_VERSION = 1
-THEME_MANAGED_DIRECTORY = "Installed"
-THEME_TRUST_POLICY_ID = "explicit-external-theme-sha256-v1"
+from .provenance import (
+    THEME_INSTALLATION_RECEIPT_NAME,
+    THEME_INSTALLATION_RECEIPT_SCHEMA_VERSION,
+    THEME_MANAGED_DIRECTORY,
+    THEME_TRUST_POLICY_ID,
+    validate_theme_source_label,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -244,7 +246,7 @@ class ThemeInstaller:
             or not plan.trust.approved
         ):
             raise ThemeError("Only a ready ThemeInstallPlan can be installed.")
-        self._validate_source_label(source_label)
+        validate_theme_source_label(source_label)
         self._validate_plan_snapshot(plan)
         if themes_root.is_symlink() or not themes_root.resolve().is_dir():
             raise ThemeError("Theme installation root changed after planning.")
@@ -295,19 +297,6 @@ class ThemeInstaller:
             plan.package.sha256,
             manifest_entry.sha256,
         )
-
-    @staticmethod
-    def _validate_source_label(value: str) -> None:
-        if (
-            not isinstance(value, str)
-            or value.strip() != value
-            or not value
-            or len(value) > 240
-            or any(ord(character) < 32 for character in value)
-        ):
-            raise ThemeError(
-                "Theme source label must be 1-240 trimmed characters without controls."
-            )
 
     @staticmethod
     def _validate_plan_snapshot(plan: ThemeInstallPlan) -> None:

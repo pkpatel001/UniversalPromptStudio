@@ -20,6 +20,11 @@ from Engineering.ThemeSystem import (
     ThemeInstallationPlanner,
     ThemeInstaller,
     ThemeInstallPlan,
+    ThemeLifecycleAction,
+    ThemeLifecycleManager,
+    ThemeLifecyclePlan,
+    ThemeLifecyclePlanner,
+    ThemeManagedThemeService,
     ThemeManifestReader,
     ThemePackageInspector,
     ThemeService,
@@ -170,6 +175,144 @@ def theme_install_apply(
     console.print(f"Provenance receipt: {result.receipt}")
     console.print("Frontend catalog synchronized: no")
     console.print("Theme activated: no")
+
+
+@install_app.command(name="verify")
+def theme_install_verify(
+    root: Annotated[Path | None, typer.Option("--root")] = None,
+) -> None:
+    """Verify active and disabled managed themes against provenance receipts."""
+
+    try:
+        report = ThemeManagedThemeService().verify(_theme_install_root(root))
+    except ThemeError as exc:
+        console.print(f"FAILED theme.install.verify: {exc}", soft_wrap=True)
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    for record in report.records:
+        console.print(
+            f"VERIFIED {record.theme_id} version={record.version} "
+            f"state={record.state.value} package-sha256={record.receipt.package_sha256}"
+        )
+    for issue in report.issues:
+        console.print(
+            f"FAILED {issue.code} state={issue.state.value} root={issue.root_id} "
+            f"path={issue.relative_path}: {issue.message}",
+            soft_wrap=True,
+        )
+    console.print(report.summary)
+    console.print("Filesystem changes: none")
+    if not report.passed:
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
+
+
+def _print_lifecycle_plan(plan: ThemeLifecyclePlan) -> None:
+    console.print(
+        f"THEME {plan.theme_id} version={plan.version} action={plan.action.value}"
+    )
+    if plan.record is not None:
+        console.print(f"Package SHA-256: {plan.record.receipt.package_sha256}")
+        console.print(f"Manifest SHA-256: {plan.record.receipt.manifest_sha256}")
+    console.print(f"Source: {plan.root_id}:{plan.source_relative_path}")
+    console.print(f"Target: {plan.root_id}:{plan.target_relative_path}")
+    for issue in plan.issues:
+        console.print(
+            f"BLOCKED {issue.code} state={issue.state.value} root={issue.root_id} "
+            f"path={issue.relative_path}: {issue.message}",
+            soft_wrap=True,
+        )
+    console.print(plan.summary)
+
+
+def _theme_lifecycle(
+    action: ThemeLifecycleAction,
+    theme_id: str,
+    version: str,
+    root: Path | None,
+    approved_package_sha256: str | None,
+    acknowledged: bool,
+    apply: bool,
+) -> None:
+    lifecycle_root = _theme_install_root(root)
+    try:
+        plan = ThemeLifecyclePlanner().plan(
+            lifecycle_root,
+            theme_id,
+            version,
+            action,
+            approved_package_sha256=approved_package_sha256,
+            acknowledge_lifecycle_change=acknowledged,
+        )
+        _print_lifecycle_plan(plan)
+        if not plan.ready:
+            raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
+        if not apply:
+            console.print("Filesystem changes: none")
+            return
+        result = ThemeLifecycleManager().apply(plan, lifecycle_root.path)
+    except ThemeError as exc:
+        console.print(
+            f"FAILED theme.install.{action.value}: {exc}",
+            soft_wrap=True,
+        )
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    console.print(
+        f"{result.action.value.upper()}D {result.theme_id} version={result.version}"
+    )
+    console.print(f"Target: {result.target}")
+    console.print("Frontend catalog synchronized: no")
+    console.print("Theme activated: no")
+
+
+@install_app.command(name="disable")
+def theme_install_disable(
+    theme_id: str,
+    version: Annotated[str, typer.Option("--version")],
+    approved_package_sha256: Annotated[
+        str | None, typer.Option("--approve-package-sha256")
+    ] = None,
+    acknowledge_disable: Annotated[
+        bool, typer.Option("--acknowledge-disable")
+    ] = False,
+    apply: Annotated[bool, typer.Option("--apply")] = False,
+    root: Annotated[Path | None, typer.Option("--root")] = None,
+) -> None:
+    """Plan or explicitly apply a reversible managed-theme disable."""
+
+    _theme_lifecycle(
+        ThemeLifecycleAction.DISABLE,
+        theme_id,
+        version,
+        root,
+        approved_package_sha256,
+        acknowledge_disable,
+        apply,
+    )
+
+
+@install_app.command(name="restore")
+def theme_install_restore(
+    theme_id: str,
+    version: Annotated[str, typer.Option("--version")],
+    approved_package_sha256: Annotated[
+        str | None, typer.Option("--approve-package-sha256")
+    ] = None,
+    acknowledge_restore: Annotated[
+        bool, typer.Option("--acknowledge-restore")
+    ] = False,
+    apply: Annotated[bool, typer.Option("--apply")] = False,
+    root: Annotated[Path | None, typer.Option("--root")] = None,
+) -> None:
+    """Plan or explicitly apply restoration of one disabled managed theme."""
+
+    _theme_lifecycle(
+        ThemeLifecycleAction.RESTORE,
+        theme_id,
+        version,
+        root,
+        approved_package_sha256,
+        acknowledge_restore,
+        apply,
+    )
 
 
 @app.command(name="tokens")

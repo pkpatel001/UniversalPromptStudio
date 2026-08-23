@@ -52,6 +52,14 @@ and atomically writes the inspected manifest with a deterministic provenance
 receipt. Installation neither synchronizes the frontend catalog nor activates a
 theme.
 
+E-015.8 strictly revalidates managed installation receipts, exact manifest
+bytes, directory identity, and closed directory contents whenever an installed
+theme is discovered. Invalid managed provenance fails catalog admission. A
+read-only inventory covers active and disabled versions. Exact hash-approved,
+acknowledged disable and restore operations atomically move a verified version
+between `Installed/` and the discovery-ignored `.ups-theme-disabled/` location
+without rewriting or deleting its evidence.
+
 Fonts, icons, arbitrary/custom tokens, asset paths, contrast scoring, signatures,
-authenticated publishers, updates, removal, revocation, live preview, and asset
-handling remain later work.
+authenticated publishers, automatic updates, permanent removal, remote
+revocation, live preview, and asset handling remain later work.

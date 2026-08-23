@@ -10,6 +10,11 @@ from Engineering.core.exceptions import ThemeError
 
 from .manifest import THEME_MANIFEST_NAME, ThemeManifestReader
 from .models import ThemeDiscoveryRoot, ThemeInspectionReport, ThemeIssue, ThemeRecord
+from .provenance import (
+    THEME_MANAGED_DIRECTORY,
+    ThemeManagedState,
+    ThemeManagedThemeVerifier,
+)
 
 DEFAULT_IGNORED_THEME_DIRECTORIES = frozenset(
     {
@@ -31,8 +36,15 @@ THEME_STAGING_DIRECTORY_PREFIX = ".ups-theme-"
 class ThemeDiscoveryService:
     """Discover declarative theme metadata below explicitly approved roots."""
 
-    def __init__(self, reader: ThemeManifestReader | None = None) -> None:
+    def __init__(
+        self,
+        reader: ThemeManifestReader | None = None,
+        managed_verifier: ThemeManagedThemeVerifier | None = None,
+    ) -> None:
         self._reader = reader or ThemeManifestReader()
+        self._managed_verifier = managed_verifier or ThemeManagedThemeVerifier(
+            manifest_reader=self._reader
+        )
 
     def inspect(self, root: Path) -> ThemeInspectionReport:
         if root.is_symlink():
@@ -139,12 +151,27 @@ class ThemeDiscoveryService:
                 resolved_path = path.resolve(strict=True)
                 if not resolved_path.is_relative_to(resolved_root):
                     raise ThemeError("Theme manifest resolves outside the discovery root.")
-                manifest = self._reader.read(resolved_path)
+                managed_container = self._managed_container(resolved_root, resolved_path)
+                if managed_container is None:
+                    manifest = self._reader.read(resolved_path)
+                else:
+                    managed = self._managed_verifier.verify_directory(
+                        resolved_path.parent,
+                        managed_container,
+                        ThemeManagedState.ACTIVE,
+                        root_id=root_id,
+                    )
+                    manifest = managed.manifest
             except (OSError, ThemeError) as exc:
+                code = (
+                    "theme.provenance.invalid"
+                    if self._managed_container(resolved_root, path) is not None
+                    else "theme.manifest.invalid"
+                )
                 issues.append(
                     ThemeIssue(
                         relative_path,
-                        "theme.manifest.invalid",
+                        code,
                         str(exc),
                         root_id,
                     )
@@ -152,6 +179,21 @@ class ThemeDiscoveryService:
                 continue
             records.append(ThemeRecord(relative_path, manifest, root_id))
         return records, issues
+
+    @staticmethod
+    def _managed_container(root: Path, manifest_path: Path) -> Path | None:
+        if root.name.casefold() == THEME_MANAGED_DIRECTORY.casefold():
+            return root
+        try:
+            relative = manifest_path.relative_to(root)
+        except ValueError:
+            return None
+        if (
+            relative.parts
+            and relative.parts[0].casefold() == THEME_MANAGED_DIRECTORY.casefold()
+        ):
+            return root / relative.parts[0]
+        return None
 
     @staticmethod
     def _discover(root: Path) -> tuple[Path, ...]:
