@@ -6,6 +6,7 @@ from .discovery import (
     DEFAULT_IGNORED_PROVIDER_DIRECTORIES,
     ProviderDiscoveryService,
 )
+from .execution import ProviderExecutionReport, ProviderExecutionService
 from .manifest import (
     AI_PROVIDER_MANIFEST_NAME,
     AI_PROVIDER_SCHEMA_VERSION,
@@ -64,6 +65,8 @@ __all__ = [
     "ProviderDiscoveryRoot",
     "ProviderDiscoveryService",
     "ProviderEntryPoint",
+    "ProviderExecutionReport",
+    "ProviderExecutionService",
     "ProviderFailure",
     "ProviderFailureCode",
     "ProviderId",

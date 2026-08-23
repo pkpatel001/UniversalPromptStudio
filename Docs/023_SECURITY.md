@@ -69,5 +69,18 @@ provider methods. Request option names that appear to carry credentials are
 rejected, but this is validation defense, not a credential-management system.
 
 The runtime protocol is not a sandbox or an authorization grant. Loading code,
-executing requests, resolving credentials, contacting services, and enforcing
-timeouts, retries, or cancellation remain outside E-014.4.
+resolving credentials, contacting services, and enforcing timeouts, retries, or
+cancellation remain outside E-014.4.
+
+E-014.5 permits a trusted host to invoke an already-created, explicitly
+registered provider instance. Before invocation, the host rechecks exact
+identity/version. It calls the provider once, performs no automatic retry, and
+requires a correlated typed result. Provider exceptions and malformed results
+are replaced with bounded generic failures; raw exception text is not returned.
+
+This execution boundary is not a sandbox. Invoked Python code retains the host
+process's authority and could perform filesystem, environment, credential, or
+network operations on its own. E-014.5 adds no provider loader, credential
+resolver, endpoint configuration, authorization grant, or remote provider.
+Only instances supplied by trusted host composition should be registered and
+invoked.

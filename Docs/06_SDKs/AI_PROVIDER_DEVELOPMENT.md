@@ -2,11 +2,12 @@
 
 ## Current checkpoint
 
-Through E-014.4, the toolkit supports strict manifest authoring, explicit-root
+Through E-014.5, the toolkit supports strict manifest authoring, explicit-root
 discovery, SDK compatibility validation, deterministic catalog resolution, and
 controlled project-local scaffold generation. It also defines immutable text
 request/response/failure contracts and explicit host-owned runtime
-registration. Begin with `AI_PROVIDER_SDK.md`, ADR-0018 through ADR-0021. Do
+registration plus controlled invocation. Begin with `AI_PROVIDER_SDK.md`,
+ADR-0018 through ADR-0022. Do
 not place runtime configuration or credentials in a provider manifest.
 
 ## Generate a scaffold
@@ -48,6 +49,19 @@ does not resolve the manifest entry point, import a module, or call
 `generate_text`. Registration therefore does not establish trust or service
 readiness.
 
+## Invoke an explicitly registered provider
+
+Construct `ProviderExecutionService` with a host-owned runtime registry, then
+call `execute(provider_id, request, version)` only after the host has explicitly
+registered the intended instance. Omitting `version` selects the highest
+registered version; supplying it selects that exact version.
+
+The service checks runtime identity again immediately before invocation and
+calls `generate_text` exactly once. A valid response or structured failure is
+preserved. Exceptions, invalid return types, and mismatched request IDs become
+a non-retryable `provider-error` with a bounded host message. Provider exception
+text is not exposed.
+
 ## Author and inspect metadata
 
 Create `ai-provider-manifest.yaml` beside the future provider implementation,
@@ -81,8 +95,8 @@ Manifest inspection does not import the entry point, call a provider, access the
 network, inspect environment variables, or read credentials. Authentication is
 descriptive metadata only.
 
-Provider loading, configuration, credentials, request orchestration, streaming,
-retries, cancellation mechanics, health checks, model discovery, and real
-provider integrations remain later E-014 work. A structured failure code names
-a portable outcome category; it does not implement timeout, retry, or
+Provider loading, configuration, credentials, streaming, retries, cancellation
+mechanics, health checks, model discovery, Backend application integration, and
+real provider integrations remain later E-014 work. A structured failure code
+names a portable outcome category; it does not implement timeout, retry, or
 cancellation policy.

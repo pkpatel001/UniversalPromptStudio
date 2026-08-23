@@ -32,7 +32,13 @@ version, SDK level, and declared `text-generation` capability match validated
 metadata. Duplicate bindings are errors and registration never imports or
 invokes the implementation.
 
-This subsystem does not yet execute provider requests or define provider
-loading, streaming event payloads, cancellation mechanics, retry policy,
-endpoint configuration, credential resolution, model discovery, health checks,
-or application-container integration.
+E-014.5 adds controlled synchronous invocation over those explicit bindings.
+The execution service resolves an exact or highest registered version, checks
+that runtime identity has not drifted, invokes it exactly once, correlates the
+result to the request, and contains exceptions or invalid results as safe
+structured failures.
+
+This subsystem does not define provider loading, streaming event payloads,
+cancellation mechanics, retry policy, endpoint configuration, credential
+resolution, model discovery, health checks, or application-container
+integration.

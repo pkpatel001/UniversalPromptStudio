@@ -1,21 +1,24 @@
 # Universal Prompt Studio AI Provider SDK
 
-## Scope through E-014.4
+## Scope through E-014.5
 
 E-014.1 establishes portable provider identity and capability metadata.
 E-014.2 adds deterministic multi-root discovery, SDK compatibility
 classification, and catalog resolution. E-014.3 adds controlled provider
 scaffold generation through E-009 and E-008. E-014.4 adds typed text-runtime
-values and controlled registration of host-supplied instances. Reading,
+values and controlled registration of host-supplied instances. E-014.5 adds
+controlled synchronous invocation of those explicit registrations. Reading,
 discovering, validating, resolving, generating, or registering provider
 metadata never imports its entry point, accesses credentials, performs network
 requests, discovers models, or executes prompts.
 
 The existing `Backend.interfaces.AIProvider` remains the phase-one synchronous
-application interface. E-014.4 does not replace or connect that application
+application interface. E-014.5 does not replace or connect that application
 flow. Streaming, cancellation mechanics, retries, embeddings, multimodal
 payloads, runtime configuration, loading, and execution orchestration require
-later checkpoints.
+later checkpoints. Here, execution orchestration means application-level prompt
+validation, history, events, configuration, and transport policy; E-014.5 owns
+only one controlled SDK invocation.
 
 ## Manifest schema 1
 
@@ -194,7 +197,35 @@ rejects duplicates. It can resolve an exact version or the highest registered
 version and can explicitly unregister one binding. It never imports the
 manifest entry point and never calls `generate_text`.
 
-E-014.4 defines the boundary but does not execute requests. Structured timeout,
-rate-limit, and cancellation outcomes are classifications only; timeout,
-retry, and cancellation mechanisms remain deferred with provider loading,
-credentials, endpoints, model discovery, health checks, and real integrations.
+Structured timeout, rate-limit, and cancellation outcomes are classifications
+only; timeout, retry, and cancellation mechanisms remain deferred with provider
+loading, credentials, endpoints, model discovery, health checks, and real
+integrations.
+
+## Controlled invocation
+
+`ProviderExecutionService` accepts a host-owned `ProviderRuntimeRegistry`. Its
+`execute` operation resolves an exact or highest registered version and checks
+the implementation identity/version again before calling `generate_text`
+exactly once.
+
+The immutable `ProviderExecutionReport` identifies the resolved provider and
+version and contains either a response or failure. Its `succeeded` property is
+true only for `ProviderTextResponse`.
+
+The host preserves valid correlated provider results. It converts these cases
+to a non-retryable `provider-error`:
+
+- the implementation identity changes after registration;
+- provider code raises an exception;
+- provider code returns a value outside the result contract; or
+- the returned request ID does not match the request.
+
+Exception text is not copied into the failure. Unknown registrations and
+invalid host request arguments remain `ProviderError` selection/contract
+errors because no provider was successfully invoked.
+
+This service does not load provider code, instantiate entry points, configure
+models or endpoints, resolve credentials, retry, cancel, stream, or connect the
+Backend application flow. It invokes trusted host-supplied Python code and is
+not a sandbox; that code retains the host process's authority.
