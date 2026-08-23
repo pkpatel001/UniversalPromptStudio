@@ -2,8 +2,9 @@
 
 ## Scope
 
-The E-013.1 Plugin SDK is a metadata contract. It can describe, validate,
-discover, and catalog plugins without loading them. A valid manifest is not a
+The Plugin SDK is a metadata contract. Through E-013.2 it can describe,
+validate, discover, compatibility-check, dependency-check, and catalog plugins
+without loading them. A valid manifest is not a
 trust decision and does not make a plugin safe to execute.
 
 Runtime lifecycle, activation, deactivation, permission enforcement,
@@ -27,8 +28,10 @@ requested; otherwise the highest registered version is returned.
 
 ## SDK compatibility
 
-`sdk_version` is a positive integer API level. Manifest schema 1 currently
-supports SDK API level 1. It is deliberately separate from:
+`sdk_version` is a positive integer API level. The manifest reader accepts
+future positive levels so inspection can explain their metadata. The current
+host compatibility contract supports SDK API level 1. It is deliberately
+separate from:
 
 - `schema_version`, which versions the YAML structure; and
 - `plugin.version`, which versions the plugin itself.
@@ -99,21 +102,52 @@ Each dependency contains a plugin ID and a non-empty PEP 440 version specifier.
 Dependencies are normalized and sorted by ID. A plugin cannot depend on itself,
 and each dependency ID may appear only once.
 
-E-013.1 does not resolve a dependency graph, download packages, or install
-dependencies.
+E-013.2 evaluates dependencies against compatible metadata already present in
+the discovered catalog. It reports missing IDs, unsatisfied version ranges, and
+cycles. A satisfied edge selects the highest matching version deterministically.
+It does not download packages, install dependencies, or solve a remote package
+repository.
 
 ## Discovery and catalog
 
-The default project root is `Plugins/`. The CLI can inspect another explicitly
-approved root with `--root`.
+The default project root is `Plugins/`. The CLI can inspect multiple explicitly
+approved roots with repeatable `--root` options. Each root has a stable label,
+and records and issues retain that provenance.
 
 Discovery is recursive, exact-filename, sorted, and read-only. It ignores VCS,
 cache, virtual-environment, dependency, build, distribution, and Rust target
 directories. It does not follow symlinked directories and rejects symlinked
 manifests.
 
-Bundled and per-user roots and cross-root precedence are deferred. Duplicate
-ID/version pairs are always errors; one source never silently replaces another.
+Automatic bundled and per-user root locations and cross-root precedence remain
+deferred. Duplicate ID/version pairs across all roots are always errors; one
+source never silently replaces another.
+
+Missing and symlinked roots are explicit issues. Root IDs and resolved root paths
+must be unique.
+
+## Compatibility and validation phases
+
+Validation runs in ordered phases:
+
+1. structural discovery and duplicate detection;
+2. SDK API-level compatibility classification; and
+3. dependency constraint selection and cycle detection.
+
+A failed phase stops later phases to avoid cascading noise. SDK compatibility
+does not imply trust. Dependency satisfaction means only that matching metadata
+is present.
+
+## Catalog resolution
+
+The catalog provides:
+
+- stable ID/version inventory;
+- exact-version resolution;
+- highest-version default resolution; and
+- highest-version resolution satisfying a PEP 440 specifier.
+
+Incompatible SDK records cannot be registered.
 
 ## Shared manifest family
 
@@ -139,6 +173,7 @@ python -m Engineering plugin inspect example.echo
 python -m Engineering plugin inspect example.echo --version 1.0.0
 python -m Engineering plugin validate
 python -m Engineering plugin validate --root C:\path\to\approved\plugins
+python -m Engineering plugin dependencies --root C:\project\plugins --root C:\user\plugins
 ```
 
 `python -m Engineering generate plugin` remains a placeholder until a later

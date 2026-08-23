@@ -88,13 +88,6 @@ class PluginManifestReader:
             description=self._require_string(plugin, "description"),
             entry_point=PluginEntryPoint(self._require_string(plugin, "entry_point")),
         )
-        if metadata.sdk_version.api_level != PLUGIN_SDK_API_LEVEL:
-            raise PluginError(
-                "Unsupported plugin sdk_version API level: "
-                f"{metadata.sdk_version.api_level}; supported level is "
-                f"{PLUGIN_SDK_API_LEVEL}."
-            )
-
         capabilities = tuple(
             PluginCapability(item)
             for item in self._read_string_items(

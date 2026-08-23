@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
 
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
@@ -75,6 +77,14 @@ class PluginSdkVersion:
     def __post_init__(self) -> None:
         if type(self.api_level) is not int or self.api_level < 1:
             raise PluginError("Plugin sdk_version must be a positive integer API level.")
+
+
+class PluginSdkCompatibility(Enum):
+    """Compatibility of a plugin SDK level with the current host contract."""
+
+    COMPATIBLE = "compatible"
+    TOO_OLD = "too-old"
+    TOO_NEW = "too-new"
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,11 +176,28 @@ class PluginManifest:
 
 
 @dataclass(frozen=True, slots=True)
+class PluginDiscoveryRoot:
+    """One explicitly approved, stable-labeled discovery root."""
+
+    root_id: str
+    path: Path
+
+    def __post_init__(self) -> None:
+        require_metadata_id(self.root_id, "Plugin discovery root id")
+        if not isinstance(self.path, Path):
+            raise PluginError("Plugin discovery root path must be a pathlib Path.")
+
+
+@dataclass(frozen=True, slots=True)
 class PluginRecord:
     """One valid plugin manifest and its portable path below a discovery root."""
 
     relative_path: str
     manifest: PluginManifest
+    root_id: str = "project"
+
+    def __post_init__(self) -> None:
+        require_metadata_id(self.root_id, "Plugin discovery root id")
 
     @property
     def plugin_id(self) -> str:
@@ -192,6 +219,20 @@ class PluginIssue:
     relative_path: str
     code: str
     message: str
+    root_id: str = "project"
+
+
+@dataclass(frozen=True, slots=True)
+class PluginDependencyResolution:
+    """One deterministic dependency selection for a plugin version."""
+
+    owner_plugin_id: str
+    owner_version: str
+    dependency_plugin_id: str
+    version_specifier: str
+    resolved_version: str
+    owner_relative_path: str
+    owner_root_id: str = "project"
 
 
 @dataclass(frozen=True, slots=True)
@@ -214,5 +255,31 @@ class PluginInspectionReport:
         state = "succeeded" if self.passed else "failed"
         return (
             f"Plugin inspection {state}: {len(self.records)} valid, "
+            f"{len(self.issues)} issues."
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PluginValidationReport:
+    """Aggregate compatibility and dependency validation result."""
+
+    records: tuple[PluginRecord, ...] = ()
+    dependency_resolutions: tuple[PluginDependencyResolution, ...] = ()
+    issues: tuple[PluginIssue, ...] = ()
+
+    @property
+    def passed(self) -> bool:
+        """Return whether all plugins are compatible and dependency-complete."""
+
+        return not self.issues
+
+    @property
+    def summary(self) -> str:
+        """Return a stable human-readable validation summary."""
+
+        state = "succeeded" if self.passed else "failed"
+        return (
+            f"Plugin validation {state}: {len(self.records)} compatible, "
+            f"{len(self.dependency_resolutions)} dependencies resolved, "
             f"{len(self.issues)} issues."
         )

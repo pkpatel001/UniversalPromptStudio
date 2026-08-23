@@ -1,4 +1,4 @@
-"""Read-only CLI adapter for E-013.1 plugin metadata."""
+"""Read-only CLI adapter for E-013 plugin metadata validation."""
 
 from __future__ import annotations
 
@@ -11,7 +11,12 @@ from Engineering.cli.errors import EXIT_CODE_VALIDATION_FAILURE
 from Engineering.cli.output.console import console
 from Engineering.core.exceptions import PluginError
 from Engineering.core.paths import get_paths
-from Engineering.PluginSystem import PluginCatalog, PluginInspectionReport, PluginService
+from Engineering.PluginSystem import (
+    PluginCatalog,
+    PluginDiscoveryRoot,
+    PluginService,
+    PluginValidationReport,
+)
 
 app = typer.Typer(help="Discover, validate, and inspect plugin metadata")
 
@@ -24,36 +29,50 @@ def plugin_main(ctx: typer.Context) -> None:
         console.print("Run 'python -m Engineering plugin list' to discover plugins.")
 
 
-def _root(value: Path | None) -> Path:
-    return value or get_paths().plugins
+def _roots(values: list[Path] | None) -> tuple[PluginDiscoveryRoot, ...]:
+    if not values:
+        return (PluginDiscoveryRoot("project", get_paths().plugins),)
+    return tuple(
+        PluginDiscoveryRoot(f"explicit-{index:04d}", path)
+        for index, path in enumerate(values, start=1)
+    )
 
 
-def _print_report(report: PluginInspectionReport) -> None:
+def _print_report(report: PluginValidationReport) -> None:
     for record in report.records:
         console.print(
             f"VALID {record.plugin_id} version={record.version} "
-            f"path={record.relative_path}"
+            f"root={record.root_id} path={record.relative_path}"
+        )
+    for resolution in report.dependency_resolutions:
+        console.print(
+            f"RESOLVED {resolution.owner_plugin_id}@{resolution.owner_version} -> "
+            f"{resolution.dependency_plugin_id}@{resolution.resolved_version} "
+            f"({resolution.version_specifier})"
         )
     for issue in report.issues:
-        console.print(f"FAILED {issue.code} path={issue.relative_path}: {issue.message}")
+        console.print(
+            f"FAILED {issue.code} root={issue.root_id} "
+            f"path={issue.relative_path}: {issue.message}"
+        )
     console.print(report.summary)
 
 
-def _inspect(root: Path) -> PluginInspectionReport:
+def _validate(roots: tuple[PluginDiscoveryRoot, ...]) -> PluginValidationReport:
     try:
-        return PluginService().inspect(root)
+        return PluginService().validate_roots(roots)
     except PluginError as exc:
-        console.print(f"FAILED plugin.inspect: {exc}")
+        console.print(f"FAILED plugin.validate: {exc}")
         raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
 
 
 @app.command(name="list")
 def plugin_list(
-    root: Annotated[Path | None, typer.Option("--root")] = None,
+    root: Annotated[list[Path] | None, typer.Option("--root")] = None,
 ) -> None:
-    """List all validated plugin manifests below a root."""
+    """List dependency-coherent plugins below one or more roots."""
 
-    report = _inspect(_root(root))
+    report = _validate(_roots(root))
     _print_report(report)
     if not report.passed:
         raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
@@ -63,11 +82,12 @@ def plugin_list(
 def plugin_inspect(
     plugin_id: str,
     version: Annotated[str | None, typer.Option("--version")] = None,
-    root: Annotated[Path | None, typer.Option("--root")] = None,
+    root: Annotated[list[Path] | None, typer.Option("--root")] = None,
 ) -> None:
     """Inspect one plugin by ID and optional exact version."""
 
-    report = _inspect(_root(root))
+    roots = _roots(root)
+    report = _validate(roots)
     if not report.passed:
         _print_report(report)
         raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
@@ -97,16 +117,28 @@ def plugin_inspect(
             f"Dependency: {dependency.plugin_id.value} "
             f"{dependency.version_specifier}"
         )
-    console.print(f"Manifest: {record.relative_path}")
+    console.print(f"Manifest: {record.root_id}:{record.relative_path}")
 
 
 @app.command(name="validate")
 def plugin_validate(
-    root: Annotated[Path | None, typer.Option("--root")] = None,
+    root: Annotated[list[Path] | None, typer.Option("--root")] = None,
 ) -> None:
-    """Validate every plugin manifest below a root."""
+    """Validate compatibility and dependencies below one or more roots."""
 
-    report = _inspect(_root(root))
+    report = _validate(_roots(root))
+    _print_report(report)
+    if not report.passed:
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
+
+
+@app.command(name="dependencies")
+def plugin_dependencies(
+    root: Annotated[list[Path] | None, typer.Option("--root")] = None,
+) -> None:
+    """Show deterministic dependency selections without installing anything."""
+
+    report = _validate(_roots(root))
     _print_report(report)
     if not report.passed:
         raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)

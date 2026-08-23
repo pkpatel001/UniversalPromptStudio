@@ -141,7 +141,6 @@ class TestPluginModelsAndReader:
         (
             ("schema_version", True, "schema_version must be an integer"),
             ("sdk_version", True, "sdk_version must be an integer"),
-            ("sdk_version", 2, "Unsupported plugin sdk_version"),
             ("entry_point", "../plugin.py", "module.path:ClassName"),
         ),
     )
@@ -349,6 +348,12 @@ class TestPluginManifestIntegrationAndCli:
 
     def test_plugin_cli_lists_inspects_and_validates(self, tmp_path: Path) -> None:
         _write_manifest(tmp_path / "echo" / PLUGIN_MANIFEST_NAME)
+        base = _manifest_data("example.base")
+        assert isinstance(base["plugin"], dict)
+        base["plugin"]["dependencies"] = []
+        base_path = tmp_path / "base" / PLUGIN_MANIFEST_NAME
+        base_path.parent.mkdir()
+        base_path.write_text(yaml.safe_dump(base), encoding="utf-8")
         runner = CliRunner()
 
         listed = runner.invoke(app, ["plugin", "list", "--root", str(tmp_path)])
@@ -372,7 +377,11 @@ class TestPluginManifestIntegrationAndCli:
         assert "Entry point: example_echo.plugin:EchoPlugin" in inspected.output
         assert "Permissions (metadata only): network.read" in inspected.output
         assert validated.exit_code == 0
-        assert "Plugin inspection succeeded: 1 valid, 0 issues." in validated.output
+        assert "RESOLVED example.echo@1.0.0 -> example.base@1.0.0" in validated.output
+        assert (
+            "Plugin validation succeeded: 2 compatible, "
+            "1 dependencies resolved, 0 issues."
+        ) in validated.output
 
     def test_plugin_cli_returns_stable_failure_for_invalid_manifest(
         self, tmp_path: Path
@@ -386,4 +395,7 @@ class TestPluginManifestIntegrationAndCli:
 
         assert result.exit_code == 1
         assert "FAILED plugin.manifest.invalid" in result.output
-        assert "Plugin inspection failed: 0 valid, 1 issues." in result.output
+        assert (
+            "Plugin validation failed: 0 compatible, "
+            "0 dependencies resolved, 1 issues."
+        ) in result.output

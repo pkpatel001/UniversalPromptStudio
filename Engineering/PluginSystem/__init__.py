@@ -1,6 +1,8 @@
-"""E-013.1 typed, deterministic, non-executing plugin metadata foundation."""
+"""E-013 typed, deterministic, non-executing plugin metadata foundation."""
 
 from .catalog import PluginCatalog
+from .compatibility import PluginSdkContract
+from .dependencies import PluginDependencyReport, PluginDependencyResolver
 from .discovery import (
     DEFAULT_IGNORED_PLUGIN_DIRECTORIES,
     PluginDiscoveryService,
@@ -14,6 +16,8 @@ from .manifest import (
 from .models import (
     PluginCapability,
     PluginDependency,
+    PluginDependencyResolution,
+    PluginDiscoveryRoot,
     PluginEntryPoint,
     PluginId,
     PluginInspectionReport,
@@ -22,7 +26,9 @@ from .models import (
     PluginMetadata,
     PluginPermission,
     PluginRecord,
+    PluginSdkCompatibility,
     PluginSdkVersion,
+    PluginValidationReport,
     PluginVersion,
 )
 from .service import PluginService
@@ -35,6 +41,10 @@ __all__ = [
     "PluginCapability",
     "PluginCatalog",
     "PluginDependency",
+    "PluginDependencyReport",
+    "PluginDependencyResolution",
+    "PluginDependencyResolver",
+    "PluginDiscoveryRoot",
     "PluginDiscoveryService",
     "PluginEntryPoint",
     "PluginId",
@@ -46,6 +56,9 @@ __all__ = [
     "PluginPermission",
     "PluginRecord",
     "PluginSdkVersion",
+    "PluginSdkCompatibility",
+    "PluginSdkContract",
     "PluginService",
+    "PluginValidationReport",
     "PluginVersion",
 ]
