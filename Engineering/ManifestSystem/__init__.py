@@ -3,6 +3,7 @@
 from .adapters import (
     BuildManifestAdapter,
     DocumentationManifestAdapter,
+    PluginManifestAdapter,
     ReleaseManifestAdapter,
     TemplateArtifactManifestAdapter,
     default_manifest_adapters,
@@ -56,6 +57,7 @@ __all__ = [
     "ManifestSpec",
     "ManifestValidationReport",
     "ManifestValidationService",
+    "PluginManifestAdapter",
     "ReleaseManifestAdapter",
     "SchemaCompatibility",
     "TemplateArtifactManifestAdapter",

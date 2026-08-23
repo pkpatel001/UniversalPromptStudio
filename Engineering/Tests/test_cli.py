@@ -49,6 +49,7 @@ class TestCLIApp:
         assert "build" in result.output
         assert "generate" in result.output
         assert "release" in result.output
+        assert "plugin" in result.output
 
 
 class TestVersionCommand:

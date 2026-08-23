@@ -29,6 +29,7 @@ __all__ = [
     "BuildError",
     "ReleaseError",
     "ManifestError",
+    "PluginError",
     "CodeGenerationError",
     "TemplateError",
     "TemplateNotFoundError",
@@ -144,6 +145,10 @@ class ReleaseError(EngineeringError):
 
 class ManifestError(EngineeringError):
     """Base exception for manifest discovery and validation operations."""
+
+
+class PluginError(EngineeringError):
+    """Base exception for plugin metadata and catalog operations."""
 
 
 # -----------------------------------------------------------------------------

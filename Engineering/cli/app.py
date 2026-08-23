@@ -7,7 +7,18 @@ from __future__ import annotations
 import typer
 from rich.console import Console
 
-from .commands import build, config, docs, doctor, generate, manifest, release, validate, version
+from .commands import (
+    build,
+    config,
+    docs,
+    doctor,
+    generate,
+    manifest,
+    plugin,
+    release,
+    validate,
+    version,
+)
 from .output.console import print_banner
 
 console = Console()
@@ -46,3 +57,4 @@ app.add_typer(build.app, name="build")
 app.add_typer(generate.app, name="generate")
 app.add_typer(release.app, name="release")
 app.add_typer(manifest.app, name="manifest")
+app.add_typer(plugin.app, name="plugin")

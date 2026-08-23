@@ -48,6 +48,7 @@ class TestManifestRegistry:
         assert tuple(adapter.spec.manifest_id for adapter in registry.adapters) == (
             "ups.build",
             "ups.documentation",
+            "ups.plugin",
             "ups.release",
             "ups.template-artifact",
         )

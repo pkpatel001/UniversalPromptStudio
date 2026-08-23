@@ -9,6 +9,7 @@ from Engineering.BuildSystem import BUILD_MANIFEST_NAME, BuildManifest
 from Engineering.core.constants import DEFAULT_MANIFEST_FILENAME
 from Engineering.core.exceptions import EngineeringError, ManifestError
 from Engineering.core.filesystem import read_json, read_yaml
+from Engineering.PluginSystem import PLUGIN_MANIFEST_NAME, PluginManifestReader
 from Engineering.ReleaseSystem import RELEASE_MANIFEST_NAME, ReleaseManifest
 from Engineering.Templates import ArtifactManifest
 from Engineering.Templates.executor import DEFAULT_MANIFEST_NAME
@@ -167,6 +168,7 @@ class DocumentationManifestAdapter(_ReaderAdapter):
             raise ManifestError(f"{field} must be a non-empty string")
         return value
 
+
     @classmethod
     def _require_portable_path(cls, data: dict[str, Any], field: str) -> str:
         value = cls._require_nonempty_string(data, field)
@@ -183,12 +185,35 @@ class DocumentationManifestAdapter(_ReaderAdapter):
         return value
 
 
+class PluginManifestAdapter(_ReaderAdapter):
+    """Validate E-013 plugin manifests through their owning subsystem."""
+
+    spec = ManifestSpec(
+        "ups.plugin",
+        ManifestKind.PLUGIN,
+        PLUGIN_MANIFEST_NAME,
+        (1,),
+        current_schema_version=1,
+        allow_multiple=True,
+    )
+    _reader = PluginManifestReader()
+
+    def detect_schema_version(self, path: Path) -> int:
+        """Delegate YAML schema-envelope detection to the plugin owner."""
+
+        return self._reader.detect_schema_version(path)
+
+    def _read_schema_version(self, path: Path) -> int:
+        return self._reader.read(path).schema_version
+
+
 def default_manifest_adapters() -> tuple[ManifestAdapter, ...]:
     """Return all built-in adapters in stable registration order."""
 
     return (
         BuildManifestAdapter(),
         DocumentationManifestAdapter(),
+        PluginManifestAdapter(),
         ReleaseManifestAdapter(),
         TemplateArtifactManifestAdapter(),
     )
