@@ -1,15 +1,16 @@
 # Universal Prompt Studio Theme SDK
 
-## Scope through E-015.3
+## Scope through E-015.4
 
 E-015.1 establishes portable declarative theme identity, versions, SDK
 compatibility metadata, recognized appearances, and strict semantic color
 palettes. E-015.2 adds deterministic multi-root discovery, SDK compatibility
 classification, identity/version policy, and appearance-aware catalog
 resolution. E-015.3 adds bounded scaffold generation through the shared E-009
-and E-008 pipeline. Reading, discovering, validating, resolving, or generating
-a theme never loads an asset, parses or injects CSS, modifies the frontend, or
-applies styles.
+and E-008 pipeline. E-015.4 adds deterministic typed token compilation and
+selector-free CSS-variable serialization. Reading, discovering, validating,
+resolving, generating, or compiling a theme never loads an asset, modifies the
+frontend, or applies styles.
 
 ## Manifest schema 1
 
@@ -123,6 +124,8 @@ python -m Engineering theme list --root C:\path\to\themes
 python -m Engineering theme validate --root C:\project\themes --root C:\approved\themes
 python -m Engineering theme resolve example.slate --root C:\path\to\themes
 python -m Engineering theme resolve example.slate --root C:\path\to\themes --appearance dark
+python -m Engineering theme tokens C:\path\to\theme-manifest.yaml
+python -m Engineering theme tokens C:\path\to\theme-manifest.yaml --appearance dark
 python -m Engineering generate theme example.slate --dry-run
 python -m Engineering generate theme example.slate --appearance light --appearance dark
 python -m Engineering manifest types
@@ -156,9 +159,26 @@ reader verifies that the written manifest exactly equals the validated request.
 The built-in palette colors are starting values, not an accessibility or visual
 quality certification.
 
+## Runtime token compilation
+
+`theme tokens` reads one strict manifest and compiles either its default palette
+or one explicit declared appearance. The immutable result retains the exact
+theme ID, version, and appearance and contains every semantic token in fixed
+host order:
+
+```text
+canvas, surface, surface-muted, text, text-muted, border, primary,
+primary-text, sidebar, sidebar-text, focus
+```
+
+The serializer maps this closed set to `--ups-color-*` declarations. It emits no
+selector, braces, file, asset reference, or arbitrary CSS property. A later
+application boundary must decide where and whether to attach the declarations.
+Compilation never falls back to another appearance; requesting an undeclared
+palette is an error.
+
 ## Deferred work
 
 Fonts, icons, asset paths, arbitrary/custom tokens, contrast scoring,
-installation, selection, persistence, CSS variable emission, frontend
-integration, live preview, and runtime theme application remain later E-015
-work.
+installation, selection, persistence, selector ownership, frontend integration,
+live preview, and runtime theme application remain later E-015 work.

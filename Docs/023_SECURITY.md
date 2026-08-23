@@ -131,3 +131,15 @@ is re-read through the theme-owned parser for exact equality.
 Generated themes contain no CSS, scripts, URLs, assets, fonts, icons, commands,
 or credentials. Generation does not modify frontend files, install or select a
 theme, evaluate contrast, apply styles, or grant trust.
+
+E-015.4 token compilation accepts only a validated `ThemeManifest` and one
+recognized appearance. It maps the closed schema-1 color roles to exactly eleven
+fixed `--ups-color-*` names. Values remain the opaque hexadecimal colors already
+validated by the manifest reader. Missing palettes fail; there is no appearance
+fallback.
+
+The serializer emits declarations only, without selectors, braces, URLs, file
+references, arbitrary properties, or writes. It does not inject CSS, modify the
+DOM or frontend, install or select a theme, evaluate contrast, apply styles, or
+grant trust. Selector ownership and runtime application remain a separate trust
+and integration boundary.

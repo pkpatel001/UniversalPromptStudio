@@ -25,6 +25,13 @@ and the generated `.ups-artifact-manifest.json`. Built-in light, dark, and
 high-contrast palettes provide deterministic starting values; generation never
 applies them.
 
+E-015.4 compiles one validated palette into an immutable set of exactly eleven
+host-recognized semantic tokens. The selector-free serializer maps only those
+fixed names to `--ups-color-*` declarations and preserves already-validated
+opaque hexadecimal values. Compilation defaults to the manifest appearance or
+requires an explicitly declared appearance; it performs no writes or style
+application.
+
 Fonts, icons, arbitrary/custom tokens, asset paths, contrast scoring,
-installation, selection, persistence, CSS emission, and runtime theme
-application remain later E-015 work.
+installation, selection, persistence, selector ownership, frontend integration,
+and runtime theme application remain later E-015 work.

@@ -13,9 +13,11 @@ from Engineering.core.exceptions import ThemeError
 from Engineering.ThemeSystem import (
     ThemeAppearance,
     ThemeCatalog,
+    ThemeCssVariableSerializer,
     ThemeDiscoveryRoot,
     ThemeManifestReader,
     ThemeService,
+    ThemeTokenCompiler,
     ThemeValidationReport,
 )
 
@@ -53,6 +55,30 @@ def theme_inspect(manifest: Path) -> None:
     console.print("Theme assets loaded: no")
     console.print("Styles applied: no")
     console.print("Code executed: no")
+
+
+@app.command(name="tokens")
+def theme_tokens(
+    manifest: Path,
+    appearance: Annotated[str | None, typer.Option("--appearance")] = None,
+) -> None:
+    """Compile one manifest palette into selector-free CSS variables."""
+
+    try:
+        parsed = ThemeManifestReader().read(manifest)
+        selected = ThemeAppearance(appearance) if appearance is not None else None
+        token_set = ThemeTokenCompiler().compile(parsed, selected)
+        declarations = ThemeCssVariableSerializer().serialize(token_set)
+    except (ThemeError, ValueError) as exc:
+        console.print(f"FAILED theme.tokens: {exc}", soft_wrap=True)
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    console.print(
+        f"TOKENS {token_set.theme_id.value} version={token_set.version.value} "
+        f"appearance={token_set.appearance.value} count={len(token_set.tokens)}"
+    )
+    console.print(declarations)
+    console.print("Selector emitted: no")
+    console.print("Styles applied: no")
 
 
 def _roots(values: list[Path] | None) -> tuple[ThemeDiscoveryRoot, ...]:

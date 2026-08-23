@@ -2,10 +2,11 @@
 
 ## Current checkpoint
 
-Through E-015.3, the toolkit supports strict declarative manifest authoring,
+Through E-015.4, the toolkit supports strict declarative manifest authoring,
 shared-manifest inventory, explicit-root discovery, Theme SDK compatibility,
 deterministic catalog resolution, appearance filtering, and controlled scaffold
-generation. Begin with `THEME_SDK.md`, ADR-0024, ADR-0025, and ADR-0026.
+generation plus typed token compilation. Begin with `THEME_SDK.md`, ADR-0024
+through ADR-0027.
 
 ## Generate a starting theme
 
@@ -29,6 +30,25 @@ The result contains the strict manifest, an author README, and an E-009 artifact
 manifest. Edit palette values afterward and validate the manifest again. The
 generator creates no CSS or assets and does not install, select, preview, or
 apply the theme.
+
+## Compile runtime tokens
+
+Inspect the exact selector-free declarations for the default palette:
+
+```powershell
+python -m Engineering theme tokens .\theme-manifest.yaml
+```
+
+Choose another palette only when it is declared by the manifest:
+
+```powershell
+python -m Engineering theme tokens .\theme-manifest.yaml --appearance dark
+```
+
+The command emits exactly eleven fixed `--ups-color-*` declarations in stable
+host order. It writes no file and emits no selector or CSS rule. Treat the
+output as a deterministic inspection and integration input, not as an installed
+or applied theme. Do not add arbitrary token names to schema 1.
 
 ## Author a manifest
 
