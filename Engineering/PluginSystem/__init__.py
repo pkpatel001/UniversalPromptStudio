@@ -7,6 +7,7 @@ from .discovery import (
     DEFAULT_IGNORED_PLUGIN_DIRECTORIES,
     PluginDiscoveryService,
 )
+from .installation import PluginInstallationPlanner, PluginInstallPlan
 from .manifest import (
     PLUGIN_MANIFEST_NAME,
     PLUGIN_SCHEMA_VERSION,
@@ -31,6 +32,15 @@ from .models import (
     PluginValidationReport,
     PluginVersion,
 )
+from .package import (
+    PLUGIN_PACKAGE_SUFFIX,
+    PluginPackage,
+    PluginPackageEntry,
+    PluginPackageInspector,
+    PluginTrustAssessment,
+    PluginTrustPolicy,
+    PluginTrustStatus,
+)
 from .scaffold import (
     PLUGIN_SCAFFOLD_TEMPLATE_ID,
     PLUGIN_SCAFFOLD_TEMPLATE_VERSION,
@@ -43,6 +53,7 @@ from .service import PluginService
 __all__ = [
     "DEFAULT_IGNORED_PLUGIN_DIRECTORIES",
     "PLUGIN_MANIFEST_NAME",
+    "PLUGIN_PACKAGE_SUFFIX",
     "PLUGIN_SCHEMA_VERSION",
     "PLUGIN_SDK_API_LEVEL",
     "PLUGIN_SCAFFOLD_TEMPLATE_ID",
@@ -58,10 +69,15 @@ __all__ = [
     "PluginEntryPoint",
     "PluginId",
     "PluginInspectionReport",
+    "PluginInstallPlan",
+    "PluginInstallationPlanner",
     "PluginIssue",
     "PluginManifest",
     "PluginManifestReader",
     "PluginMetadata",
+    "PluginPackage",
+    "PluginPackageEntry",
+    "PluginPackageInspector",
     "PluginPermission",
     "PluginRecord",
     "PluginSdkVersion",
@@ -71,6 +87,9 @@ __all__ = [
     "PluginScaffoldResult",
     "PluginScaffoldService",
     "PluginService",
+    "PluginTrustAssessment",
+    "PluginTrustPolicy",
+    "PluginTrustStatus",
     "PluginValidationReport",
     "PluginVersion",
 ]

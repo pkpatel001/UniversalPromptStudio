@@ -2,14 +2,31 @@
 
 ## Scope
 
-The Plugin SDK is a metadata contract. Through E-013.3 it can describe,
+The Plugin SDK is a metadata contract. Through E-013.4 it can describe,
 validate, discover, compatibility-check, dependency-check, and catalog plugins
-and generate a controlled project-local scaffold without loading them. A valid manifest is not a
-trust decision and does not make a plugin safe to execute.
+and generate a controlled project-local scaffold without loading them. It can
+also inspect a bounded package and produce a non-mutating installation plan. A
+valid manifest or package is not a trust decision and does not make a plugin
+safe to execute.
 
-Runtime lifecycle, activation, deactivation, permission enforcement,
-installation, signatures, packages, remote repositories, marketplaces, and UI
-management are not implemented.
+Runtime lifecycle, activation, deactivation, permission enforcement, archive
+creation or extraction, installation, trust persistence, signature
+verification, remote repositories, marketplaces, and UI management are not
+implemented.
+
+## Package and trust planning
+
+The canonical package filename is
+`<plugin-id>-<plugin-version>.ups-plugin.zip`. Its root contains
+`plugin-manifest.yaml` and the declared entry-point module. Inspection is
+read-only: every regular file is bounded and hashed, unsafe or ambiguous paths
+are rejected, and no member is extracted.
+
+Installation planning targets `<root>/<plugin-id>/<plugin-version>/` below one
+explicitly approved existing root. Readiness requires an exact SHA-256 value
+supplied for that invocation. This ephemeral hash approval is an integrity
+check only; it is not a signature, publisher identity, persistent trust record,
+code review, permission grant, or claim that execution is safe.
 
 ## Plugin identity
 
@@ -176,6 +193,8 @@ python -m Engineering plugin validate --root C:\path\to\approved\plugins
 python -m Engineering plugin dependencies --root C:\project\plugins --root C:\user\plugins
 python -m Engineering generate plugin example.echo --capability commands --dry-run
 python -m Engineering generate plugin example.echo --capability commands
+python -m Engineering plugin package inspect example.echo-1.0.0.ups-plugin.zip
+python -m Engineering plugin install plan example.echo-1.0.0.ups-plugin.zip --approve-sha256 SHA256
 ```
 
 The generation command writes only below one direct child of `Plugins/`. It
@@ -184,3 +203,6 @@ rendering, path safety checks, conflict handling, dry runs, and writes. Use
 repeatable `--permission` and `--dependency ID=SPECIFIER` options as needed.
 `--overwrite` is explicit; the default preserves differing existing files.
 Generation never imports, activates, installs, or grants trust to a plugin.
+Package inspection and installation planning are also read-only. No command
+extracts, installs, updates, removes, signs, trusts persistently, or loads a
+plugin.

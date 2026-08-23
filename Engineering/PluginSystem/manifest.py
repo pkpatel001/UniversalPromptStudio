@@ -67,6 +67,26 @@ class PluginManifestReader:
         """Read a complete canonical plugin manifest."""
 
         data = self._read(path)
+        return self._parse(data)
+
+    def read_text(self, content: str) -> PluginManifest:
+        """Parse a UTF-8 manifest payload supplied by a bounded container."""
+
+        try:
+            data = yaml.safe_load(content)
+        except yaml.YAMLError as exc:
+            raise PluginError("Plugin manifest YAML is malformed.") from exc
+        if data is None:
+            data = {}
+        if not isinstance(data, dict):
+            raise PluginError(
+                "Plugin manifest could not be read: YAML root object must be a mapping."
+            )
+        return self._parse(data)
+
+    def _parse(self, data: dict[str, Any]) -> PluginManifest:
+        """Convert one safely decoded mapping into immutable plugin metadata."""
+
         self._reject_secret_keys(data)
         self._require_exact_keys(data, _ROOT_KEYS, "Plugin manifest")
 

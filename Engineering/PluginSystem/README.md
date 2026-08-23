@@ -20,6 +20,15 @@ E-009 template. E-009 resolves variables and records the artifact manifest;
 E-008 owns rendering, destination safety, conflicts, dry runs, and writes.
 Scaffolds are restricted to one direct child of `Plugins/`.
 
+E-013.4 defines the canonical `.ups-plugin.zip` package boundary and adds
+read-only package inspection plus installation planning. Archive members are
+bounded, hashed, path-checked, and never extracted. Planning requires an
+explicit matching SHA-256 approval, validates the approved local root, SDK
+compatibility, identity conflicts, and dependencies, then reports a target and
+issues without changing the filesystem. The hash approval is ephemeral and is
+not a signature, publisher identity, trust-store record, or code-safety claim.
+
 Runtime loading, activation, permission enforcement, installation, trust,
-signatures, package archives, remote synchronization, and marketplace behavior
-are intentionally outside this checkpoint.
+signature verification, trust persistence, archive extraction, updates,
+removal, remote synchronization, and marketplace behavior are intentionally
+outside this checkpoint.

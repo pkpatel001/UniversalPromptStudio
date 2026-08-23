@@ -14,11 +14,15 @@ from Engineering.core.paths import get_paths
 from Engineering.PluginSystem import (
     PluginCatalog,
     PluginDiscoveryRoot,
+    PluginInstallationPlanner,
+    PluginPackageInspector,
     PluginService,
     PluginValidationReport,
 )
 
 app = typer.Typer(help="Discover, validate, and inspect plugin metadata")
+package_app = typer.Typer(help="Inspect canonical plugin packages without extraction")
+install_app = typer.Typer(help="Plan plugin installation without filesystem changes")
 
 
 @app.callback(invoke_without_command=True)
@@ -142,3 +146,69 @@ def plugin_dependencies(
     _print_report(report)
     if not report.passed:
         raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
+
+
+@package_app.command(name="inspect")
+def plugin_package_inspect(package: Path) -> None:
+    """Inspect and hash a canonical plugin ZIP without extracting it."""
+
+    try:
+        inspected = PluginPackageInspector().inspect(package)
+    except PluginError as exc:
+        console.print(f"FAILED plugin.package.inspect: {exc}")
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    console.print(
+        f"PACKAGE {inspected.plugin_id} version={inspected.version} "
+        f"sdk={inspected.manifest.metadata.sdk_version.api_level}"
+    )
+    console.print(f"Archive: {inspected.filename}")
+    console.print(f"SHA-256: {inspected.sha256}")
+    console.print(f"Entries: {len(inspected.entries)}")
+    console.print("Signature verification: unavailable")
+    console.print("Plugin code imported: no")
+
+
+@install_app.command(name="plan")
+def plugin_install_plan(
+    package: Path,
+    root: Annotated[Path | None, typer.Option("--root")] = None,
+    approved_sha256: Annotated[
+        str | None, typer.Option("--approve-sha256")
+    ] = None,
+) -> None:
+    """Plan an installation using an ephemeral exact-package hash approval."""
+
+    install_root = PluginDiscoveryRoot("project", root or get_paths().plugins)
+    try:
+        plan = PluginInstallationPlanner().plan(
+            package,
+            install_root,
+            approved_sha256=approved_sha256,
+        )
+    except PluginError as exc:
+        console.print(f"FAILED plugin.install.plan: {exc}")
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    console.print(
+        f"PACKAGE {plan.package.plugin_id} version={plan.package.version}"
+    )
+    console.print(f"SHA-256: {plan.package.sha256}")
+    console.print(f"Trust: {plan.trust.status.value} (ephemeral hash only)")
+    console.print(f"Target: {plan.root_id}:{plan.target_relative_path}")
+    for resolution in plan.dependency_resolutions:
+        console.print(
+            f"RESOLVED {resolution.owner_plugin_id}@{resolution.owner_version} -> "
+            f"{resolution.dependency_plugin_id}@{resolution.resolved_version}"
+        )
+    for issue in plan.issues:
+        console.print(
+            f"BLOCKED {issue.code} root={issue.root_id} "
+            f"path={issue.relative_path}: {issue.message}"
+        )
+    console.print(plan.summary)
+    console.print("Filesystem changes: none")
+    if not plan.ready:
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
+
+
+app.add_typer(package_app, name="package")
+app.add_typer(install_app, name="install")
