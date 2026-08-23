@@ -30,6 +30,12 @@ class _EchoSchemaAdapter:
     def __init__(self, spec: ManifestSpec) -> None:
         self.spec = spec
 
+    def detect_schema_version(self, path: Path) -> int:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        value = data["schema_version"]
+        assert isinstance(value, int)
+        return value
+
     def validate(self, path: Path) -> int:
         data = json.loads(path.read_text(encoding="utf-8"))
         value = data["schema_version"]

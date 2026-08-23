@@ -10,6 +10,7 @@ class ManifestKind(Enum):
     """Manifest families supported by the shared catalog."""
 
     BUILD = "build"
+    DOCUMENTATION = "documentation"
     TEMPLATE_ARTIFACT = "template-artifact"
     RELEASE = "release"
 
@@ -128,4 +129,55 @@ class ManifestValidationReport:
         return (
             f"Manifest validation {state}: {len(self.records)} valid, "
             f"{len(self.issues)} issues."
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ManifestMigrationStep:
+    """One registered, non-mutating schema transition."""
+
+    manifest_id: str
+    source_version: int
+    target_version: int
+    migration_id: str
+    description: str
+
+
+@dataclass(frozen=True, slots=True)
+class ManifestMigrationPlan:
+    """Ordered migration steps for one discovered manifest."""
+
+    manifest_id: str
+    relative_path: str
+    source_version: int
+    target_version: int
+    steps: tuple[ManifestMigrationStep, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ManifestMigrationReport:
+    """Aggregate result of read-only schema-migration planning."""
+
+    plans: tuple[ManifestMigrationPlan, ...] = ()
+    issues: tuple[ManifestIssue, ...] = ()
+
+    @property
+    def passed(self) -> bool:
+        """Return True when every readable legacy manifest has a plan."""
+
+        return not self.issues
+
+    @property
+    def summary(self) -> str:
+        """Return a stable human-readable planning summary."""
+
+        state = "succeeded" if self.passed else "failed"
+        plan_count = len(self.plans)
+        step_count = sum(len(plan.steps) for plan in self.plans)
+        plan_label = "plan" if plan_count == 1 else "plans"
+        step_label = "step" if step_count == 1 else "steps"
+        issue_label = "issue" if len(self.issues) == 1 else "issues"
+        return (
+            f"Manifest migration planning {state}: {plan_count} {plan_label}, "
+            f"{step_count} {step_label}, {len(self.issues)} {issue_label}."
         )

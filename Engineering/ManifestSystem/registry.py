@@ -18,6 +18,9 @@ class ManifestAdapter(Protocol):
     def spec(self) -> ManifestSpec:
         """Return stable registration metadata."""
 
+    def detect_schema_version(self, path: Path) -> int:
+        """Read the schema envelope for compatibility classification."""
+
     def validate(self, path: Path) -> int:
         """Validate a manifest and return its schema version."""
 
@@ -38,15 +41,17 @@ class ManifestRegistry:
         if not spec.manifest_id or not spec.filename:
             raise ManifestError("Manifest id and filename must not be empty.")
         if not spec.supported_schema_versions or any(
-            type(version) is not int or version < 1
+            type(version) is not int or version < 0
             for version in spec.supported_schema_versions
         ):
-            raise ManifestError("Manifest schema versions must be positive integers.")
+            raise ManifestError("Manifest schema versions must be non-negative integers.")
         if tuple(sorted(set(spec.supported_schema_versions))) != spec.supported_schema_versions:
             raise ManifestError("Manifest schema versions must be unique and ascending.")
         contract = spec.schema_contract
         if type(contract.current_version) is not int:
             raise ManifestError("Current manifest schema must be an integer.")
+        if contract.current_version < 1:
+            raise ManifestError("Current manifest schema must be a positive integer.")
         if contract.current_version != spec.supported_schema_versions[-1]:
             raise ManifestError(
                 "Current manifest schema must be the latest readable version."

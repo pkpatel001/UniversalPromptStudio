@@ -11,7 +11,11 @@ from Engineering.cli.errors import EXIT_CODE_VALIDATION_FAILURE
 from Engineering.cli.output.console import console
 from Engineering.core.exceptions import ManifestError
 from Engineering.core.paths import get_paths
-from Engineering.ManifestSystem import ManifestInspectionService, ManifestValidationService
+from Engineering.ManifestSystem import (
+    ManifestInspectionService,
+    ManifestMigrationService,
+    ManifestValidationService,
+)
 
 app = typer.Typer(help="Discover and validate engineering manifests")
 
@@ -80,6 +84,35 @@ def manifest_validate(
             f"VALID {record.manifest_id} schema={record.schema_version} "
             f"compatibility={record.compatibility.value} path={record.relative_path}"
         )
+    for issue in report.issues:
+        console.print(f"FAILED {issue.code} path={issue.relative_path}: {issue.message}")
+    console.print(report.summary)
+    if not report.passed:
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
+
+
+@app.command(name="migrations")
+def manifest_migrations(
+    root: Annotated[Path | None, typer.Option("--root")] = None,
+) -> None:
+    """Plan schema upgrades without modifying manifest files."""
+
+    migration_root = root or get_paths().root
+    try:
+        report = ManifestMigrationService().plan(migration_root)
+    except ManifestError as exc:
+        console.print(f"FAILED manifest.migrations: {exc}")
+        raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE) from exc
+    for plan in report.plans:
+        console.print(
+            f"PLAN {plan.manifest_id} schema={plan.source_version}->{plan.target_version} "
+            f"path={plan.relative_path}"
+        )
+        for step in plan.steps:
+            console.print(
+                f"  STEP {step.migration_id} schema={step.source_version}->"
+                f"{step.target_version}: {step.description}"
+            )
     for issue in report.issues:
         console.print(f"FAILED {issue.code} path={issue.relative_path}: {issue.message}")
     console.print(report.summary)

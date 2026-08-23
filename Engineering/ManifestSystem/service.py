@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 from Engineering.core.exceptions import EngineeringError, ManifestError
-from Engineering.core.filesystem import read_bytes, read_json
+from Engineering.core.filesystem import read_bytes
 
 from .adapters import default_manifest_adapters
 from .models import (
@@ -65,7 +65,7 @@ class ManifestInspectionService:
                 resolved_path = path.resolve(strict=True)
                 if not resolved_path.is_relative_to(resolved_root):
                     raise ManifestError("Manifest resolves outside the inspection root.")
-                schema_version = self._read_schema_version(resolved_path)
+                schema_version = adapter.detect_schema_version(resolved_path)
                 compatibility = adapter.spec.schema_contract.compatibility(schema_version)
                 if compatibility == SchemaCompatibility.UNSUPPORTED:
                     issues.append(
@@ -106,14 +106,6 @@ class ManifestInspectionService:
                 sorted(issues, key=lambda item: (item.relative_path, item.code, item.message))
             ),
         )
-
-    @staticmethod
-    def _read_schema_version(path: Path) -> int:
-        data = read_json(path)
-        schema_version = data["schema_version"]
-        if type(schema_version) is not int:
-            raise TypeError("schema_version must be an integer")
-        return schema_version
 
     @staticmethod
     def _discover(root: Path) -> tuple[Path, ...]:

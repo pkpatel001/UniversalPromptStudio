@@ -1,15 +1,25 @@
-"""E-012 typed manifest discovery and validation system."""
+"""E-012 typed manifest discovery, validation, and migration planning."""
 
 from .adapters import (
     BuildManifestAdapter,
+    DocumentationManifestAdapter,
     ReleaseManifestAdapter,
     TemplateArtifactManifestAdapter,
     default_manifest_adapters,
+)
+from .migrations import (
+    ManifestMigrationPlanner,
+    ManifestMigrationRegistry,
+    ManifestMigrationService,
+    default_manifest_migrations,
 )
 from .models import (
     ManifestInspectionReport,
     ManifestIssue,
     ManifestKind,
+    ManifestMigrationPlan,
+    ManifestMigrationReport,
+    ManifestMigrationStep,
     ManifestRecord,
     ManifestSchemaContract,
     ManifestSpec,
@@ -26,12 +36,19 @@ from .service import ManifestInspectionService, ManifestValidationService
 
 __all__ = [
     "BuildManifestAdapter",
+    "DocumentationManifestAdapter",
     "ManifestAdapter",
+    "ManifestDependency",
     "ManifestInspectionReport",
     "ManifestInspectionService",
     "ManifestIssue",
     "ManifestKind",
-    "ManifestDependency",
+    "ManifestMigrationPlan",
+    "ManifestMigrationPlanner",
+    "ManifestMigrationRegistry",
+    "ManifestMigrationReport",
+    "ManifestMigrationService",
+    "ManifestMigrationStep",
     "ManifestRecord",
     "ManifestRegistry",
     "ManifestRelationshipValidator",
@@ -40,8 +57,9 @@ __all__ = [
     "ManifestValidationReport",
     "ManifestValidationService",
     "ReleaseManifestAdapter",
+    "SchemaCompatibility",
     "TemplateArtifactManifestAdapter",
     "default_manifest_adapters",
     "default_manifest_dependencies",
-    "SchemaCompatibility",
+    "default_manifest_migrations",
 ]

@@ -25,6 +25,10 @@ class _StubAdapter:
         self.spec = spec
         self.schema_version = schema_version
 
+    def detect_schema_version(self, path: Path) -> int:
+        assert path.is_file()
+        return self.schema_version
+
     def validate(self, path: Path) -> int:
         assert path.is_file()
         return self.schema_version
@@ -43,10 +47,12 @@ class TestManifestRegistry:
 
         assert tuple(adapter.spec.manifest_id for adapter in registry.adapters) == (
             "ups.build",
+            "ups.documentation",
             "ups.release",
             "ups.template-artifact",
         )
         assert registry.resolve_filename("build-manifest.json") is not None
+        assert registry.resolve_filename("documentation_manifest.yaml") is not None
         assert registry.resolve_filename("unrelated.json") is None
 
     def test_rejects_duplicate_ids_and_filenames(self) -> None:
@@ -171,6 +177,8 @@ class TestManifestCli:
 
         assert result.exit_code == 0
         assert "ups.build: build-manifest.json (current: 1; readable: 1" in result.output
+        assert "ups.documentation: documentation_manifest.yaml" in result.output
+        assert "current: 1; readable: 0, 1" in result.output
         assert "ups.release: release-manifest.json (current: 1; readable: 1" in result.output
         assert "ups.template-artifact: .ups-artifact-manifest.json" in result.output
         assert "cardinality: many" in result.output
