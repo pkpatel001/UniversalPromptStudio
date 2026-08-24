@@ -1,0 +1,36 @@
+metadata:
+  id: workflow.declarative-basic
+  name: Declarative workflow scaffold
+  version: 1.0.0
+  category: workflow
+  description: A passive schema-1 workflow manifest and author guide.
+  tags:
+    - built-in
+    - declarative
+    - workflow
+
+variables:
+  - name: workflow_id
+    type: string
+  - name: workflow_name
+    type: string
+  - name: workflow_version
+    type: string
+  - name: sdk_version
+    type: integer
+  - name: description
+    type: string
+  - name: operation_id
+    type: string
+
+artifacts:
+  - path: workflow-manifest.yaml
+    template: workflow.manifest
+    type: manifest
+    name: Workflow manifest
+    description: Canonical UPS passive workflow definition.
+  - path: README.md
+    template: workflow.readme
+    type: documentation
+    name: Workflow README
+    description: Workflow authoring and non-executing boundary.

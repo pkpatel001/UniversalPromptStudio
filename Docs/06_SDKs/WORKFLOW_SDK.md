@@ -77,3 +77,27 @@ Use:
 Repeat '--root' for multiple roots. These commands preserve provenance and
 perform no import, registration, planning, execution, network access, credential
 lookup, subprocess, or write.
+
+## Controlled scaffold generation
+
+E-016.3 adds one built-in 'workflow.declarative-basic' template. Generate its
+canonical passive starter with:
+
+    python -m Engineering generate workflow example.echo-flow \
+      --operation example.echo-text
+
+Use '--dry-run' to preview both artifacts without writing and '--overwrite'
+only when replacement is intentional. The default destination is one direct
+child of 'Workflows/' derived from the workflow ID; a custom destination must
+preserve that boundary.
+
+The scaffold contains exactly 'workflow-manifest.yaml' and 'README.md', plus the
+E-009 '.ups-artifact-manifest.json' integrity record. The starter has one string
+input, one host-recognized operation node, one string output, and two explicit
+edges. It generates no operation implementation or other executable code.
+
+WorkflowSystem validates the complete requested manifest before delegation,
+E-009 resolves the versioned template and records artifact hashes, and E-008
+owns rendering, destination safety, dry-run, conflict handling, writes, and
+rollback. After a successful write, WorkflowSystem rereads the generated
+manifest and requires exact semantic equality with the validated request.

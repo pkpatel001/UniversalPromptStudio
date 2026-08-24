@@ -37,12 +37,21 @@ from .models import (
     WorkflowValueType,
     WorkflowVersion,
 )
+from .scaffold import (
+    WORKFLOW_SCAFFOLD_TEMPLATE_ID,
+    WORKFLOW_SCAFFOLD_TEMPLATE_VERSION,
+    WorkflowScaffoldRequest,
+    WorkflowScaffoldResult,
+    WorkflowScaffoldService,
+)
 from .service import WorkflowService
 
 __all__ = [
     "WORKFLOW_MANIFEST_NAME",
     "WORKFLOW_SCHEMA_VERSION",
     "WORKFLOW_SDK_API_LEVEL",
+    "WORKFLOW_SCAFFOLD_TEMPLATE_ID",
+    "WORKFLOW_SCAFFOLD_TEMPLATE_VERSION",
     "WorkflowEdge",
     "WorkflowEndpoint",
     "WorkflowEndpointKind",
@@ -70,6 +79,9 @@ __all__ = [
     "WorkflowRecord",
     "WorkflowSdkCompatibility",
     "WorkflowSdkContract",
+    "WorkflowScaffoldRequest",
+    "WorkflowScaffoldResult",
+    "WorkflowScaffoldService",
     "WorkflowService",
     "WorkflowValidationReport",
 ]

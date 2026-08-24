@@ -1,0 +1,37 @@
+schema_version: 1
+workflow:
+  id: {{ values.workflow_id | tojson }}
+  name: {{ values.workflow_name | tojson }}
+  version: {{ values.workflow_version | tojson }}
+  sdk_version: {{ values.sdk_version }}
+  description: {{ values.description | tojson }}
+  inputs:
+    - id: input
+      type: string
+      description: "Text supplied by the workflow caller."
+  outputs:
+    - id: output
+      type: string
+      description: "Text returned by the workflow."
+  nodes:
+    - id: step
+      operation: {{ values.operation_id | tojson }}
+      inputs:
+        - id: value
+          type: string
+          description: "Text supplied to the operation."
+      outputs:
+        - id: value
+          type: string
+          description: "Text returned by the operation."
+  edges:
+    - source:
+        workflow_input: input
+      target:
+        node: step
+        port: value
+    - source:
+        node: step
+        port: value
+      target:
+        workflow_output: output

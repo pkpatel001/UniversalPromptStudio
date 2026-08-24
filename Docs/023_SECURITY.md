@@ -262,3 +262,24 @@ Every workflow input must be used, every node must contribute to an output, and
 all graph references, target bindings, types, and cycles remain validated before
 catalog admission. These checks establish structural coherence, not runtime
 safety or authorization.
+
+### Controlled workflow scaffold generation
+
+E-016.3 accepts bounded workflow metadata and one host-vocabulary operation ID,
+constructs the full typed graph, and passes its exact serialized form through
+the producer-owned manifest reader before any generation write. Secret-like
+manifest values, malformed identities, invalid graph state, and destinations
+outside one direct child of 'Workflows/' therefore fail before files are
+created.
+
+The domain service delegates template resolution and artifact evidence to
+E-009 and rendering, path safety, dry-run, conflict policy, rollback, and writes
+to E-008. Successful non-dry-run output is reread through WorkflowSystem and
+must be semantically identical to the prevalidated request.
+
+The built-in template emits only the canonical declarative manifest and README;
+E-009 adds its deterministic integrity manifest. It emits no Python or
+JavaScript, import or module path, expression, command, credential lookup,
+endpoint, URL, handler, or runtime configuration. Generation does not imply
+that the referenced operation exists or is trusted, and does not plan,
+register, or execute it.

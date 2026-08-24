@@ -1,0 +1,25 @@
+# {{ values.workflow_name }}
+
+{{ values.description }}
+
+Workflow ID: `{{ values.workflow_id }}`  
+Version: `{{ values.workflow_version }}`  
+SDK API level: `{{ values.sdk_version }}`  
+Operation: `{{ values.operation_id }}`
+
+This scaffold contains a passive declarative workflow only. Generation does not
+create or import an operation implementation, register a handler, plan or
+execute nodes, contact a service, access credentials, or change application
+state.
+
+Validate the generated definition with:
+
+```powershell
+python -m Engineering workflow inspect .\workflow-manifest.yaml
+python -m Engineering workflow validate --root ..
+python -m Engineering manifest validate
+```
+
+Operation IDs are host vocabulary only. Do not add code, expressions, module
+paths, commands, environment lookups, credentials, endpoints, URLs, machine
+paths, default values, or runtime configuration to the manifest.

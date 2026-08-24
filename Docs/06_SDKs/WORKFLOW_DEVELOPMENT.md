@@ -63,5 +63,30 @@ ignored dependency/build/cache directories, limits depth and manifest count,
 and rejects manifests larger than one MiB. Multiple roots use caller-assigned
 stable labels and retain their provenance.
 
-Scaffold generation, execution planning, handler registration, and execution
-remain separate later checkpoints.
+Execution planning, handler registration, and execution remain separate later
+checkpoints.
+
+## Generate a starter
+
+Use the controlled scaffold when beginning a schema-1 workflow:
+
+    python -m Engineering generate workflow example.echo-flow \
+      --name "Echo workflow" \
+      --description "Pass text through a recognized operation." \
+      --operation ups.echo-text \
+      --dry-run
+
+Remove '--dry-run' to write under 'Workflows/example-echo-flow'. Generation
+creates the canonical manifest and an author README through the shared
+E-009/E-008 pipeline. Existing files conflict by default; '--overwrite' is an
+explicit replacement choice.
+
+The generated manifest is intentionally minimal and already satisfies the graph
+contract: workflow input 'input' binds to node 'step' input 'value', and that
+node output binds to workflow output 'output'. Change the manifest as data after
+generation, then run 'workflow inspect' and 'workflow validate'.
+
+Generation does not create operation code, import a handler, plan a graph,
+execute a node, contact a service, inspect credentials, or integrate with the
+legacy backend workflow placeholder. Typed planning and explicit host handler
+registration remain E-016.4.
