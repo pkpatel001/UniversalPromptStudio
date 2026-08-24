@@ -31,6 +31,7 @@ from Backend.infrastructure.repositories.sqlite import (
     SQLitePromptRepository,
     SQLiteStorageProvider,
 )
+from Backend.infrastructure.workflows import WorkflowEventBusSink
 from Backend.interfaces.providers import AIProvider
 from Backend.repositories.contracts import ProjectRepository, PromptRepository
 from Engineering.ProviderSystem import (
@@ -38,6 +39,13 @@ from Engineering.ProviderSystem import (
     ProviderExecutionService,
     ProviderRuntimeRegistry,
     offline_echo_provider_record,
+)
+from Engineering.WorkflowSystem import (
+    WorkflowExecutionPlan,
+    WorkflowExecutionService,
+    WorkflowOperationRegistry,
+    offline_text_workflow_plan,
+    register_offline_workflow_handlers,
 )
 
 
@@ -47,6 +55,9 @@ class ApplicationContainer:
 
     event_bus: EventBus
     ai_providers: ProviderRegistry[AIProvider]
+    workflow_operation_registry: WorkflowOperationRegistry
+    workflow_execution_service: WorkflowExecutionService
+    offline_workflow_plan: WorkflowExecutionPlan
     provider_runtime_registry: ProviderRuntimeRegistry
     project_repository: ProjectRepository
     prompt_repository: PromptRepository
@@ -97,6 +108,10 @@ def _create_container(
         offline_provider.version.value,
     )
     ai_providers.register(offline_adapter.name, offline_adapter)
+    workflow_operation_registry = WorkflowOperationRegistry()
+    register_offline_workflow_handlers(workflow_operation_registry)
+    offline_workflow_plan = offline_text_workflow_plan(workflow_operation_registry)
+    workflow_execution_service = WorkflowExecutionService(WorkflowEventBusSink(event_bus))
     prompt_builder = PromptBuilder()
     history_provider = InMemoryHistoryProvider()
     search_provider = BasicSearchProvider()
@@ -105,6 +120,9 @@ def _create_container(
         event_bus=event_bus,
         ai_providers=ai_providers,
         provider_runtime_registry=provider_runtime_registry,
+        workflow_operation_registry=workflow_operation_registry,
+        workflow_execution_service=workflow_execution_service,
+        offline_workflow_plan=offline_workflow_plan,
         project_repository=project_repository,
         prompt_repository=prompt_repository,
         project_service=ProjectService(project_repository, event_bus),

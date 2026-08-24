@@ -29,9 +29,9 @@ must be acyclic. Disconnected cycles are invalid.
 ## Compatibility
 
 'schema_version' governs the YAML document shape. 'workflow.sdk_version'
-governs both the authoring contract and the operation-handler contract. The
-E-016.4 planner enforces exact equality. Execution remains a separate E-016.5
-boundary; the manifest cannot select, load, configure, or invoke a handler.
+governs both the authoring contract and operation-handler contract. E-016.4
+planning and E-016.5 execution enforce exact equality; the manifest cannot
+select, load, configure, or invoke a handler.
 
 The shared manifest system registers this family as 'ups.workflow' and permits
 multiple workflow manifests below an inspected root.
@@ -130,5 +130,51 @@ bindings; workflow-output bindings are retained on the plan.
 Planning does not call 'execute', resolve module paths, import operations,
 contact a service, access credentials, launch a subprocess, write files, or
 change application state. There is no planning CLI because workflow data cannot
-select or load a handler. E-016.5 must validate bounded runtime values before
-calling the registered method and will own execution outcomes and failures.
+select or load a handler. The controlled runner below accepts only an explicit
+plan and bounded typed request before calling a registered method.
+
+## Controlled sequential execution
+
+E-016.5 executes only an existing 'WorkflowExecutionPlan'. A
+'WorkflowRunRequest' supplies a bounded run ID and exact named workflow inputs.
+Every 'WorkflowPortValue' is copied into deeply immutable containers before a
+handler can observe it.
+
+Runtime transport accepts strings, finite integers/numbers, booleans, objects,
+and arrays. Null and arbitrary Python objects are rejected. Bounds are:
+
+- 65,536 characters per string;
+- 256 entries or items per object or array;
+- 128 characters per object key;
+- eight nested collection levels;
+- 128 named ports per request or result envelope; and
+- 4,096 scalar/collection nodes for inputs and cumulatively completed outputs.
+
+The sequential runner rechecks each live handler against its immutable
+registration snapshot, resolves inputs only from validated workflow inputs or
+completed node outputs, and invokes the handler once. Returned mappings must
+have exactly the declared keys and value types and pass the same deep bounds.
+
+A successful 'WorkflowRunSuccess' contains exact workflow outputs and validated
+step results. 'WorkflowRunFailure' uses stable codes for invalid input, handler
+drift, contained handler exceptions, invalid output, and lifecycle-event
+delivery failure. Execution stops at the first failure, performs no retry, and
+retains only validated results from steps completed before that failure. Raw
+exception type, text, inputs, and outputs are excluded from failure messages and
+events.
+
+'WorkflowStarted' is emitted only after request inputs validate. A value-free
+'WorkflowCompleted' event records success/failure code and completed-step count.
+If start-event delivery fails, no handler runs. If success-event delivery fails
+after all handlers run, the outcome is an event-delivery failure that records
+the completed steps.
+
+The built-in 'ups.offline-text-flow' binds trusted host-created
+'ups.echo-text' and 'ups.uppercase-text' handlers. It runs deterministically
+without imports, filesystem access, subprocesses, credentials, or network
+requests. The application composition root exposes its registry, plan, executor,
+and safe event bridge while preserving the legacy placeholder engine.
+
+E-016 is complete at this boundary. Handlers remain trusted in-process code, not
+a sandbox. Parallelism, retries, cancellation, persistence, resume, scheduling,
+dynamic external handlers, streaming, and visual authoring remain deferred.

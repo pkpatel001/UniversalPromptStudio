@@ -9,6 +9,20 @@ from .discovery import (
     MAX_WORKFLOW_MANIFESTS_PER_ROOT,
     WorkflowDiscoveryService,
 )
+from .execution import (
+    MAX_WORKFLOW_RUN_ID_CHARS,
+    MAX_WORKFLOW_RUN_PORTS,
+    WorkflowExecutionEvent,
+    WorkflowExecutionEventKind,
+    WorkflowExecutionEventSink,
+    WorkflowExecutionService,
+    WorkflowRunFailure,
+    WorkflowRunFailureCode,
+    WorkflowRunOutcome,
+    WorkflowRunRequest,
+    WorkflowRunSuccess,
+    WorkflowStepResult,
+)
 from .graph import WorkflowGraphValidator
 from .manifest import (
     WORKFLOW_MANIFEST_NAME,
@@ -45,6 +59,17 @@ from .planning import (
     WorkflowPlanningReport,
     WorkflowPlanStep,
 )
+from .reference import (
+    OFFLINE_ECHO_OPERATION_ID,
+    OFFLINE_TEXT_WORKFLOW_ID,
+    OFFLINE_TEXT_WORKFLOW_VERSION,
+    OFFLINE_UPPERCASE_OPERATION_ID,
+    OfflineEchoWorkflowHandler,
+    OfflineUppercaseWorkflowHandler,
+    offline_text_workflow_plan,
+    offline_text_workflow_record,
+    register_offline_workflow_handlers,
+)
 from .runtime_api import (
     WorkflowOperationHandler,
     WorkflowOperationRegistration,
@@ -58,6 +83,17 @@ from .scaffold import (
     WorkflowScaffoldService,
 )
 from .service import WorkflowService
+from .values import (
+    MAX_WORKFLOW_COLLECTION_ITEMS,
+    MAX_WORKFLOW_OBJECT_KEY_CHARS,
+    MAX_WORKFLOW_STRING_CHARS,
+    MAX_WORKFLOW_TRANSPORT_NODES,
+    MAX_WORKFLOW_VALUE_DEPTH,
+    WorkflowPortValue,
+    freeze_workflow_value,
+    workflow_value_matches,
+    workflow_value_weight,
+)
 
 __all__ = [
     "WORKFLOW_MANIFEST_NAME",
@@ -101,6 +137,36 @@ __all__ = [
     "WorkflowOperationRegistry",
     "WorkflowPlanner",
     "WorkflowPlanningFailure",
+    "MAX_WORKFLOW_COLLECTION_ITEMS",
+    "MAX_WORKFLOW_OBJECT_KEY_CHARS",
+    "MAX_WORKFLOW_RUN_ID_CHARS",
+    "MAX_WORKFLOW_RUN_PORTS",
+    "MAX_WORKFLOW_STRING_CHARS",
+    "MAX_WORKFLOW_TRANSPORT_NODES",
+    "MAX_WORKFLOW_VALUE_DEPTH",
+    "OFFLINE_ECHO_OPERATION_ID",
+    "OFFLINE_TEXT_WORKFLOW_ID",
+    "OFFLINE_TEXT_WORKFLOW_VERSION",
+    "OFFLINE_UPPERCASE_OPERATION_ID",
+    "OfflineEchoWorkflowHandler",
+    "OfflineUppercaseWorkflowHandler",
+    "WorkflowExecutionEvent",
+    "WorkflowExecutionEventKind",
+    "WorkflowExecutionEventSink",
+    "WorkflowExecutionService",
+    "WorkflowPortValue",
+    "WorkflowRunFailure",
+    "WorkflowRunFailureCode",
+    "WorkflowRunOutcome",
+    "WorkflowRunRequest",
+    "WorkflowRunSuccess",
+    "WorkflowStepResult",
+    "freeze_workflow_value",
+    "offline_text_workflow_plan",
+    "offline_text_workflow_record",
+    "register_offline_workflow_handlers",
+    "workflow_value_matches",
+    "workflow_value_weight",
     "WorkflowPlanningFailureCode",
     "WorkflowPlanningReport",
     "WorkflowPlanStep",

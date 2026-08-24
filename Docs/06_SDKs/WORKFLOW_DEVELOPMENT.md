@@ -45,9 +45,9 @@ keys and every collection is bounded.
 
 Operation IDs are host vocabulary, not Python or JavaScript import paths.
 Manifest authors cannot supply implementations, commands, credentials, default
-values, or node configuration in schema 1. Runtime input values-including
-prompt text-will arrive through declared workflow inputs in a later execution
-checkpoint.
+values, or node configuration in schema 1. Runtime values, including prompt
+text, arrive only through declared workflow inputs in a typed
+'WorkflowRunRequest'.
 
 Validate the file directly with 'python -m Engineering workflow inspect
 MANIFEST'. Repository-wide passive validation also recognizes the exact
@@ -63,8 +63,8 @@ ignored dependency/build/cache directories, limits depth and manifest count,
 and rejects manifests larger than one MiB. Multiple roots use caller-assigned
 stable labels and retain their provenance.
 
-Handler registration and planning are explicit host operations. Handler
-execution remains a separate E-016.5 checkpoint.
+Handler registration, planning, and execution are explicit host operations
+with separate validation boundaries.
 
 ## Generate a starter
 
@@ -116,5 +116,34 @@ description or order difference is an exact-contract mismatch, even when IDs
 and types appear similar.
 
 There is intentionally no CLI option for registering module paths or planning
-against data-selected implementations. Runtime value validation, handler
-invocation, results, partial failures, and event emission remain E-016.5.
+against data-selected implementations. Execution accepts only an already
+validated plan and host-created typed request.
+
+## Execute a validated plan
+
+Create the request only after obtaining a successful plan:
+
+    request = WorkflowRunRequest(
+        "run-1",
+        (WorkflowPortValue("input", "Hello"),),
+    )
+    outcome = WorkflowExecutionService(event_sink).execute(plan, request)
+
+Check 'outcome.succeeded'. Success exposes exact workflow outputs and all
+validated step results. Failure exposes a stable code, safe message, optional
+failing node/operation, and only the steps that finished with valid outputs.
+
+The runner is fail-fast and sequential. It does not retry, continue past a
+failure, or return the failed handler's raw result. Treat every handler as
+trusted host code with full in-process authority; exception containment is not
+sandboxing.
+
+The application container registers the two host-authored offline handlers and
+provides 'offline_workflow_plan' plus 'workflow_execution_service'. Its event
+bridge maps value-free SDK lifecycle metadata to the existing Backend
+'WorkflowStarted' and 'WorkflowCompleted' events. Runtime values and failure
+messages never enter event payloads.
+
+E-016 is now complete. E-017 Engineering Self-Generation is the next Engineering
+Toolkit milestone. Visual workflow authoring and advanced execution semantics
+remain post-toolkit application work.

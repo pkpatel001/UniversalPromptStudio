@@ -298,8 +298,38 @@ node. Missing and mismatched bindings become deterministic structured failures.
 Topological ordering uses a lexical node-ID tie break and does not infer
 precedence from manifest or registry insertion order.
 
-The handler protocol exposes an execution method solely for a later controlled
-runner. E-016.4 never calls it and performs no dynamic import, discovery,
-instantiation, network access, credential access, subprocess, filesystem write,
-event emission, persistence, retry, or scheduling. E-016.5 must validate bounded
-input/output values and contain handler failures before any invocation.
+The handler protocol exposes an execution method solely to the controlled
+E-016.5 runner. Registration and planning never call it and perform no dynamic
+import, discovery, instantiation, network access, credential access, subprocess,
+filesystem write, event emission, persistence, retry, or scheduling.
+
+### Controlled workflow execution
+
+E-016.5 freezes caller values into immutable JSON-shaped transport before
+invocation. Strings, collection sizes, object keys, nesting depth, named ports,
+and aggregate value nodes are bounded; floats must be finite and null or
+arbitrary Python objects are rejected. Port names and value types must exactly
+match the validated plan.
+
+Immediately before each call, the runner rechecks the handler's operation ID,
+SDK level, and ordered port contracts against its registration snapshot. Each
+handler is invoked at most once. The first drift, exception, invalid output,
+aggregate overflow, or event-delivery failure stops the run. There is no retry
+or continuation. Only validated completed-step results survive in a failure;
+failed raw output and exception details are discarded.
+
+Lifecycle events carry run/workflow identity, version, completed-step count,
+success state, and a stable failure code only. They never carry runtime inputs,
+outputs, or exception messages. Input validation occurs before the started
+event. Failed started-event delivery prevents handler invocation.
+
+The two reference handlers and reference graph are host-authored, deterministic,
+and offline. The application container creates and registers them explicitly
+and bridges lifecycle metadata to the existing Backend workflow events. The
+legacy placeholder engine remains unchanged.
+
+Execution is not a sandbox. Trusted handlers execute in-process with host
+authority and may perform effects the runner cannot prevent. E-016 adds no
+dynamic handler loading, plugin operations, network acquisition, credentials,
+parallelism, retry policy, cancellation, persistence, resume, scheduling, or
+remote triggers. Those require separate future trust and product decisions.
