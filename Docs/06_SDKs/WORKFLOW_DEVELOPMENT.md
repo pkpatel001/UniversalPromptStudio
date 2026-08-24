@@ -53,5 +53,15 @@ Validate the file directly with 'python -m Engineering workflow inspect
 MANIFEST'. Repository-wide passive validation also recognizes the exact
 filename through 'python -m Engineering manifest validate'.
 
-Discovery, catalogs, generation, planning, handler registration, and execution
+For catalog admission, every input must be used and every node must contribute
+to at least one workflow output. Duplicate ID/version pairs across explicit
+roots are rejected. Use 'workflow validate --root ROOT' before publishing a
+definition directory.
+
+Discovery never scans implicit user or system locations. It prunes symlinks and
+ignored dependency/build/cache directories, limits depth and manifest count,
+and rejects manifests larger than one MiB. Multiple roots use caller-assigned
+stable labels and retain their provenance.
+
+Scaffold generation, execution planning, handler registration, and execution
 remain separate later checkpoints.

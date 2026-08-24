@@ -41,3 +41,39 @@ multiple workflow manifests below an inspected root.
 Run 'python -m Engineering workflow inspect MANIFEST'. The command validates
 and summarizes one document. It performs no handler imports, operation
 execution, network request, credential lookup, subprocess, or filesystem write.
+
+## Discovery and compatibility
+
+E-016.2 discovers only the exact canonical filename below one or more explicit,
+labeled roots. Roots, directory traversal, and manifest files are symlink-safe.
+Dependency, cache, VCS, build, distribution, and Rust target directories are
+ignored. Discovery is bounded to:
+
+- 16 directory levels;
+- 1,024 workflow manifests per root; and
+- 1,048,576 bytes per manifest.
+
+Records retain root ID and portable relative-path provenance. Duplicate workflow
+ID/version pairs fail; root order never creates implicit precedence.
+
+The current host supports Workflow SDK API level 1 only. Structurally valid
+future or legacy SDK definitions remain inspectable but are excluded from the
+compatible catalog with a stable 'workflow.sdk.incompatible' issue.
+
+Compatible records are ordered by workflow ID and semantic version. Programmatic
+catalog resolution returns an exact requested version or the highest compatible
+version and can require a set of declared operation IDs. Catalog operations
+remain metadata-only.
+
+E-016.2 also requires every declared workflow input to feed an edge and every
+node to contribute to a workflow output. These checks complement exact
+references, single target bindings, type matching, and global acyclicity.
+
+Use:
+
+- 'python -m Engineering workflow list --root ROOT'
+- 'python -m Engineering workflow validate --root ROOT'
+
+Repeat '--root' for multiple roots. These commands preserve provenance and
+perform no import, registration, planning, execution, network access, credential
+lookup, subprocess, or write.

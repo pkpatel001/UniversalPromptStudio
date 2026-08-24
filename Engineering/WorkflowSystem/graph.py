@@ -24,6 +24,8 @@ class WorkflowGraphValidator:
         nodes = {node.node_id: node for node in manifest.nodes}
         target_counts: dict[tuple[str, str], int] = defaultdict(int)
         graph: dict[str, set[str]] = {node.node_id: set() for node in manifest.nodes}
+        used_workflow_inputs: set[str] = set()
+        output_sources: set[str] = set()
         issues: list[WorkflowValidationIssue] = []
 
         for index, edge in enumerate(manifest.edges):
@@ -74,6 +76,14 @@ class WorkflowGraphValidator:
                 target_node_id = edge.target.node_id
                 if source_node_id is not None and target_node_id is not None:
                     graph[source_node_id].add(target_node_id)
+            if edge.source.kind == WorkflowEndpointKind.WORKFLOW_INPUT and source is not None:
+                used_workflow_inputs.add(edge.source.port_id)
+            if (
+                edge.source.kind == WorkflowEndpointKind.NODE
+                and edge.target.kind == WorkflowEndpointKind.WORKFLOW_OUTPUT
+                and edge.source.node_id is not None
+            ):
+                output_sources.add(edge.source.node_id)
 
         for node in manifest.nodes:
             for port in node.inputs:
@@ -92,6 +102,32 @@ class WorkflowGraphValidator:
                         f"workflow.outputs.{port.port_id}",
                         WorkflowIssueCode.WORKFLOW_OUTPUT_UNBOUND,
                         "Every workflow output must have exactly one incoming binding.",
+                    )
+                )
+        for port in manifest.inputs:
+            if port.port_id not in used_workflow_inputs:
+                issues.append(
+                    WorkflowValidationIssue(
+                        f"workflow.inputs.{port.port_id}",
+                        WorkflowIssueCode.WORKFLOW_INPUT_UNUSED,
+                        "Every workflow input must contribute to at least one edge.",
+                    )
+                )
+        productive = set(output_sources)
+        changed = True
+        while changed:
+            changed = False
+            for source_node, targets in graph.items():
+                if source_node not in productive and targets.intersection(productive):
+                    productive.add(source_node)
+                    changed = True
+        for node in manifest.nodes:
+            if node.node_id not in productive:
+                issues.append(
+                    WorkflowValidationIssue(
+                        f"workflow.nodes.{node.node_id}",
+                        WorkflowIssueCode.NODE_DISCONNECTED,
+                        "Every workflow node must contribute to a workflow output.",
                     )
                 )
         if self._has_cycle(graph):

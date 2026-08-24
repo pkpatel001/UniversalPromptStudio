@@ -245,3 +245,20 @@ locate an implementation. SDK compatibility, discovery, catalog construction,
 planning, registration, execution, persistence, retries, scheduling, and
 plugin- or provider-supplied operations remain separate future trust
 boundaries.
+
+E-016.2 discovery accepts only explicit labeled roots and the exact workflow
+manifest filename. It rejects symlinked roots and manifests, does not follow
+symlinked directories, and ignores dependency, cache, VCS, build, distribution,
+and Rust target directories. Depth, manifest count, and individual file size
+are capped. Duplicate identity/version pairs fail rather than invoking implicit
+root precedence.
+
+Compatibility and catalog resolution inspect metadata only. They do not import
+operation modules, register handlers, infer permissions, plan execution, or run
+nodes. Catalog filtering by operation ID confirms only that a manifest declares
+the identifier; it does not prove an implementation exists or is trusted.
+
+Every workflow input must be used, every node must contribute to an output, and
+all graph references, target bindings, types, and cycles remain validated before
+catalog admission. These checks establish structural coherence, not runtime
+safety or authorization.

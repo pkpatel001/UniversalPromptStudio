@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum, StrEnum
+from pathlib import Path
 
 from packaging.version import InvalidVersion, Version
 
@@ -48,6 +49,10 @@ class WorkflowVersion:
                 "major.minor.patch release components and no epoch or local version."
             )
 
+    @property
+    def parsed(self) -> Version:
+        return Version(self.value)
+
 
 @dataclass(frozen=True, slots=True)
 class WorkflowSdkVersion:
@@ -58,6 +63,14 @@ class WorkflowSdkVersion:
     def __post_init__(self) -> None:
         if type(self.api_level) is not int or self.api_level < 1:
             raise WorkflowError("Workflow sdk_version must be a positive integer API level.")
+
+
+class WorkflowSdkCompatibility(Enum):
+    """Compatibility of a workflow SDK level with the current host."""
+
+    COMPATIBLE = "compatible"
+    TOO_OLD = "too-old"
+    TOO_NEW = "too-new"
 
 
 class WorkflowValueType(StrEnum):
@@ -186,6 +199,90 @@ class WorkflowManifest:
             raise WorkflowError("Workflow node ids must be unique.")
 
 
+@dataclass(frozen=True, slots=True)
+class WorkflowDiscoveryRoot:
+    """One explicitly approved, stable-labeled workflow discovery root."""
+
+    root_id: str
+    path: Path
+
+    def __post_init__(self) -> None:
+        require_local_id(self.root_id, "Workflow discovery root id")
+        if not isinstance(self.path, Path):
+            raise WorkflowError("Workflow discovery root path must be a pathlib Path.")
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowRecord:
+    """One valid workflow manifest with portable root provenance."""
+
+    relative_path: str
+    manifest: WorkflowManifest
+    root_id: str = "project"
+
+    def __post_init__(self) -> None:
+        require_local_id(self.root_id, "Workflow discovery root id")
+
+    @property
+    def workflow_id(self) -> str:
+        return self.manifest.metadata.workflow_id.value
+
+    @property
+    def version(self) -> str:
+        return self.manifest.metadata.version.value
+
+    @property
+    def operations(self) -> tuple[str, ...]:
+        return tuple(sorted({node.operation for node in self.manifest.nodes}))
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowIssue:
+    """One deterministic workflow discovery or compatibility problem."""
+
+    relative_path: str
+    code: str
+    message: str
+    root_id: str = "project"
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowInspectionReport:
+    """Aggregate structural workflow discovery result."""
+
+    records: tuple[WorkflowRecord, ...] = ()
+    issues: tuple[WorkflowIssue, ...] = ()
+
+    @property
+    def passed(self) -> bool:
+        return not self.issues
+
+    @property
+    def summary(self) -> str:
+        state = "succeeded" if self.passed else "failed"
+        return f"Workflow inspection {state}: {len(self.records)} valid, {len(self.issues)} issues."
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowValidationReport:
+    """Aggregate SDK-compatible workflow catalog result."""
+
+    records: tuple[WorkflowRecord, ...] = ()
+    issues: tuple[WorkflowIssue, ...] = ()
+
+    @property
+    def passed(self) -> bool:
+        return not self.issues
+
+    @property
+    def summary(self) -> str:
+        state = "succeeded" if self.passed else "failed"
+        return (
+            f"Workflow validation {state}: {len(self.records)} compatible, "
+            f"{len(self.issues)} issues."
+        )
+
+
 class WorkflowIssueCode(StrEnum):
     """Stable semantic issue identifiers for schema-1 graph validation."""
 
@@ -195,6 +292,8 @@ class WorkflowIssueCode(StrEnum):
     TARGET_DUPLICATE = "workflow.edge.target.duplicate"
     NODE_INPUT_UNBOUND = "workflow.node.input.unbound"
     WORKFLOW_OUTPUT_UNBOUND = "workflow.output.unbound"
+    WORKFLOW_INPUT_UNUSED = "workflow.input.unused"
+    NODE_DISCONNECTED = "workflow.node.disconnected"
     CYCLE = "workflow.graph.cycle"
 
 
