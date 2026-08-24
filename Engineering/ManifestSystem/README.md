@@ -27,6 +27,7 @@ registered manifest family
 | `ups.plugin` | E-013 Plugin System | `plugin-manifest.yaml` | 1 / 1 | many |
 | `ups.ai-provider` | E-014 Provider System | `ai-provider-manifest.yaml` | 1 / 1 | many |
 | `ups.theme` | E-015 Theme System | `theme-manifest.yaml` | 1 / 1 | many |
+| `ups.workflow` | E-016 Workflow System | `workflow-manifest.yaml` | 1 / 1 | many |
 
 The shared system does not reinterpret or replace existing JSON producer
 payloads. Their adapters call each owner's existing reader. The documentation
@@ -59,7 +60,7 @@ manifest receives a SHA-256 digest in the in-memory report.
 the registered manifest graph. The built-in graph requires every discovered
 `ups.release` manifest to have a discovered `ups.build` manifest and rejects
 multiple build, documentation, or release manifests in one inventory. Template
-artifact, plugin, AI-provider, and theme manifests intentionally allow multiple
+artifact, plugin, AI-provider, theme, and workflow manifests intentionally allow multiple
 documents.
 
 ## Schema evolution
@@ -99,7 +100,8 @@ callback, filesystem writer, or persistence side effect.
 
 ## Boundary
 
-E-012.3 validates legacy documentation manifests and plans safe schema upgrades.
-It does not rewrite the tracked YAML, change the documentation generator, execute
-migrations, sign manifests, or orchestrate persistence. Those actions require a
-separate reviewed checkpoint.
+The closed toolkit catalog covers all current producer families, including
+workflow manifests. It validates legacy documentation manifests and plans safe
+schema upgrades, but does not rewrite tracked YAML, change generators, execute
+migrations, sign manifests, or orchestrate persistence. Those actions require
+a separate reviewed checkpoint.

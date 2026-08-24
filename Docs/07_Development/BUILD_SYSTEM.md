@@ -23,9 +23,12 @@ python -m Engineering build run
 python -m Engineering build clean
 ```
 
-Backend/frontend packaging, wheels, PyInstaller, Tauri, signing, installers,
-and publishing belong to E-011 Release and Packaging.
+E-011 Release and Packaging consumes a successful full build and creates local
+Python sdist/wheel, deterministic frontend ZIP, and unsigned Windows NSIS
+artifacts with a release manifest and checksums.
 
-The current repository does not commit a frontend dependency lockfile or Rust
-`Cargo.toml`, so E-010 validates frontend readiness without claiming to produce
-a reproducible Tauri application bundle.
+The repository commits npm and Cargo lockfiles plus the Tauri manifest. Run the
+frontend production build and `cargo check --locked` as independent acceptance
+gates; E-010 itself validates readiness and records deterministic build evidence.
+Signing, publishing, Git tags/releases, updater metadata, and registry uploads
+remain outside the local build and release systems.

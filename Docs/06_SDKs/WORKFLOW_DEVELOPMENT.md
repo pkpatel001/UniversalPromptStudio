@@ -144,7 +144,7 @@ bridge maps value-free SDK lifecycle metadata to the existing Backend
 'WorkflowStarted' and 'WorkflowCompleted' events. Runtime values and failure
 messages never enter event payloads.
 
-E-016 is complete. E-017.2 now provides controlled self-generation execution
-and reproducibility verification. E-017.3 Engineering Toolkit closure and the
-application-development handoff is the next checkpoint. Visual workflow
-authoring and advanced execution semantics remain post-toolkit application work.
+E-016 is complete and E-017.3 closes the Engineering Toolkit. Visual workflow
+authoring and advanced execution semantics remain application work. The next
+checkpoint is A-001.1, the explicit desktop-to-Python IPC foundation; workflow
+UI follows after prompt-library and offline prompt-execution slices.

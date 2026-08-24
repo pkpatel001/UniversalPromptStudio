@@ -1,7 +1,7 @@
 # Engineering SelfGeneration
 
-**Milestone:** E-017.2
-**Status:** Controlled execution and reproducibility implemented
+**Milestone:** E-017 (closed at E-017.3)
+**Status:** Supported within the bounded scope below
 
 ## Definition
 
@@ -106,7 +106,9 @@ python -m Engineering generate engineering ExampleSystem example_service --check
 Add `--cli-adapter` consistently to all three commands when the accepted plan
 includes the passive CLI placeholder. No overwrite option exists.
 
-E-017.3 Engineering Toolkit closure and application-development handoff is the
-next checkpoint. Automatic commits, pushes, releases, dependency installation,
-arbitrary commands, arbitrary paths, and arbitrary templates remain outside
-E-017.
+E-017.3 closes the Engineering Toolkit phase. Future changes to this subsystem
+require a concrete application-development need. Automatic commits, pushes,
+releases, dependency installation, arbitrary commands, arbitrary paths, and
+arbitrary templates remain outside E-017.
+
+The next checkpoint is A-001.1, the explicit desktop-to-Python IPC foundation.

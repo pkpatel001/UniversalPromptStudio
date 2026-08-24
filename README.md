@@ -43,19 +43,17 @@ Key design goals:
 
 ## Current Status
 
-The repository currently contains:
+The Engineering Toolkit is complete through E-017. The repository contains:
 
-* Core backend contracts and interfaces
-* Abstract Base Classes (ABCs) for extensibility
-* Event Bus implementation
-* Provider Registry foundation
-* Prompt Builder foundation
-* Repository abstractions
-* SQLite-ready persistence boundaries
-* Documentation framework
-* Engineering Toolkit foundation
-* Automated testing framework
-* Minimal Tauri/Vite frontend shell
+* Backend contracts, services, repositories, events, and a composition root
+* SQLite persistence and search adapters behind application interfaces
+* Controlled plugin, provider, theme, workflow, and self-generation boundaries
+* Deterministic validation, documentation, generation, build, release, and manifests
+* Automated Python, frontend, and Rust validation
+* A minimal Tauri/Vite frontend shell with controlled theme selection
+
+The desktop product remains alpha. Its frontend and Python composition root are
+not yet connected through a production IPC boundary.
 
 ## Technology Stack
 
@@ -124,18 +122,16 @@ Engineering/
 
 ## Roadmap
 
-Planned milestones include:
+Engineering Toolkit milestones E-001 through E-017 are complete. Product
+development now proceeds through thin application vertical slices:
 
-* Documentation Generation Framework
-* Advanced Prompt Builder
-* Workflow Engine
-* Search Engine Enhancements
-* Plugin SDK
-* AI Provider SDK
-* Local LLM Integration
-* GitHub Synchronization
-* Multi-Agent Workflows
-* Marketplace Ecosystem
+* Explicit desktop-to-Python IPC
+* Prompt-library persistence, editing, organization, and search
+* Prompt composition and controlled provider execution
+* Workflow authoring and execution UI
+* Settings, diagnostics, import/export, onboarding, and distribution polish
+
+See `Docs/09_Roadmap/PHASE_ROADMAP.md` for the current sequence and boundaries.
 
 ## Contributing
 

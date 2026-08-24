@@ -2,7 +2,8 @@
 
 E-017.1 provides read-only planning for one controlled Engineering subsystem.
 E-017.2 executes accepted plans through E-009/E-008 and verifies reproducibility
-without expanding request authority.
+without expanding request authority. E-017.3 closes the capability at that
+bounded scope.
 
 ## Request
 
@@ -84,6 +85,9 @@ review. Callers cannot select paths, templates, commands, imports, credentials,
 or overwrite behavior. Import verification executes only package-bundled
 host-authored generated code and is not a sandbox.
 
-E-017.2 performs no Git operation, automatic approval, release, publishing,
+E-017 performs no Git operation, automatic approval, release, publishing,
 dependency installation, network request, credential lookup, subprocess, or
 arbitrary command.
+
+After E-017.3, extend this SDK only when an application slice demonstrates a
+specific missing controlled-generation contract.

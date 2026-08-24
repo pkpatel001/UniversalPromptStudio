@@ -9,9 +9,9 @@ Universal Prompt Studio follows Clean Architecture. Dependencies point inward:
 
 The UI communicates with application services only. Services use interfaces and repositories. Infrastructure provides replaceable implementations for storage, AI providers, search, plugins, and exports.
 
-## Current Phase
+## Application phase
 
-The current scaffold defines:
+The current repository defines:
 
 - Domain models for projects, prompts, prompt blocks, execution requests, and execution results.
 - ABC interfaces for provider systems.
@@ -23,6 +23,10 @@ The current scaffold defines:
 - A controlled AI-provider SDK adapter and deterministic offline reference
   provider registered at the composition root.
 - Whoosh-backed search adapter behind the `SearchProvider` interface.
+- A strict workflow SDK, deterministic planner, bounded sequential runner, and
+  offline reference handlers.
+- A completed Engineering Toolkit with controlled generation and extension
+  trust boundaries.
 
 ## Composition Root
 
@@ -32,3 +36,11 @@ The provider SDK adapter lives in `Backend/infrastructure/providers/`. The
 application service continues to depend only on `Backend.interfaces.AIProvider`;
 the composition root owns the concrete SDK registry, execution service, offline
 reference implementation, and adapter wiring.
+
+The Tauri/Vite shell does not yet call this composition root. Establishing a
+typed, allowlisted IPC boundary is the first application-development checkpoint.
+
+## Engineering Toolkit
+
+See `ENGINEERING_TOOLKIT.md` for subsystem ownership, lifecycle boundaries, and
+the post-E-017 rule for application-led toolkit changes.
