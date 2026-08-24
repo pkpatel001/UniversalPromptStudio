@@ -1,15 +1,16 @@
 # Engineering SelfGeneration
 
-**Milestone:** E-017.1
-**Status:** Read-only planning implemented
+**Milestone:** E-017.2
+**Status:** Controlled execution and reproducibility implemented
 
 ## Definition
 
 Self-generation is the human-reviewed creation of approved Engineering Toolkit
 structures through the existing E-009 template and E-008 generation pipeline.
 It is not autonomous self-modification. E-017.1 defines the typed request,
-allowlist, readiness checks, plan, and dry-run report only. It performs no
-rendering and no writes.
+allowlist, readiness checks, plan, and dry-run report. E-017.2 adds execution
+through E-009/E-008, transaction rollback, manifest evidence, and no-write
+drift verification.
 
 ## Initial target
 
@@ -78,15 +79,34 @@ reads only fixed repository evidence and destination state. It does not import
 milestone implementations, resolve templates, render content, create
 directories, or write files.
 
-## Deferred to E-017.2
+## Controlled execution and verification
 
-- approved E-009 template definitions and assets;
-- execution through E-009 and E-008;
-- transactional writes and rollback;
-- default no-overwrite enforcement during execution;
-- `.ups-artifact-manifest.json` evidence;
-- check/drift mode;
-- reproducibility and post-generation structural/import verification.
+`SelfGenerationService.execute(plan)` accepts only the current unchanged ready
+plan. It selects one of two fixed E-009 definitions, requires two byte-identical
+E-008 previews, and then writes with default no-overwrite behavior. Successful
+execution records `.ups-artifact-manifest.json` under the generated package.
 
-Automatic commits, pushes, releases, dependency installation, arbitrary
-commands, arbitrary paths, and arbitrary templates are outside E-017.
+Any artifact write, manifest write, structural check, isolated import, or
+reproducibility failure removes the new exact files and newly created empty
+directories. An incomplete rollback is reported separately.
+
+`SelfGenerationService.check(request)` performs a no-write drift check against
+both the recorded manifest hashes and content rendered from the current
+approved templates. It also parses and compiles every generated Python file and
+imports the package through a temporary bytecode-disabled namespace.
+
+## CLI
+
+```powershell
+python -m Engineering generate engineering ExampleSystem example_service --dry-run
+python -m Engineering generate engineering ExampleSystem example_service
+python -m Engineering generate engineering ExampleSystem example_service --check
+```
+
+Add `--cli-adapter` consistently to all three commands when the accepted plan
+includes the passive CLI placeholder. No overwrite option exists.
+
+E-017.3 Engineering Toolkit closure and application-development handoff is the
+next checkpoint. Automatic commits, pushes, releases, dependency installation,
+arbitrary commands, arbitrary paths, and arbitrary templates remain outside
+E-017.

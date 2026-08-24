@@ -1,0 +1,10 @@
+"""Generated tests for {{ values.display_name }}."""
+
+from Engineering.{{ values.package_name }} import {{ values.class_name }}
+
+
+def test_generated_service_metadata() -> None:
+    service = {{ values.class_name }}()
+
+    assert service.display_name == {{ values.display_name | tojson }}
+    assert service.description == {{ values.description | tojson }}

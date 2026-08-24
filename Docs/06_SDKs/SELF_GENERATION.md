@@ -1,8 +1,8 @@
-# Self-Generation Planning SDK
+# Self-Generation SDK
 
-E-017.1 provides a Python planning API for one controlled Engineering subsystem
-scaffold. It is read-only: no E-008 engine, E-009 executor, renderer, filesystem
-writer, Git operation, or command runner is reachable from the planner.
+E-017.1 provides read-only planning for one controlled Engineering subsystem.
+E-017.2 executes accepted plans through E-009/E-008 and verifies reproducibility
+without expanding request authority.
 
 ## Request
 
@@ -52,12 +52,38 @@ A plan is blocked when:
 Dry-run text is a deterministic projection of the plan and ends with
 `No files written.`. It is evidence for review, not authorization to write.
 
+## Execute and verify
+
+```python
+from Engineering.CodeGeneration import project_context_from_config
+from Engineering.core.config import get_config
+from Engineering.SelfGeneration import SelfGenerationService
+
+service = SelfGenerationService.built_in(
+    Path.cwd(),
+    project_context_from_config(get_config()),
+)
+result = service.execute(plan)
+verification = service.check(request)
+```
+
+Execution requires the exact current ready plan and never overwrites. It records
+the E-009 artifact manifest, verifies current-template bytes and SHA-256 hashes,
+parses/compiles all Python output, and performs an isolated package import.
+Failures after writing trigger removal of the new exact artifacts and newly
+created empty directories.
+
+Check mode renders twice in memory and verifies existing output without
+rewriting it. Historical manifest integrity and current-template
+reproducibility are both required.
+
 ## Trust boundary
 
-Self-generation means an allowlisted plan followed, in E-017.2, by the existing
-controlled template pipeline and human review. It does not mean that the
-toolkit selects its own goals, invents paths or templates, rewrites security
-logic, approves changes, or operates Git.
+Self-generation remains a host-controlled scaffold operation followed by human
+review. Callers cannot select paths, templates, commands, imports, credentials,
+or overwrite behavior. Import verification executes only package-bundled
+host-authored generated code and is not a sandbox.
 
-The E-017.1 template keys are closed host identifiers reserved for the next
-checkpoint. They do not resolve or execute anything in this checkpoint.
+E-017.2 performs no Git operation, automatic approval, release, publishing,
+dependency installation, network request, credential lookup, subprocess, or
+arbitrary command.

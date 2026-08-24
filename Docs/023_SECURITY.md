@@ -361,3 +361,34 @@ sources, keep execution behind the later controlled E-009/E-008 service, and
 require human review of every generated diff. Automatic approval, commits,
 pushes, releases, publishing, dependency installation, arbitrary paths or
 templates, and replacement of security-sensitive core logic remain forbidden.
+
+
+## Controlled Engineering self-generation execution
+
+E-017.2 executes only the current unchanged E-017.1 ready plan. Callers still
+cannot provide paths, template IDs, import paths, commands, credentials, or
+overwrite authority. Two fixed host definitions map the allowlisted subsystem
+with or without its optional passive CLI adapter.
+
+E-009 artifact paths may interpolate only simple declared string fields.
+Attribute or index lookup, conversions, format specifications, missing fields,
+and non-string fields fail. E-008 validates every expanded destination against
+the project root before writing. Two in-memory previews must be byte-identical
+and match the accepted artifact path, type, and renderer-key plan exactly.
+
+Execution always uses no-overwrite behavior. Artifacts are written by E-008 and
+recorded with the E-009 SHA-256 manifest. Any later write, manifest, structural,
+isolated-import, or reproducibility failure removes the new exact files and
+newly created empty directories. Rollback never authorizes replacement of an
+existing destination.
+
+Check mode writes nothing. It compares current files both to manifest hashes
+and freshly rendered approved template bytes, then repeats UTF-8 Python parsing,
+compilation, and isolated package import. Import verification disables bytecode
+writes and removes its private module namespace, but it executes trusted
+host-authored generated Python in-process and is not a sandbox.
+
+E-017.2 adds no Git operation, automatic approval, release, publishing,
+dependency installation, network request, credential lookup, subprocess,
+arbitrary command, arbitrary template, or security-sensitive core replacement.
+Every generated diff still requires human review.

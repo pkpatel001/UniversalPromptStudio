@@ -1,0 +1,50 @@
+metadata:
+  id: engineering.subsystem-with-cli
+  name: Engineering subsystem scaffold with CLI adapter
+  version: 1.0.0
+  category: engineering
+  description: The allowlisted Engineering subsystem scaffold plus a passive CLI placeholder.
+  tags:
+    - built-in
+    - engineering
+    - self-generation
+    - cli
+
+variables:
+  - name: package_name
+    type: string
+  - name: module_name
+    type: string
+  - name: class_name
+    type: string
+  - name: display_name
+    type: string
+  - name: description
+    type: string
+
+artifacts:
+  - path: Engineering/{package_name}/__init__.py
+    template: self_generation.package_init
+    type: package
+    name: Engineering package
+    description: Public package exports.
+  - path: Engineering/{package_name}/{module_name}.py
+    template: self_generation.module
+    type: module
+    name: Engineering module
+    description: Typed subsystem service placeholder.
+  - path: Engineering/Tests/test_{module_name}.py
+    template: self_generation.test
+    type: test
+    name: Engineering unit test
+    description: Focused scaffold verification.
+  - path: Engineering/{package_name}/README.md
+    template: self_generation.readme
+    type: documentation
+    name: Engineering subsystem guide
+    description: Ownership and implementation guidance.
+  - path: Engineering/cli/commands/{module_name}.py
+    template: self_generation.cli_adapter
+    type: cli-adapter
+    name: Passive CLI adapter
+    description: Explicit host-wiring placeholder.

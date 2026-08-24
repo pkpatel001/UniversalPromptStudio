@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
+from string import Formatter
 
 from Engineering.CodeGeneration.models import (
     ArtifactSpec,
@@ -14,6 +16,8 @@ from Engineering.core.exceptions import GenerationValidationError
 
 from .models import TemplateDefinition, VariableKind
 from .validation import TemplateDefinitionValidator, value_matches_type
+
+_PATH_FIELD = re.compile(r"^[a-z_][a-z0-9_]*$")
 
 
 class TemplateArtifactService:
@@ -77,7 +81,7 @@ class TemplateArtifactService:
 
         artifacts = tuple(
             ArtifactSpec(
-                relative_path=artifact.relative_path,
+                relative_path=_resolve_artifact_path(artifact.relative_path, resolved),
                 template_id=artifact.source_template_id,
                 artifact_type=artifact.artifact_type,
                 name=artifact.name,
@@ -94,3 +98,28 @@ class TemplateArtifactService:
             overwrite=overwrite,
             dry_run=dry_run,
         )
+
+
+def _resolve_artifact_path(pattern: str, values: Mapping[str, object]) -> str:
+    """Expand simple declared string fields in one artifact path."""
+
+    parts: list[str] = []
+    try:
+        parsed = tuple(Formatter().parse(pattern))
+    except ValueError as exc:
+        raise GenerationValidationError("Invalid artifact path placeholder syntax.") from exc
+    for literal, field, format_spec, conversion in parsed:
+        parts.append(literal)
+        if field is None:
+            continue
+        if _PATH_FIELD.fullmatch(field) is None or format_spec or conversion is not None:
+            raise GenerationValidationError(
+                "Artifact paths accept only simple declared variable placeholders."
+            )
+        value = values.get(field)
+        if not isinstance(value, str):
+            raise GenerationValidationError(
+                f"Artifact path variable {field!r} must be a supplied string."
+            )
+        parts.append(value)
+    return "".join(parts)

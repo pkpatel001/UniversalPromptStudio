@@ -182,6 +182,27 @@ class GenerationEngine:
             template_ids=self._repository.template_ids(),
         )
 
+    def preview(self, request: GenerationRequest) -> tuple[GeneratedArtifact, ...]:
+        """Render and path-validate every artifact without inspecting or writing outputs."""
+
+        plan = self._planner.plan(
+            request,
+            self._project_root,
+            template_ids=self._repository.template_ids(),
+        )
+        if not plan.is_valid:
+            raise GenerationValidationError("Generation preview rejected an invalid plan.")
+        validate_no_secrets(request.context.values)
+        items = self._preflight(plan)
+        artifacts: list[GeneratedArtifact] = []
+        for result, generated, _destination in items:
+            if result.state == ArtifactState.FAILED or generated is None:
+                raise GenerationValidationError(
+                    "Generation preview failed during rendering or path validation."
+                )
+            artifacts.append(generated)
+        return tuple(artifacts)
+
     # ------------------------------------------------------------------
     # Preflight
     # ------------------------------------------------------------------

@@ -29,6 +29,11 @@ from Engineering.ProviderSystem import (
     ProviderScaffoldRequest,
     ProviderScaffoldService,
 )
+from Engineering.SelfGeneration import (
+    SelfGenerationPlanner,
+    SelfGenerationRequest,
+    SelfGenerationService,
+)
 from Engineering.Templates import (
     TemplateDefinition,
     TemplateExecutor,
@@ -364,6 +369,72 @@ def generate_workflow(
         console.print(f"Artifact manifest: {result.execution.manifest_path}")
     if not result.execution.report.success:
         raise typer.Exit(code=1)
+
+
+@app.command(name="engineering")
+def generate_engineering(
+    package_name: str,
+    module_name: str,
+    name: Annotated[str | None, typer.Option("--name")] = None,
+    description: Annotated[str | None, typer.Option("--description")] = None,
+    cli_adapter: Annotated[bool, typer.Option("--cli-adapter")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    check: Annotated[bool, typer.Option("--check")] = False,
+) -> None:
+    """Generate or verify one allowlisted Engineering subsystem scaffold."""
+
+    if dry_run and check:
+        console.print("FAILED engineering.generate: --dry-run and --check are exclusive.")
+        raise typer.Exit(code=1)
+    try:
+        display_name = (
+            name
+            or "".join(
+                f" {character}" if character.isupper() else character for character in package_name
+            ).strip()
+        )
+        request = SelfGenerationRequest(
+            package_name=package_name,
+            module_name=module_name,
+            display_name=display_name,
+            description=description or f"Engineering subsystem for {display_name}.",
+            include_cli_adapter=cli_adapter,
+        )
+        root = get_paths().root
+        if dry_run:
+            report = SelfGenerationPlanner(root).dry_run(request)
+            console.print(report.summary)
+            for line in report.lines:
+                console.print(line)
+            if not report.ready:
+                raise typer.Exit(code=1)
+            return
+
+        service = SelfGenerationService.built_in(
+            root,
+            project_context_from_config(get_config()),
+        )
+        if check:
+            verification = service.check(request)
+            console.print(verification.summary)
+            for issue in verification.issues:
+                console.print(
+                    f"DRIFT {issue.code} {issue.location}: {issue.message}",
+                    soft_wrap=True,
+                )
+            if not verification.passed:
+                raise typer.Exit(code=1)
+            return
+
+        plan = SelfGenerationPlanner(root).plan(request)
+        result = service.execute(plan)
+    except EngineeringError as exc:
+        console.print(f"FAILED engineering.generate: {exc}", soft_wrap=True)
+        raise typer.Exit(code=1) from exc
+
+    console.print(result.generation_report.summary)
+    console.print(f"Artifact manifest: {result.manifest_path}")
+    console.print(result.verification.summary)
 
 
 def _parse_dependencies(values: list[str] | tuple[str, ...]) -> tuple[PluginDependency, ...]:

@@ -1,11 +1,23 @@
 """E-017 controlled Engineering self-generation planning."""
 
-from .inventory import SELF_GENERATION_ALLOWLIST, self_generation_artifact_inventory
+from .execution import (
+    SELF_GENERATION_CLI_TEMPLATE_ID,
+    SELF_GENERATION_MANIFEST_NAME,
+    SELF_GENERATION_TEMPLATE_ID,
+    SELF_GENERATION_TEMPLATE_VERSION,
+    SelfGenerationService,
+)
+from .inventory import (
+    SELF_GENERATION_ALLOWLIST,
+    derive_self_generation_artifacts,
+    self_generation_artifact_inventory,
+)
 from .models import (
     SelfGenerationArtifact,
     SelfGenerationArtifactRule,
     SelfGenerationArtifactType,
     SelfGenerationDryRunReport,
+    SelfGenerationExecutionResult,
     SelfGenerationIssue,
     SelfGenerationPlan,
     SelfGenerationPrecondition,
@@ -14,6 +26,8 @@ from .models import (
     SelfGenerationRequest,
     SelfGenerationTarget,
     SelfGenerationTemplateKey,
+    SelfGenerationVerificationIssue,
+    SelfGenerationVerificationReport,
     ToolkitMilestone,
 )
 from .planner import SelfGenerationPlanner
@@ -26,10 +40,15 @@ __all__ = [
     "DEFAULT_SELF_GENERATION_PRECONDITIONS",
     "SELF_GENERATION_ALLOWLIST",
     "SelfGenerationArtifact",
+    "SELF_GENERATION_CLI_TEMPLATE_ID",
+    "SELF_GENERATION_MANIFEST_NAME",
+    "SELF_GENERATION_TEMPLATE_ID",
+    "SELF_GENERATION_TEMPLATE_VERSION",
     "SelfGenerationArtifactRule",
     "SelfGenerationArtifactType",
     "SelfGenerationDryRunReport",
     "SelfGenerationIssue",
+    "SelfGenerationExecutionResult",
     "SelfGenerationPlan",
     "SelfGenerationPlanner",
     "SelfGenerationPrecondition",
@@ -38,7 +57,11 @@ __all__ = [
     "SelfGenerationPreconditionResult",
     "SelfGenerationRequest",
     "SelfGenerationTarget",
+    "SelfGenerationService",
     "SelfGenerationTemplateKey",
     "ToolkitMilestone",
     "self_generation_artifact_inventory",
+    "SelfGenerationVerificationIssue",
+    "SelfGenerationVerificationReport",
+    "derive_self_generation_artifacts",
 ]

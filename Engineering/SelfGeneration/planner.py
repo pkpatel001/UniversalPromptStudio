@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
-from .inventory import self_generation_artifact_inventory
+from .inventory import derive_self_generation_artifacts
 from .models import (
-    SelfGenerationArtifact,
-    SelfGenerationArtifactType,
     SelfGenerationDryRunReport,
     SelfGenerationIssue,
     SelfGenerationPlan,
@@ -27,24 +25,7 @@ class SelfGenerationPlanner:
         """Derive a stable plan exclusively from the closed artifact inventory."""
 
         preconditions = self._checker.check(self._project_root)
-        artifacts = tuple(
-            SelfGenerationArtifact(
-                artifact_type=rule.artifact_type,
-                template_key=rule.template_key,
-                relative_path=PurePosixPath(
-                    rule.destination_pattern.format(
-                        package_name=request.package_name,
-                        module_name=request.module_name,
-                    )
-                ),
-            )
-            for rule in self_generation_artifact_inventory()
-            if not rule.optional
-            or (
-                rule.artifact_type is SelfGenerationArtifactType.CLI_ADAPTER
-                and request.include_cli_adapter
-            )
-        )
+        artifacts = derive_self_generation_artifacts(request)
         issues: list[SelfGenerationIssue] = []
         if not (self._project_root / "pyproject.toml").is_file():
             issues.append(

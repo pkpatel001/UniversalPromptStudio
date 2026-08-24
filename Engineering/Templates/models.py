@@ -22,6 +22,7 @@ class TemplateCategory(Enum):
     PROVIDER = "provider"
     THEME = "theme"
     WORKFLOW = "workflow"
+    ENGINEERING = "engineering"
 
 
 class VariableKind(Enum):

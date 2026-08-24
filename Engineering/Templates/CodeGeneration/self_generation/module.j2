@@ -1,0 +1,14 @@
+"""Generated {{ values.display_name }} subsystem module."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import ClassVar
+
+
+@dataclass(frozen=True, slots=True)
+class {{ values.class_name }}:
+    """Typed placeholder generated for human-reviewed implementation."""
+
+    display_name: ClassVar[str] = {{ values.display_name | tojson }}
+    description: ClassVar[str] = {{ values.description | tojson }}

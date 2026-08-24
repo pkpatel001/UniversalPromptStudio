@@ -1,0 +1,14 @@
+# {{ values.display_name }}
+
+{{ values.description }}
+
+This subsystem scaffold was produced by the controlled E-017 self-generation
+pipeline. Generated files are starting points for human-reviewed engineering
+work; generation does not approve, commit, push, release, or execute them.
+
+Validate changes with:
+
+```powershell
+python -m pytest -q Engineering/Tests/test_{{ values.module_name }}.py
+python -m Engineering generate engineering {{ values.package_name }} {{ values.module_name }} --check
+```

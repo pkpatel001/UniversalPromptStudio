@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
+
 from .models import (
+    SelfGenerationArtifact,
     SelfGenerationArtifactRule,
     SelfGenerationArtifactType,
+    SelfGenerationRequest,
     SelfGenerationTemplateKey,
 )
 
@@ -42,3 +46,28 @@ def self_generation_artifact_inventory() -> tuple[SelfGenerationArtifactRule, ..
     """Return the immutable allowlist in canonical plan order."""
 
     return SELF_GENERATION_ALLOWLIST
+
+
+def derive_self_generation_artifacts(
+    request: SelfGenerationRequest,
+) -> tuple[SelfGenerationArtifact, ...]:
+    """Derive the canonical artifact set from the closed inventory."""
+
+    return tuple(
+        SelfGenerationArtifact(
+            artifact_type=rule.artifact_type,
+            template_key=rule.template_key,
+            relative_path=PurePosixPath(
+                rule.destination_pattern.format(
+                    package_name=request.package_name,
+                    module_name=request.module_name,
+                )
+            ),
+        )
+        for rule in SELF_GENERATION_ALLOWLIST
+        if not rule.optional
+        or (
+            rule.artifact_type is SelfGenerationArtifactType.CLI_ADAPTER
+            and request.include_cli_adapter
+        )
+    )

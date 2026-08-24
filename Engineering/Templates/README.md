@@ -48,6 +48,13 @@ Supported value types are `string`, `integer`, `number`, `boolean`, `list`, and
 `mapping`. Supplied values and defaults are checked against their declared
 types. Defaulted variables must declare a non-null `default` value.
 
+
+E-017.2 definitions may use simple declared string placeholders such as
+`Engineering/{package_name}/{module_name}.py` in artifact paths. Placeholder
+attribute/index access, conversions, format specifications, undeclared values,
+and non-string values are rejected. Expanded paths still pass through E-008
+project-boundary and traversal validation before any write.
+
 ## Discovery and validation
 
 `DirectoryTemplateDefinitionRepository` recursively discovers definition

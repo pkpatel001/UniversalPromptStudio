@@ -239,7 +239,7 @@ class TestTemplateDefinitionDiscovery:
         assert inspect_result.exit_code == 0
         assert "README.md <- markdown.readme" in inspect_result.output
         assert validate_result.exit_code == 0
-        assert "Validated 5 template definition" in validate_result.output
+        assert "Validated 7 template definition" in validate_result.output
 
     def test_cli_dry_run_executes_without_writes(self) -> None:
         from typer.testing import CliRunner

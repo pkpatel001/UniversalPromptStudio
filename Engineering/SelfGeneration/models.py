@@ -6,7 +6,13 @@ import keyword
 import re
 from dataclasses import dataclass
 from enum import StrEnum
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from Engineering.CodeGeneration import GenerationReport
+    from Engineering.Templates import ArtifactManifest
+
 
 from Engineering.core.exceptions import SelfGenerationError
 
@@ -209,3 +215,39 @@ class SelfGenerationDryRunReport:
             f"Self-generation dry run {state}: {len(self.plan.artifacts)} artifact(s), "
             f"{len(self.plan.issues)} issue(s); no files written."
         )
+
+
+@dataclass(frozen=True, slots=True)
+class SelfGenerationVerificationIssue:
+    """One reproducibility, integrity, structure, or import problem."""
+
+    code: str
+    message: str
+    location: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class SelfGenerationVerificationReport:
+    """Deterministic self-generation execution or drift verification."""
+
+    issues: tuple[SelfGenerationVerificationIssue, ...] = ()
+
+    @property
+    def passed(self) -> bool:
+        return not self.issues
+
+    @property
+    def summary(self) -> str:
+        state = "passed" if self.passed else "failed"
+        return f"Self-generation check {state}: {len(self.issues)} issue(s)."
+
+
+@dataclass(frozen=True, slots=True)
+class SelfGenerationExecutionResult:
+    """Successful controlled execution with E-009 evidence."""
+
+    plan: SelfGenerationPlan
+    generation_report: GenerationReport
+    manifest: ArtifactManifest
+    manifest_path: Path
+    verification: SelfGenerationVerificationReport
