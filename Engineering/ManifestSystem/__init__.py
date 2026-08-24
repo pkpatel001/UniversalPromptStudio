@@ -8,6 +8,7 @@ from .adapters import (
     ReleaseManifestAdapter,
     TemplateArtifactManifestAdapter,
     ThemeManifestAdapter,
+    WorkflowManifestAdapter,
     default_manifest_adapters,
 )
 from .migrations import (
@@ -65,6 +66,7 @@ __all__ = [
     "SchemaCompatibility",
     "TemplateArtifactManifestAdapter",
     "ThemeManifestAdapter",
+    "WorkflowManifestAdapter",
     "default_manifest_adapters",
     "default_manifest_dependencies",
     "default_manifest_migrations",

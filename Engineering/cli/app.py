@@ -18,6 +18,7 @@ from .commands import (
     provider,
     release,
     theme,
+    workflow,
     validate,
     version,
 )
@@ -62,3 +63,4 @@ app.add_typer(manifest.app, name="manifest")
 app.add_typer(plugin.app, name="plugin")
 app.add_typer(provider.app, name="provider")
 app.add_typer(theme.app, name="theme")
+app.add_typer(workflow.app, name="workflow")

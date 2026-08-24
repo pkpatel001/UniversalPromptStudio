@@ -15,6 +15,7 @@ class ManifestKind(Enum):
     PLUGIN = "plugin"
     TEMPLATE_ARTIFACT = "template-artifact"
     THEME = "theme"
+    WORKFLOW = "workflow"
     RELEASE = "release"
 
 

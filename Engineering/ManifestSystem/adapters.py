@@ -18,6 +18,7 @@ from Engineering.ReleaseSystem import RELEASE_MANIFEST_NAME, ReleaseManifest
 from Engineering.Templates import ArtifactManifest
 from Engineering.Templates.executor import DEFAULT_MANIFEST_NAME
 from Engineering.ThemeSystem import THEME_MANIFEST_NAME, ThemeManifestReader
+from Engineering.WorkflowSystem import WORKFLOW_MANIFEST_NAME, WorkflowManifestReader
 
 from .models import ManifestKind, ManifestSpec
 from .registry import ManifestAdapter
@@ -256,6 +257,28 @@ class ThemeManifestAdapter(_ReaderAdapter):
         return self._reader.read(path).schema_version
 
 
+class WorkflowManifestAdapter(_ReaderAdapter):
+    """Validate E-016 workflow manifests through their owning subsystem."""
+
+    spec = ManifestSpec(
+        "ups.workflow",
+        ManifestKind.WORKFLOW,
+        WORKFLOW_MANIFEST_NAME,
+        (1,),
+        current_schema_version=1,
+        allow_multiple=True,
+    )
+    _reader = WorkflowManifestReader()
+
+    def detect_schema_version(self, path: Path) -> int:
+        """Delegate YAML schema-envelope detection to the workflow owner."""
+
+        return self._reader.detect_schema_version(path)
+
+    def _read_schema_version(self, path: Path) -> int:
+        return self._reader.read(path).schema_version
+
+
 def default_manifest_adapters() -> tuple[ManifestAdapter, ...]:
     """Return all built-in adapters in stable registration order."""
 
@@ -267,4 +290,5 @@ def default_manifest_adapters() -> tuple[ManifestAdapter, ...]:
         ReleaseManifestAdapter(),
         TemplateArtifactManifestAdapter(),
         ThemeManifestAdapter(),
+        WorkflowManifestAdapter(),
     )

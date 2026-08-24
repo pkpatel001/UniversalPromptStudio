@@ -226,3 +226,22 @@ accidentally modified state, but it cannot authenticate a publisher or resist a
 malicious local writer able to replace both manifest and receipt. Signatures,
 certificates, remote revocation, secure deletion, network acquisition, and
 automatic repair remain outside this boundary.
+
+## Workflow metadata
+
+E-016.1 workflow manifests are passive declarative graph definitions. Their
+exact bounded schema accepts identity, typed ports, host-recognized operation
+IDs, and explicit data-flow edges. Unknown fields, secret-like keys, and
+high-confidence secret-bearing values are rejected.
+
+Schema 1 contains no embedded code, expressions, import paths, entry points,
+commands, environment lookups, credentials, default values, node
+configuration, filesystem paths, or URLs. Inspection imports no operation,
+registers no handler, executes no node, contacts no service, launches no
+subprocess, reads no credential, and writes no file.
+
+Operation IDs are descriptive host vocabulary only; they do not authorize or
+locate an implementation. SDK compatibility, discovery, catalog construction,
+planning, registration, execution, persistence, retries, scheduling, and
+plugin- or provider-supplied operations remain separate future trust
+boundaries.

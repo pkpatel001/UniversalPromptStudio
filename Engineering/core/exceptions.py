@@ -161,6 +161,10 @@ class ThemeError(EngineeringError):
     """Base exception for theme SDK and manifest operations."""
 
 
+class WorkflowError(EngineeringError):
+    """Base exception for workflow SDK and manifest operations."""
+
+
 # -----------------------------------------------------------------------------
 # Code Generation
 # -----------------------------------------------------------------------------
