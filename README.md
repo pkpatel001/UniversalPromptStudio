@@ -52,8 +52,9 @@ The Engineering Toolkit is complete through E-017. The repository contains:
 * Automated Python, frontend, and Rust validation
 * A minimal Tauri/Vite frontend shell with controlled theme selection
 
-The desktop product remains alpha. Its frontend and Python composition root are
-not yet connected through a production IPC boundary.
+The desktop product remains alpha. A-001.1 adds a bounded development readiness
+probe from the frontend through Tauri to one long-lived Python application
+process. Bundling that Python sidecar/runtime is the next checkpoint.
 
 ## Technology Stack
 

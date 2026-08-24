@@ -1,4 +1,5 @@
 import "./styles.css";
+import { BackendClient } from "./backend-client.js";
 import { themeSelectionKey, THEME_CATALOG } from "./theme-catalog.js";
 import { ThemeApplicationController } from "./theme-controller.js";
 import { ThemePreferenceStore } from "./theme-preference.js";
@@ -47,11 +48,14 @@ document.querySelector("#app").innerHTML = `
             Remember theme
           </label>
           <button id="revert-theme" class="secondary" type="button" disabled>Revert theme</button>
-          <button class="primary">Run Dummy Provider</button>
+          <button id="backend-readiness" class="primary" type="button">Check backend</button>
         </div>
       </header>
       <p id="theme-status" class="theme-status" role="status" aria-live="polite">
         Using the default application colors.
+      </p>
+      <p id="backend-status" class="backend-status" data-state="idle" role="status" aria-live="polite">
+        Backend connection has not been checked.
       </p>
       <div class="builder-grid">
         <section class="block-list">
@@ -85,7 +89,30 @@ const themeSelect = document.querySelector("#theme-select");
 const rememberTheme = document.querySelector("#remember-theme");
 const revertTheme = document.querySelector("#revert-theme");
 const themeStatus = document.querySelector("#theme-status");
+const backendButton = document.querySelector("#backend-readiness");
+const backendStatus = document.querySelector("#backend-status");
+const backendClient = new BackendClient();
 let preferenceStore = null;
+
+backendButton.addEventListener("click", async () => {
+  backendButton.disabled = true;
+  backendButton.textContent = "Checking backend…";
+  backendStatus.dataset.state = "pending";
+  backendStatus.textContent = "Starting the local application backend…";
+  try {
+    const readiness = await backendClient.checkReadiness();
+    backendStatus.dataset.state = "ready";
+    backendStatus.textContent =
+      `Backend ready — Universal Prompt Studio ${readiness.applicationVersion}.`;
+  } catch (error) {
+    backendStatus.dataset.state = "unavailable";
+    backendStatus.textContent =
+      error?.message ?? "The local application backend is unavailable.";
+  } finally {
+    backendButton.disabled = false;
+    backendButton.textContent = "Check backend";
+  }
+});
 
 const appearancePresentation = {
   light: { label: "Light", order: 0 },

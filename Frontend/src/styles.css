@@ -114,6 +114,11 @@ textarea:focus-visible {
   padding: 10px 14px;
 }
 
+.primary:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .header-actions {
   align-items: end;
   display: flex;
@@ -165,6 +170,23 @@ textarea:focus-visible {
 
 .workspace .theme-status {
   margin: -12px 0 18px;
+}
+
+.workspace .backend-status {
+  margin: -10px 0 18px;
+}
+
+.backend-status[data-state="pending"] {
+  color: var(--ups-color-primary);
+}
+
+.backend-status[data-state="ready"] {
+  color: var(--ups-color-text);
+}
+
+.backend-status[data-state="unavailable"] {
+  color: var(--ups-color-text);
+  font-weight: 700;
 }
 
 .builder-grid {

@@ -37,8 +37,9 @@ application service continues to depend only on `Backend.interfaces.AIProvider`;
 the composition root owns the concrete SDK registry, execution service, offline
 reference implementation, and adapter wiring.
 
-The Tauri/Vite shell does not yet call this composition root. Establishing a
-typed, allowlisted IPC boundary is the first application-development checkpoint.
+A-001.1 connects one frontend readiness action to this composition root through
+a Tauri-owned development Python process and strict JSON-lines protocol. Release
+builds fail closed until A-001.2 bundles an explicit sidecar/runtime.
 
 ## Engineering Toolkit
 

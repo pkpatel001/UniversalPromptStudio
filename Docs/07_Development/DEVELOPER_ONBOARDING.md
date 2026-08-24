@@ -4,7 +4,7 @@
 
 - Python 3.12+
 - Node.js and npm versions accepted by `Frontend/package.json`
-- Stable Rust toolchain matching `Frontend/src-tauri/rust-toolchain.toml`
+- Stable Rust toolchain matching the repository-root `rust-toolchain.toml`
 - Windows desktop packaging prerequisites only when building NSIS output
 
 Install Python development dependencies and locked frontend dependencies only
@@ -21,8 +21,6 @@ From the repository root:
 
 ```powershell
 python -m pytest -q
-python -m ruff check Backend Engineering Tests
-python -m mypy Backend Engineering
 python -m Engineering manifest validate
 python -m Engineering manifest migrations
 python -m Engineering theme sync-frontend --root Themes --check
@@ -38,21 +36,39 @@ npm run build
 From `Frontend/src-tauri`:
 
 ```powershell
-cargo check --locked
+cargo test --locked
+cargo check --release --locked
+```
+
+## Development IPC probe
+
+Run the desktop development host from `Frontend`:
+
+```powershell
+npm run tauri dev
+```
+
+Select **Check backend**. The debug Rust host starts the fixed
+`python -m Backend.ipc` process from the repository root and reports readiness.
+Release builds intentionally report unavailable until A-001.2 bundles the
+Python sidecar/runtime.
+
+The protocol can also be tested directly from the repository root:
+
+```powershell
+python -m pytest -q Tests/test_ipc.py
 ```
 
 ## Architecture entry points
 
 - `Backend/core/container.py` — application composition root.
-- `Frontend/src/main.js` — current webview shell.
-- `Frontend/src-tauri/src/lib.rs` — current Tauri host.
-- `Docs/01_Architecture/ENGINEERING_TOOLKIT.md` — toolkit ownership.
+- `Backend/ipc/` — application-owned protocol and command router.
+- `Frontend/src/backend-client.js` — strict webview readiness client.
+- `Frontend/src-tauri/src/backend.rs` — process lifecycle and correlation.
+- `Docs/04_Backend/IPC_PROTOCOL.md` — IPC and trust boundary.
 - `Docs/09_Roadmap/APPLICATION_DEVELOPMENT_HANDOFF.md` — next product slice.
 
-CLI adapters live under `Engineering/cli/commands`; domain behavior belongs in
-the owning subsystem. Preserve deterministic ordering, explicit roots,
-no-overwrite defaults, passive inspection, and documented trust boundaries.
-
-Do not commit generated `build/`, `release/`, `dist/`, cache, or Rust `target/`
-output. Do not commit or push unless the current task explicitly requests it.
+Do not commit generated `build/`, `release/`, `dist/`, cache, Python bytecode, or
+Rust `target/` output. Do not commit or push unless the current task explicitly
+requests it.
 

@@ -67,11 +67,11 @@ sandbox.
 ## Application boundary
 
 `Backend/core/container.py` is the current Python composition root. It registers
-the offline provider and workflow reference implementations explicitly. The
-Tauri/Vite frontend is still a separate shell; it does not yet call the Python
-composition root. The first product slice must establish that IPC boundary
-without moving Engineering domain ownership into the frontend or exposing
-arbitrary Python execution.
+the offline provider and workflow reference implementations explicitly. A-001.1
+adds one bounded readiness path from the Tauri/Vite frontend to a long-lived
+development Python process. The exact schema and process boundary are documented
+in `Docs/04_Backend/IPC_PROTOCOL.md`. Release builds fail closed until A-001.2
+bundles an explicit sidecar/runtime.
 
 ## Change rule after closure
 

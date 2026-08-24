@@ -16,9 +16,12 @@
 
 ### Product status
 
-- The Tauri/Vite shell and Python composition root remain separate.
-- The next product checkpoint is A-001.1, the explicit desktop-to-Python IPC
-  foundation.
+- Added a strict schema-1 JSON-lines readiness protocol owned by the Python
+  application layer.
+- Added a Tauri-owned long-lived development process with fixed launch arguments,
+  timeout, correlation, restart, shutdown, and fail-closed release behavior.
+- Added frontend pending, ready, and unavailable presentation.
+- The next checkpoint is A-001.2, bundled Python sidecar and installed lifecycle.
 
 This changelog records milestone-level changes. Git history remains the source
 for checkpoint-level implementation detail.

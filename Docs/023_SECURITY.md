@@ -392,3 +392,32 @@ E-017.2 adds no Git operation, automatic approval, release, publishing,
 dependency installation, network request, credential lookup, subprocess,
 arbitrary command, arbitrary template, or security-sensitive core replacement.
 Every generated diff still requires human review.
+
+## Bounded desktop-to-Python IPC
+
+A-001.1 exposes one Tauri custom command, `backend_readiness`. The webview may
+provide only a bounded request ID; it cannot select an executable, path, Python
+module, function, application command, or payload. Rust maps the call to the
+fixed `application.readiness` command.
+
+The debug host launches `python -m Backend.ipc` with separate fixed arguments
+from the compile-time repository root. It does not construct or invoke a shell
+string and grants no Tauri shell-plugin permission. Release builds do not use a
+system Python or development path; they return a structured unavailable state
+until A-001.2 bundles an explicit sidecar/runtime.
+
+The JSON-lines protocol rejects unknown or duplicate fields, malformed UTF-8 or
+JSON, unsupported versions, non-finite values, malformed identifiers, payload
+fields, messages over 16 KiB, uncorrelated responses, and responses outside the
+three-second timeout. Transport failure discards the child so later explicit
+user action may start a fresh process.
+
+The Python router creates one in-memory application container and supports only
+the non-destructive readiness command. It performs no persistence, provider
+request, workflow execution, credential access, network operation, repository
+write, or subprocess launch. Error responses never include raw exceptions,
+tracebacks, stderr, paths, or environment values.
+
+The Python process remains trusted code with normal process authority. IPC
+validation reduces the webview's authority but is not a sandbox or process
+isolation boundary.

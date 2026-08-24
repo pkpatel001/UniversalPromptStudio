@@ -2,11 +2,12 @@
 
 ## Product integration
 
-- The Tauri/Vite frontend is not connected to the Python application composition
-  root.
+- A-001.1 readiness IPC works only in debug development builds with the fixed
+  system-Python command and compile-time repository root. Release builds fail
+  closed until A-001.2 bundles the sidecar/runtime.
 - Prompt/project persistence and search are not exposed as complete desktop
   workflows.
-- The visible “Run Dummy Provider” control is still a shell placeholder.
+- Prompt builder editing and execution controls remain mostly static shell UI.
 - Workflow authoring and execution have no product UI.
 
 ## Extensibility and trust

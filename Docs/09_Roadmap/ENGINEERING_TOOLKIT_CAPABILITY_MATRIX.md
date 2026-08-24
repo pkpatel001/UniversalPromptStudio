@@ -18,7 +18,7 @@ does not imply that every capability is exposed in the desktop UI.
 | Themes | Strict declarative palettes, scaffold, token compilation, frontend catalog, apply/revert, preference, exact-SHA managed install/disable/restore | Fonts/assets/icons, arbitrary CSS/tokens, signatures, updates, remote marketplace, automated contrast audit |
 | Workflows | Strict schema-1 DAG, catalog/graph validation, scaffold, deterministic planning, explicit handlers, bounded sequential offline execution | Visual editor, cycles, conditions, parallelism, retries, persistence, scheduling, external handlers |
 | Self-generation | One allowlisted Engineering subsystem scaffold, optional passive CLI adapter, no-overwrite transaction, manifest and drift verification | Autonomous rewriting, arbitrary paths/templates/commands, automatic Git or release operations |
-| Desktop product | Tauri/Vite shell, theme selection, Python composition root, offline provider and workflow reference implementations | Frontend-to-Python IPC, complete prompt library/composer, workflow UI, provider settings, distribution polish |
+| Desktop product | Tauri/Vite shell, theme selection, Python composition root, offline references, bounded development readiness IPC | Bundled Python runtime/sidecar, complete prompt library/composer, workflow UI, provider settings, distribution polish |
 
 ## Trust summary
 
