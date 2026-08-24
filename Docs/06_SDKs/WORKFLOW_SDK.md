@@ -29,9 +29,9 @@ must be acyclic. Disconnected cycles are invalid.
 ## Compatibility
 
 'schema_version' governs the YAML document shape. 'workflow.sdk_version'
-governs both the authoring contract and the operation-handler contract that a
-future execution planner will enforce. E-016.1 defines no handler registry or
-runtime.
+governs both the authoring contract and the operation-handler contract. The
+E-016.4 planner enforces exact equality. Execution remains a separate E-016.5
+boundary; the manifest cannot select, load, configure, or invoke a handler.
 
 The shared manifest system registers this family as 'ups.workflow' and permits
 multiple workflow manifests below an inspected root.
@@ -101,3 +101,34 @@ E-009 resolves the versioned template and records artifact hashes, and E-008
 owns rendering, destination safety, dry-run, conflict handling, writes, and
 rollback. After a successful write, WorkflowSystem rereads the generated
 manifest and requires exact semantic equality with the validated request.
+
+## Typed non-executing planning
+
+E-016.4 adds 'WorkflowOperationHandler' as a structural contract for an
+already-created host handler. A handler declares one vendor-qualified operation
+ID, its Workflow SDK API level, exact ordered input and output port tuples, and
+an execution method for the later runner. Registration snapshots this metadata
+and does not call the method.
+
+'WorkflowOperationRegistry' rejects malformed contracts, duplicate operation
+IDs, and missing exact lookups. It never imports, discovers, instantiates, or
+replaces a handler. The trusted composition root is responsible for constructing
+and registering handler objects.
+
+'WorkflowPlanner' accepts one compatible 'WorkflowRecord' and one explicit
+registry. It revalidates graph invariants, requires a registered handler for
+every node, and matches the workflow SDK level plus the complete ordered input
+and output port contracts. Port equality includes ID, type, description, and
+order.
+
+Planning returns either an immutable 'WorkflowExecutionPlan' or a deterministic
+tuple of 'WorkflowPlanningFailure' values. Successful steps are ordered with
+Kahn topological sorting and a lexical node-ID tie break. Each step carries its
+snapshotted handler registration, sorted node dependencies, and exact incoming
+bindings; workflow-output bindings are retained on the plan.
+
+Planning does not call 'execute', resolve module paths, import operations,
+contact a service, access credentials, launch a subprocess, write files, or
+change application state. There is no planning CLI because workflow data cannot
+select or load a handler. E-016.5 must validate bounded runtime values before
+calling the registered method and will own execution outcomes and failures.

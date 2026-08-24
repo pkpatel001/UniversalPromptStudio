@@ -63,8 +63,8 @@ ignored dependency/build/cache directories, limits depth and manifest count,
 and rejects manifests larger than one MiB. Multiple roots use caller-assigned
 stable labels and retain their provenance.
 
-Execution planning, handler registration, and execution remain separate later
-checkpoints.
+Handler registration and planning are explicit host operations. Handler
+execution remains a separate E-016.5 checkpoint.
 
 ## Generate a starter
 
@@ -88,5 +88,33 @@ generation, then run 'workflow inspect' and 'workflow validate'.
 
 Generation does not create operation code, import a handler, plan a graph,
 execute a node, contact a service, inspect credentials, or integrate with the
-legacy backend workflow placeholder. Typed planning and explicit host handler
-registration remain E-016.4.
+legacy backend workflow placeholder. E-016.4 planning is a separate
+non-executing host operation.
+
+## Register and plan in a trusted host
+
+The application composition root creates handler objects and registers them
+explicitly:
+
+    registry = WorkflowOperationRegistry()
+    registry.register(host_created_handler)
+    report = WorkflowPlanner(registry).plan(workflow_record)
+
+A handler must expose the exact operation ID, 'WorkflowSdkVersion', ordered
+'WorkflowPort' input/output tuples, and the future execution method. Registration
+takes an immutable contract snapshot. It does not import the implementation or
+call that method.
+
+Check 'report.passed' before reading 'report.plan'. A successful plan lists every
+node exactly once in deterministic topological order. A failed report contains
+stable failure codes for incompatible workflow SDKs, invalid graphs, missing
+handlers, handler SDK mismatches, and input or output contract mismatches.
+
+Manifest order does not decide execution order when multiple nodes are ready;
+the planner uses lexical node ID as its stable tie break. A handler port
+description or order difference is an exact-contract mismatch, even when IDs
+and types appear similar.
+
+There is intentionally no CLI option for registering module paths or planning
+against data-selected implementations. Runtime value validation, handler
+invocation, results, partial failures, and event emission remain E-016.5.

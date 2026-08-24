@@ -37,6 +37,19 @@ from .models import (
     WorkflowValueType,
     WorkflowVersion,
 )
+from .planning import (
+    WorkflowExecutionPlan,
+    WorkflowPlanner,
+    WorkflowPlanningFailure,
+    WorkflowPlanningFailureCode,
+    WorkflowPlanningReport,
+    WorkflowPlanStep,
+)
+from .runtime_api import (
+    WorkflowOperationHandler,
+    WorkflowOperationRegistration,
+    WorkflowOperationRegistry,
+)
 from .scaffold import (
     WORKFLOW_SCAFFOLD_TEMPLATE_ID,
     WORKFLOW_SCAFFOLD_TEMPLATE_VERSION,
@@ -82,6 +95,15 @@ __all__ = [
     "WorkflowScaffoldRequest",
     "WorkflowScaffoldResult",
     "WorkflowScaffoldService",
+    "WorkflowExecutionPlan",
+    "WorkflowOperationHandler",
+    "WorkflowOperationRegistration",
+    "WorkflowOperationRegistry",
+    "WorkflowPlanner",
+    "WorkflowPlanningFailure",
+    "WorkflowPlanningFailureCode",
+    "WorkflowPlanningReport",
+    "WorkflowPlanStep",
     "WorkflowService",
     "WorkflowValidationReport",
 ]

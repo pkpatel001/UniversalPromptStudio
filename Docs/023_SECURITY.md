@@ -283,3 +283,23 @@ JavaScript, import or module path, expression, command, credential lookup,
 endpoint, URL, handler, or runtime configuration. Generation does not imply
 that the referenced operation exists or is trusted, and does not plan,
 register, or execute it.
+
+### Workflow handler registration and planning
+
+E-016.4 permits only trusted host code to supply already-created handler
+objects. Workflow manifests still contain operation IDs only; they cannot name
+modules, entry points, commands, constructors, endpoints, or credentials.
+Registration snapshots the handler's identity, Workflow SDK level, and complete
+ordered port contracts, rejects duplicate IDs, and never invokes the handler.
+
+Planning revalidates graph coherence and workflow SDK compatibility, then
+requires an exact registered operation, SDK level, and port contract for every
+node. Missing and mismatched bindings become deterministic structured failures.
+Topological ordering uses a lexical node-ID tie break and does not infer
+precedence from manifest or registry insertion order.
+
+The handler protocol exposes an execution method solely for a later controlled
+runner. E-016.4 never calls it and performs no dynamic import, discovery,
+instantiation, network access, credential access, subprocess, filesystem write,
+event emission, persistence, retry, or scheduling. E-016.5 must validate bounded
+input/output values and contain handler failures before any invocation.
