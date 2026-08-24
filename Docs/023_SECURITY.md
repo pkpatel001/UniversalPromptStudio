@@ -333,3 +333,31 @@ authority and may perform effects the runner cannot prevent. E-016 adds no
 dynamic handler loading, plugin operations, network acquisition, credentials,
 parallelism, retry policy, cancellation, persistence, resume, scheduling, or
 remote triggers. Those require separate future trust and product decisions.
+
+## Controlled Engineering self-generation planning
+
+E-017.1 defines self-generation as a human-requested allowlisted plan, not
+autonomous repository modification. The request accepts only bounded
+package/module identifiers, descriptive text, and an optional CLI-placeholder
+flag. It accepts no repository destination, relative path, template identifier,
+import path, command, overwrite permission, credential, URL, or executable
+content.
+
+Every planned path is derived from a fixed host-owned inventory beneath
+'Engineering/'. Readiness requires exact regular, non-symlinked evidence for
+E-007 through E-016, a recognized project root, no symlinked destination
+component, and no existing destination. Reports are immutable, deterministic,
+and explicitly state that no files were written.
+
+The planner does not import milestone implementations, resolve or execute
+templates, render content, read credentials or environment variables, access
+the network, launch subprocesses, invoke commands, mutate Git, create
+directories, or write files. Renderer keys are inert host vocabulary reserved
+for E-017.2.
+
+This boundary is not a Python sandbox. Trusted code could bypass the planner or
+replace in-process constants. The host must expose the typed planner to request
+sources, keep execution behind the later controlled E-009/E-008 service, and
+require human review of every generated diff. Automatic approval, commits,
+pushes, releases, publishing, dependency installation, arbitrary paths or
+templates, and replacement of security-sensitive core logic remain forbidden.

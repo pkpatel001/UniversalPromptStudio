@@ -32,6 +32,7 @@ __all__ = [
     "PluginError",
     "ProviderError",
     "ThemeError",
+    "SelfGenerationError",
     "CodeGenerationError",
     "TemplateError",
     "TemplateNotFoundError",
@@ -163,6 +164,10 @@ class ThemeError(EngineeringError):
 
 class WorkflowError(EngineeringError):
     """Base exception for workflow SDK and manifest operations."""
+
+
+class SelfGenerationError(EngineeringError):
+    """Base exception for controlled Engineering self-generation planning."""
 
 
 # -----------------------------------------------------------------------------

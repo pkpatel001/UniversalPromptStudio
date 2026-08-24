@@ -144,6 +144,7 @@ bridge maps value-free SDK lifecycle metadata to the existing Backend
 'WorkflowStarted' and 'WorkflowCompleted' events. Runtime values and failure
 messages never enter event payloads.
 
-E-016 is now complete. E-017 Engineering Self-Generation is the next Engineering
-Toolkit milestone. Visual workflow authoring and advanced execution semantics
-remain post-toolkit application work.
+E-016 is complete. E-017.1 now defines the typed, allowlisted, read-only
+self-generation plan. E-017.2 controlled execution and reproducibility is the
+next Engineering Toolkit checkpoint. Visual workflow authoring and advanced
+execution semantics remain post-toolkit application work.
