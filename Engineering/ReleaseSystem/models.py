@@ -18,6 +18,7 @@ class PackageFormat(Enum):
     WHEEL = "wheel"
     FRONTEND_ZIP = "frontend-zip"
     DESKTOP_NSIS = "desktop-nsis"
+    DESKTOP_SIDECAR = "desktop-sidecar"
 
 
 class PackageState(Enum):
@@ -76,7 +77,7 @@ class PackagingPlan:
 
 @dataclass(frozen=True, slots=True)
 class ReleasePreconditionIssue:
-    """One failed release precondition."""
+    """One failed release-readiness problem."""
 
     code: str
     message: str
@@ -139,6 +140,5 @@ class ReleaseReport:
         prefix = "Dry-run " if self.dry_run else ""
         state = "succeeded" if self.success else "failed"
         return (
-            f"{prefix}Release {state}: {succeeded} succeeded, "
-            f"{skipped} skipped, {failed} failed."
+            f"{prefix}Release {state}: {succeeded} succeeded, {skipped} skipped, {failed} failed."
         )

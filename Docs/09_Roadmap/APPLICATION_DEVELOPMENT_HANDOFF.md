@@ -1,51 +1,57 @@
 # Application development handoff
 
-**Completed checkpoint:** A-001.1 — Explicit desktop-to-Python IPC foundation
-**Immediate checkpoint:** A-001.2 — Bundled Python sidecar and installed lifecycle
+**Completed checkpoint:** A-001.2 — Bundled Python sidecar and installed lifecycle
+**Immediate checkpoint:** A-002.1 — SQLite prompt-library persistence foundation
 
 ## Current application baseline
 
-A-001.1 establishes one real, non-destructive development path:
+A-001.2 establishes one installed-safe application path:
 
 ```text
 frontend Check backend action
     -> Tauri backend_readiness command
-        -> long-lived Rust-owned python -m Backend.ipc process
+        -> long-lived Rust-owned declared sidecar
             -> application.readiness
                 -> one in-memory ApplicationContainer
 ```
 
-The boundary has schema-1 request/response envelopes, 16 KiB message limits,
-strict fields and identifiers, one closed application command, request
-correlation, a three-second timeout, structured safe failures, process reuse,
-bounded shutdown, and frontend pending/ready/unavailable states.
+The Python application is frozen by a SHA-256-locked PyInstaller toolchain,
+named for the Rust target triple, declared through Tauri `externalBin`, and used
+by both development and release builds. Rust verifies sidecar identity,
+application version, protocol version, capability, schema, and correlation
+before reporting ready.
 
-The webview cannot choose a process, path, module, function, command, or payload.
-No persistence, provider request, workflow run, network access, credential read,
-or repository write occurs.
+The webview has no shell authority and cannot choose a process, path, argument,
+module, function, IPC command, or payload. Lifecycle tests cover start, process
+reuse, timeout behavior in the host, crash/restart, EOF shutdown, and execution
+from an installed-style path. Release packaging records the sidecar as a
+separate checksummed PE artifact in addition to the unsigned NSIS installer.
 
-## A-001.2 — Bundled Python sidecar and installed lifecycle
+## A-002.1 — SQLite prompt-library persistence foundation
 
-Replace the debug-only system-Python launcher with an explicitly built and
-declared Tauri sidecar/runtime. Deliver:
+Replace the readiness-only in-memory product experience with the first durable,
+offline prompt-library slice. Deliver:
 
-- a reproducible locked sidecar build from the application IPC entrypoint;
-- target-triple-aware `externalBin` declaration and bundle integration;
-- minimal Tauri permissions scoped only to that sidecar if the shell plugin is
-  adopted;
-- exact sidecar identity/version/protocol verification before readiness;
-- installed start, reuse, timeout, crash/restart, and shutdown tests;
-- package manifest/checksum coverage for the sidecar; and
-- development and unsigned NSIS acceptance evidence.
+- an application-owned SQLite database under the supported per-user app-data
+  location, never the installation or repository directory;
+- explicit schema creation and forward-only migration ownership;
+- durable project and prompt creation plus project-scoped prompt listing;
+- a minimal desktop library view that can create a project, create a prompt,
+  restart the application, and show the saved records;
+- typed IPC commands and frontend validation limited to that vertical flow;
+- deterministic repository, service, IPC, frontend, restart, and installed-path
+  tests; and
+- recovery behavior for unavailable, invalid, or future-schema databases that
+  does not silently destroy user data.
 
-Do not fall back to a system Python, compile-time checkout, arbitrary executable,
-or broad shell permission in release builds. Do not add prompt persistence or
-execution until the installed lifecycle is proven.
+Do not add prompt execution, provider credentials, workflow authoring, import,
+sync, arbitrary SQL, or broad filesystem access. Editing, deletion, full-text
+search, and organization refinements belong to later A-002 checkpoints after
+the persistence lifecycle is proven.
 
 ## Subsequent application sequence
 
-1. **A-002:** Prompt-library SQLite persistence, organization, editing, and
-   search.
+1. **A-002.2:** Prompt editing, deletion, organization, and local search.
 2. **A-003:** Prompt composition and offline reference execution.
 3. **A-004:** Controlled provider selection, endpoint configuration, and
    credential handling.
@@ -59,17 +65,17 @@ Each slice must produce a usable vertical outcome and reuse existing domain
 contracts. Add Engineering capability only when the slice exposes a specific
 gap.
 
-## Starting points for A-001.2
+## Starting points for A-002.1
 
+- `Backend/core/container.py`
+- `Backend/infrastructure/repositories/sqlite.py`
+- `Backend/application/services.py`
 - `Backend/ipc/`
 - `Frontend/src/backend-client.js`
+- `Frontend/src/main.js`
 - `Frontend/src-tauri/src/backend.rs`
-- `Frontend/src-tauri/tauri.conf.json`
-- `Frontend/src-tauri/capabilities/default.json`
-- `Engineering/ReleaseSystem/`
-- `Scripts/package-desktop.ps1`
 - `Docs/04_Backend/IPC_PROTOCOL.md`
-- `Docs/ADR/ADR-0040-bounded-desktop-python-ipc-foundation.md`
 
-Before edits, verify clean local/origin/live GitHub parity and recheck current
-Tauri sidecar, capability, and shell-permission guidance from primary sources.
+Before edits, verify clean local/origin/live GitHub parity and inspect current
+Tauri app-data path, SQLite lifecycle, and migration guidance from primary
+sources.

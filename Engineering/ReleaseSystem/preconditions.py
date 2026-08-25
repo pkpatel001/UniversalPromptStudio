@@ -62,8 +62,7 @@ class ReleasePreconditionChecker:
         self._check_build_manifest(context.project_root, issues)
         self._check_tools(issues, formats)
         if any(
-            item in formats
-            for item in (PackageFormat.FRONTEND_ZIP, PackageFormat.DESKTOP_NSIS)
+            item in formats for item in (PackageFormat.FRONTEND_ZIP, PackageFormat.DESKTOP_NSIS)
         ):
             self._check_frontend_lock(context.project_root, issues)
         if PackageFormat.DESKTOP_NSIS in formats:
@@ -73,9 +72,7 @@ class ReleasePreconditionChecker:
         return ReleasePreconditionReport(tuple(sorted(issues, key=lambda item: item.code)))
 
     @staticmethod
-    def _add(
-        issues: list[ReleasePreconditionIssue], code: str, message: str
-    ) -> None:
+    def _add(issues: list[ReleasePreconditionIssue], code: str, message: str) -> None:
         issues.append(ReleasePreconditionIssue(code, message))
 
     def _check_output(
@@ -98,9 +95,7 @@ class ReleasePreconditionChecker:
                     "Release output is not empty; pass --overwrite or clean it first.",
                 )
 
-    def _check_required_files(
-        self, root: Path, issues: list[ReleasePreconditionIssue]
-    ) -> None:
+    def _check_required_files(self, root: Path, issues: list[ReleasePreconditionIssue]) -> None:
         for relative in ("LICENSE", "NOTICE", "COPYRIGHT", "README.md"):
             if not (root / relative).is_file():
                 self._add(
@@ -120,9 +115,7 @@ class ReleasePreconditionChecker:
             pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
             package = json.loads((root / "Frontend" / "package.json").read_text(encoding="utf-8"))
             tauri = json.loads(
-                (root / "Frontend" / "src-tauri" / "tauri.conf.json").read_text(
-                    encoding="utf-8"
-                )
+                (root / "Frontend" / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8")
             )
             project_config = read_yaml(root / "Engineering" / "config" / "project.yaml")
             engineering_version = (root / "Engineering" / "core" / "version.py").read_text(
@@ -161,15 +154,11 @@ class ReleasePreconditionChecker:
         if PackageFormat.DESKTOP_NSIS in formats:
             try:
                 cargo = tomllib.loads(
-                    (root / "Frontend" / "src-tauri" / "Cargo.toml").read_text(
-                        encoding="utf-8"
-                    )
+                    (root / "Frontend" / "src-tauri" / "Cargo.toml").read_text(encoding="utf-8")
                 )
                 cargo_package = cargo.get("package")
                 values["Frontend/src-tauri/Cargo.toml"] = (
-                    cargo_package.get("version")
-                    if isinstance(cargo_package, dict)
-                    else None
+                    cargo_package.get("version") if isinstance(cargo_package, dict) else None
                 )
             except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
                 self._add(
@@ -192,15 +181,12 @@ class ReleasePreconditionChecker:
 
         urls = project.get("urls")
         if not isinstance(urls, dict) or any(
-            not isinstance(value, str) or "<your-github>" in value
-            for value in urls.values()
+            not isinstance(value, str) or "<your-github>" in value for value in urls.values()
         ):
             self._add(issues, "metadata.urls", "Project URLs are missing or contain placeholders.")
 
         scripts = project.get("scripts")
-        if not isinstance(scripts, dict) or not isinstance(
-            scripts.get("ups-engineering"), str
-        ):
+        if not isinstance(scripts, dict) or not isinstance(scripts.get("ups-engineering"), str):
             self._add(issues, "metadata.entry-point", "Python console entry point is missing.")
 
         setuptools = pyproject.get("tool", {}).get("setuptools", {})
@@ -212,9 +198,7 @@ class ReleasePreconditionChecker:
                 "Engineering package data is not configured.",
             )
 
-    def _check_build_manifest(
-        self, root: Path, issues: list[ReleasePreconditionIssue]
-    ) -> None:
+    def _check_build_manifest(self, root: Path, issues: list[ReleasePreconditionIssue]) -> None:
         path = root / "build" / "build-manifest.json"
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -254,10 +238,12 @@ class ReleasePreconditionChecker:
                 "packaging.python-tools",
                 f"Missing Python packaging tools: {', '.join(missing)}.",
             )
-        if any(
-            item in formats
-            for item in (PackageFormat.FRONTEND_ZIP, PackageFormat.DESKTOP_NSIS)
-        ) and shutil.which("npm") is None:
+        if (
+            any(
+                item in formats for item in (PackageFormat.FRONTEND_ZIP, PackageFormat.DESKTOP_NSIS)
+            )
+            and shutil.which("npm") is None
+        ):
             self._add(issues, "packaging.npm-tool", "npm is required for frontend packaging.")
         if PackageFormat.DESKTOP_NSIS in formats:
             missing_rust = [
@@ -270,9 +256,7 @@ class ReleasePreconditionChecker:
                     f"Missing Rust tools: {', '.join(missing_rust)}.",
                 )
 
-    def _check_desktop_project(
-        self, root: Path, issues: list[ReleasePreconditionIssue]
-    ) -> None:
+    def _check_desktop_project(self, root: Path, issues: list[ReleasePreconditionIssue]) -> None:
         cargo_path = root / "Frontend" / "src-tauri" / "Cargo.toml"
         lock_path = root / "Frontend" / "src-tauri" / "Cargo.lock"
         config_path = root / "Frontend" / "src-tauri" / "tauri.conf.json"
@@ -302,25 +286,37 @@ class ReleasePreconditionChecker:
                 raise ValueError("Rust toolchain must use the minimal profile")
             if not {"clippy", "rustfmt"}.issubset(components):
                 raise ValueError("Rust toolchain must include clippy and rustfmt")
-            if not isinstance(dependencies, dict) or "tauri" not in dependencies:
-                raise ValueError("Cargo.toml must declare tauri")
             if (
-                not isinstance(build_dependencies, dict)
-                or "tauri-build" not in build_dependencies
+                not isinstance(dependencies, dict)
+                or "tauri" not in dependencies
+                or "tauri-plugin-shell" not in dependencies
             ):
+                raise ValueError("Cargo.toml must declare tauri and tauri-plugin-shell")
+            if not isinstance(build_dependencies, dict) or "tauri-build" not in build_dependencies:
                 raise ValueError("Cargo.toml must declare tauri-build")
             locked = lock.get("package")
             if not isinstance(locked, list):
                 raise ValueError("Cargo.lock must contain locked packages")
-            locked_names = {
-                item.get("name") for item in locked if isinstance(item, dict)
-            }
-            if not {"tauri", "tauri-build"}.issubset(locked_names):
-                raise ValueError("Cargo.lock must lock tauri and tauri-build")
+            locked_names = {item.get("name") for item in locked if isinstance(item, dict)}
+            if not {"tauri", "tauri-build", "tauri-plugin-shell"}.issubset(locked_names):
+                raise ValueError("Cargo.lock must lock tauri, tauri-build, and tauri-plugin-shell")
             bundle = config.get("bundle") if isinstance(config, dict) else None
             targets = bundle.get("targets") if isinstance(bundle, dict) else None
             if not isinstance(targets, list) or "nsis" not in targets:
                 raise ValueError("tauri.conf.json must enable the NSIS target")
+            external_bin = bundle.get("externalBin") if isinstance(bundle, dict) else None
+            resources = bundle.get("resources") if isinstance(bundle, dict) else None
+            if external_bin != ["binaries/universal-prompt-studio-backend"]:
+                raise ValueError("tauri.conf.json must declare the fixed sidecar externalBin")
+            if resources != ["binaries/*.manifest.json"]:
+                raise ValueError("tauri.conf.json must bundle the sidecar build manifest")
+            for relative in (
+                "Scripts/build-sidecar.ps1",
+                "Scripts/sidecar-requirements.lock",
+                "Scripts/ups_sidecar.py",
+            ):
+                if not (root / relative).is_file():
+                    raise ValueError(f"Required sidecar build input is missing: {relative}")
         except (
             OSError,
             UnicodeError,
@@ -335,9 +331,7 @@ class ReleasePreconditionChecker:
                 f"A locked Tauri v2 NSIS project is required: {exc}",
             )
 
-    def _check_desktop_host(
-        self, issues: list[ReleasePreconditionIssue]
-    ) -> None:
+    def _check_desktop_host(self, issues: list[ReleasePreconditionIssue]) -> None:
         if sys.platform != "win32":
             self._add(
                 issues,
@@ -363,10 +357,7 @@ class ReleasePreconditionChecker:
 
         program_files_x86 = os.environ.get("ProgramFiles(x86)")
         vswhere = (
-            Path(program_files_x86)
-            / "Microsoft Visual Studio"
-            / "Installer"
-            / "vswhere.exe"
+            Path(program_files_x86) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
             if program_files_x86
             else None
         )
@@ -397,16 +388,12 @@ class ReleasePreconditionChecker:
             )
 
         webview_root = (
-            Path(program_files_x86)
-            / "Microsoft"
-            / "EdgeWebView"
-            / "Application"
+            Path(program_files_x86) / "Microsoft" / "EdgeWebView" / "Application"
             if program_files_x86
             else None
         )
         if webview_root is None or not any(
-            path.is_dir() and path.name[0].isdigit()
-            for path in webview_root.glob("*")
+            path.is_dir() and path.name[0].isdigit() for path in webview_root.glob("*")
         ):
             self._add(
                 issues,
@@ -414,9 +401,7 @@ class ReleasePreconditionChecker:
                 "Microsoft Edge WebView2 Runtime is required.",
             )
 
-    def _check_frontend_lock(
-        self, root: Path, issues: list[ReleasePreconditionIssue]
-    ) -> None:
+    def _check_frontend_lock(self, root: Path, issues: list[ReleasePreconditionIssue]) -> None:
         package_path = root / "Frontend" / "package.json"
         lock_path = root / "Frontend" / "package-lock.json"
         try:
@@ -441,9 +426,7 @@ class ReleasePreconditionChecker:
                 f"A synchronized npm lockfile is required: {exc}",
             )
 
-    def _check_worktree(
-        self, root: Path, issues: list[ReleasePreconditionIssue]
-    ) -> None:
+    def _check_worktree(self, root: Path, issues: list[ReleasePreconditionIssue]) -> None:
         completed = subprocess.run(
             [
                 "git",

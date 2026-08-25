@@ -14,6 +14,7 @@ from Engineering.core.exceptions import ReleaseError
 from Engineering.core.filesystem import ensure_directory
 
 from .models import PackageFormat
+from .sidecar import SidecarPackageBuilder
 
 
 class PythonPackageBuilder:
@@ -78,13 +79,8 @@ class FrontendPackageBuilder:
         if npm is None:
             raise ReleaseError("npm is required for frontend packaging.")
         npm_cache = project_root / ".cache" / "npm"
-        self._run(
-            [npm, "ci", "--cache", str(npm_cache)],
-            frontend,
-            "npm ci",
-        )
+        self._run([npm, "ci", "--cache", str(npm_cache)], frontend, "npm ci")
         self._run([npm, "run", "build"], frontend, "Vite build")
-
         return self.package_distribution(project_root, output_directory)
 
     def package_distribution(
@@ -169,24 +165,15 @@ class DesktopPackageBuilder:
             raise ReleaseError("cargo is required for desktop packaging.")
         environment = os.environ.copy()
         environment["PATH"] = str(Path(cargo).parent) + os.pathsep + environment["PATH"]
+        FrontendPackageBuilder._run([npm, "ci", "--cache", str(npm_cache)], frontend, "npm ci")
         FrontendPackageBuilder._run(
-            [npm, "ci", "--cache", str(npm_cache)], frontend, "npm ci"
-        )
-        FrontendPackageBuilder._run(
-            [npm, "run", "desktop:build"],
-            frontend,
-            "Tauri NSIS build",
-            environment,
+            [npm, "run", "desktop:build"], frontend, "Tauri NSIS build", environment
         )
 
-        bundle_directory = (
-            frontend / "src-tauri" / "target" / "release" / "bundle" / "nsis"
-        )
+        bundle_directory = frontend / "src-tauri" / "target" / "release" / "bundle" / "nsis"
         installers = tuple(sorted(bundle_directory.glob("*-setup.exe")))
         if len(installers) != 1:
-            raise ReleaseError(
-                "Tauri build must produce exactly one NSIS setup executable."
-            )
+            raise ReleaseError("Tauri build must produce exactly one NSIS setup executable.")
         ensure_directory(output_directory)
         artifact = output_directory / installers[0].name
         shutil.copy2(installers[0], artifact)
@@ -201,10 +188,12 @@ class CompositePackageBuilder:
         python_builder: PythonPackageBuilder | None = None,
         frontend_builder: FrontendPackageBuilder | None = None,
         desktop_builder: DesktopPackageBuilder | None = None,
+        sidecar_builder: SidecarPackageBuilder | None = None,
     ) -> None:
         self._python = python_builder or PythonPackageBuilder()
         self._frontend = frontend_builder or FrontendPackageBuilder()
         self._desktop = desktop_builder or DesktopPackageBuilder()
+        self._sidecar = sidecar_builder or SidecarPackageBuilder()
 
     def build(
         self,
@@ -215,21 +204,25 @@ class CompositePackageBuilder:
         """Build every requested format into one isolated staging directory."""
 
         python_formats = tuple(
-            item
-            for item in formats
-            if item in (PackageFormat.SDIST, PackageFormat.WHEEL)
+            item for item in formats if item in (PackageFormat.SDIST, PackageFormat.WHEEL)
         )
         artifacts: list[Path] = []
         if python_formats:
-            artifacts.extend(
-                self._python.build(project_root, output_directory, python_formats)
-            )
+            artifacts.extend(self._python.build(project_root, output_directory, python_formats))
         if PackageFormat.DESKTOP_NSIS in formats:
             artifacts.extend(
                 self._desktop.build(
                     project_root,
                     output_directory,
                     (PackageFormat.DESKTOP_NSIS,),
+                )
+            )
+        if PackageFormat.DESKTOP_SIDECAR in formats:
+            artifacts.extend(
+                self._sidecar.build(
+                    project_root,
+                    output_directory,
+                    (PackageFormat.DESKTOP_SIDECAR,),
                 )
             )
         if PackageFormat.FRONTEND_ZIP in formats:

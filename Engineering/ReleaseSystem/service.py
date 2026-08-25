@@ -164,9 +164,7 @@ class ReleaseService:
 
         build_passed, build_message = self._build_gate.verify(context)
         if not build_passed:
-            return self._failed(
-                execution, f"Required E-010 full build failed: {build_message}"
-            )
+            return self._failed(execution, f"Required E-010 full build failed: {build_message}")
 
         ensure_directory(context.output_root)
         formats_to_build = tuple(spec.package_format for spec in plan.specs)
@@ -177,9 +175,7 @@ class ReleaseService:
                 staged = self._builder.build(
                     context.project_root, Path(temporary), formats_to_build
                 )
-                targets = tuple(
-                    self._target_path(context.output_root, item) for item in staged
-                )
+                targets = tuple(self._target_path(context.output_root, item) for item in staged)
                 for target in targets:
                     ensure_directory(target.parent)
                 for target in targets:
@@ -240,6 +236,8 @@ class ReleaseService:
     def _target_path(output_root: Path, artifact: Path) -> Path:
         if artifact.name.endswith("-setup.exe"):
             ecosystem = "desktop"
+        elif artifact.name.startswith("universal-prompt-studio-backend-"):
+            ecosystem = "sidecar"
         elif artifact.suffix == ".zip":
             ecosystem = "frontend"
         else:

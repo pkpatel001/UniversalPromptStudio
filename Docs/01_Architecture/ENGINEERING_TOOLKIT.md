@@ -67,11 +67,11 @@ sandbox.
 ## Application boundary
 
 `Backend/core/container.py` is the current Python composition root. It registers
-the offline provider and workflow reference implementations explicitly. A-001.1
-adds one bounded readiness path from the Tauri/Vite frontend to a long-lived
-development Python process. The exact schema and process boundary are documented
-in `Docs/04_Backend/IPC_PROTOCOL.md`. Release builds fail closed until A-001.2
-bundles an explicit sidecar/runtime.
+the offline provider and workflow reference implementations explicitly. A-001.2
+adds one bounded readiness path from the Tauri/Vite frontend to a long-lived,
+declared, target-triple Python sidecar. The exact schema, locked build, installed
+lifecycle, and release checksum boundary are documented in
+`Docs/04_Backend/IPC_PROTOCOL.md`.
 
 ## Change rule after closure
 

@@ -190,8 +190,13 @@ class FrontendReadinessStep(BuildStep):
         if not isinstance(build, dict):
             problems.append("Tauri configuration has no build mapping.")
         else:
-            if build.get("beforeBuildCommand") != "npm run build":
-                problems.append("Tauri beforeBuildCommand must run the frontend build.")
+            if (
+                build.get("beforeBuildCommand")
+                != "npm run sidecar:build && npm run build"
+            ):
+                problems.append(
+                    "Tauri beforeBuildCommand must build the sidecar and frontend."
+                )
             if build.get("frontendDist") != "../dist":
                 problems.append("Tauri frontendDist must target ../dist.")
 

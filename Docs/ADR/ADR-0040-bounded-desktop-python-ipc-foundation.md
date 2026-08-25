@@ -1,6 +1,6 @@
 # ADR-0040: Bounded desktop-to-Python IPC foundation
 
-**Status:** Accepted  
+**Status:** Superseded by ADR-0041
 **Checkpoint:** A-001.1
 
 ## Context
@@ -44,8 +44,8 @@ ownership keeps the webview surface limited to the custom command.
 - No arbitrary command, path, module, function, or payload crosses the boundary.
 - A packaged build presents a bounded unavailable state rather than depending on
   the build machine's checkout.
-- A-001.2 must produce and declare the distributable sidecar, then verify the
-  installed process lifecycle before prompt features begin.
+- ADR-0041 produces and declares the distributable sidecar, preserves the
+  readiness protocol, and verifies installed lifecycle before prompt features.
 
 ## Non-goals
 

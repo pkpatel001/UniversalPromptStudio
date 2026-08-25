@@ -4,8 +4,8 @@
   "version": "0.2.0-alpha",
   "identifier": "com.universalpromptstudio.desktop",
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run sidecar:build && npm run dev",
+    "beforeBuildCommand": "npm run sidecar:build && npm run build",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173"
   },
@@ -24,6 +24,8 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "externalBin": ["binaries/universal-prompt-studio-backend"],
+    "resources": ["binaries/*.manifest.json"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

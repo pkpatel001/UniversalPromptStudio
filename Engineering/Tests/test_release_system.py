@@ -72,9 +72,7 @@ class TestReleaseVersionAndPlanning:
         with pytest.raises(ReleaseError, match="At least one"):
             planner.plan(_context(tmp_path), ())
         with pytest.raises(ReleaseError, match="unique"):
-            planner.plan(
-                _context(tmp_path), (PackageFormat.WHEEL, PackageFormat.WHEEL)
-            )
+            planner.plan(_context(tmp_path), (PackageFormat.WHEEL, PackageFormat.WHEEL))
 
 
 def _write_precondition_project(root: Path) -> None:
@@ -97,10 +95,7 @@ Engineering = ["config/*.yaml"]
     frontend = root / "Frontend"
     (frontend / "src-tauri").mkdir(parents=True)
     (frontend / "package.json").write_text(
-        (
-            '{"name":"example","version":"0.2.0-alpha",'
-            '"dependencies":{},"devDependencies":{}}'
-        ),
+        ('{"name":"example","version":"0.2.0-alpha","dependencies":{},"devDependencies":{}}'),
         encoding="utf-8",
     )
     (frontend / "package-lock.json").write_text(
@@ -142,9 +137,7 @@ Engineering = ["config/*.yaml"]
             "build.frontend-readiness",
         )
     ]
-    (build / "build-manifest.json").write_text(
-        json.dumps({"steps": steps}), encoding="utf-8"
-    )
+    (build / "build-manifest.json").write_text(json.dumps({"steps": steps}), encoding="utf-8")
 
 
 class TestReleasePreconditions:
@@ -169,9 +162,7 @@ class TestReleasePreconditions:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _write_precondition_project(tmp_path)
-        (tmp_path / "Frontend" / "package.json").write_text(
-            '{"version":"0.1.0"}', encoding="utf-8"
-        )
+        (tmp_path / "Frontend" / "package.json").write_text('{"version":"0.1.0"}', encoding="utf-8")
         monkeypatch.setattr("importlib.util.find_spec", lambda name: object())
         monkeypatch.setattr(
             "subprocess.run",
@@ -295,12 +286,12 @@ class TestFrontendPackageBuilder:
         monkeypatch.setattr("shutil.which", lambda name: "npm")
         monkeypatch.setattr(builder, "_run", fake_run)
 
-        first = builder.build(
-            tmp_path, tmp_path / "first", (PackageFormat.FRONTEND_ZIP,)
-        )[0].read_bytes()
-        second = builder.build(
-            tmp_path, tmp_path / "second", (PackageFormat.FRONTEND_ZIP,)
-        )[0].read_bytes()
+        first = builder.build(tmp_path, tmp_path / "first", (PackageFormat.FRONTEND_ZIP,))[
+            0
+        ].read_bytes()
+        second = builder.build(tmp_path, tmp_path / "second", (PackageFormat.FRONTEND_ZIP,))[
+            0
+        ].read_bytes()
 
         assert first == second
 
@@ -393,6 +384,9 @@ class FakePackageBuilder:
                 PackageFormat.WHEEL: "example.whl",
                 PackageFormat.FRONTEND_ZIP: "frontend.zip",
                 PackageFormat.DESKTOP_NSIS: "example_x64-setup.exe",
+                PackageFormat.DESKTOP_SIDECAR: (
+                    "universal-prompt-studio-backend-x86_64-pc-windows-msvc.exe"
+                ),
             }
             name = names[package_format]
             path = output_directory / name
@@ -406,6 +400,8 @@ class FakeInspector:
         package_format = (
             PackageFormat.WHEEL
             if path.suffix == ".whl"
+            else PackageFormat.DESKTOP_SIDECAR
+            if path.name.startswith("universal-prompt-studio-backend-")
             else PackageFormat.DESKTOP_NSIS
             if path.name.endswith("-setup.exe")
             else PackageFormat.FRONTEND_ZIP
@@ -428,6 +424,10 @@ def _write_verifiable_release(root: Path) -> Path:
         (PackageFormat.WHEEL, "packages/python/example.whl"),
         (PackageFormat.FRONTEND_ZIP, "packages/frontend/frontend.zip"),
         (PackageFormat.DESKTOP_NSIS, "packages/desktop/example_x64-setup.exe"),
+        (
+            PackageFormat.DESKTOP_SIDECAR,
+            "packages/sidecar/universal-prompt-studio-backend-x86_64-pc-windows-msvc.exe",
+        ),
     )
     artifacts: list[PackageArtifact] = []
     for package_format, relative in definitions:
@@ -467,8 +467,8 @@ class TestReleaseArtifactVerifier:
 
         report = ReleaseArtifactVerifier(FakeInspector()).verify(output)
 
-        assert len(report.artifacts) == 4
-        assert report.summary == "Release verification succeeded: 4 artifacts verified."
+        assert len(report.artifacts) == 5
+        assert report.summary == "Release verification succeeded: 5 artifacts verified."
 
     def test_rejects_tampered_artifact(self, tmp_path: Path) -> None:
         output = _write_verifiable_release(tmp_path)
@@ -509,6 +509,7 @@ class TestReleaseService:
                 PackageFormat.WHEEL,
                 PackageFormat.FRONTEND_ZIP,
                 PackageFormat.DESKTOP_NSIS,
+                PackageFormat.DESKTOP_SIDECAR,
             ),
         )
 
@@ -533,6 +534,7 @@ class TestReleaseService:
                 PackageFormat.WHEEL,
                 PackageFormat.FRONTEND_ZIP,
                 PackageFormat.DESKTOP_NSIS,
+                PackageFormat.DESKTOP_SIDECAR,
             ),
         )
 
@@ -540,4 +542,4 @@ class TestReleaseService:
         assert execution.manifest_path is not None and execution.manifest_path.is_file()
         assert execution.checksum_path is not None and execution.checksum_path.is_file()
         assert ReleaseManifest.read(execution.manifest_path) == execution.manifest
-        assert len(execution.report.results) == 4
+        assert len(execution.report.results) == 5

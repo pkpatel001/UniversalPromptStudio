@@ -2,9 +2,8 @@
 
 ## Product integration
 
-- A-001.1 readiness IPC works only in debug development builds with the fixed
-  system-Python command and compile-time repository root. Release builds fail
-  closed until A-001.2 bundles the sidecar/runtime.
+- A-001.2 bundles and verifies the Windows x86_64 Python sidecar. Other target
+  triples still require platform-native locked builds and acceptance evidence.
 - Prompt/project persistence and search are not exposed as complete desktop
   workflows.
 - Prompt builder editing and execution controls remain mostly static shell UI.

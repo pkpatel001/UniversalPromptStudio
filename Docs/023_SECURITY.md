@@ -395,16 +395,17 @@ Every generated diff still requires human review.
 
 ## Bounded desktop-to-Python IPC
 
-A-001.1 exposes one Tauri custom command, `backend_readiness`. The webview may
+A-001.2 exposes one Tauri custom command, `backend_readiness`. The webview may
 provide only a bounded request ID; it cannot select an executable, path, Python
 module, function, application command, or payload. Rust maps the call to the
 fixed `application.readiness` command.
 
-The debug host launches `python -m Backend.ipc` with separate fixed arguments
-from the compile-time repository root. It does not construct or invoke a shell
-string and grants no Tauri shell-plugin permission. Release builds do not use a
-system Python or development path; they return a structured unavailable state
-until A-001.2 bundles an explicit sidecar/runtime.
+Both development and release hosts launch only the target-triple sidecar declared
+by Tauri `externalBin`. The webview retains only `core:default`; no shell-plugin
+permission is exposed. Rust clears the child environment and restores only
+`SystemRoot`, `TEMP`, and `TMP`, which the Windows frozen runtime requires. It
+verifies the exact sidecar identity, application version, protocol version,
+capability, schema, and correlation before returning readiness.
 
 The JSON-lines protocol rejects unknown or duplicate fields, malformed UTF-8 or
 JSON, unsupported versions, non-finite values, malformed identifiers, payload

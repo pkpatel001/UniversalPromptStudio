@@ -55,6 +55,18 @@ try {
     Invoke-Checked "npm" @(
         "audit", "--prefix", "Frontend", "--audit-level=low", "--cache", ".cache/npm"
     )
+    Invoke-Checked "powershell" @(
+        "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+        "Scripts/build-sidecar.ps1"
+    )
+    $env:UPS_REQUIRE_SIDECAR_TESTS = "1"
+    try {
+        Invoke-Checked "python" @("-m", "pytest", "-q", "Tests/test_sidecar_lifecycle.py")
+    }
+    finally {
+        Remove-Item Env:UPS_REQUIRE_SIDECAR_TESTS -ErrorAction SilentlyContinue
+    }
+
     Invoke-Checked "python" @("-m", "Engineering", "build", "run", "--profile", "full")
 
     $releaseArguments = @("-m", "Engineering", "release", "run")

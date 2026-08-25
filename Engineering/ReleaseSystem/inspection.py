@@ -48,14 +48,15 @@ class PackageInspector:
             if path.name.endswith("-setup.exe"):
                 PackageInspector._validate_windows_executable(path)
                 return PackageFormat.DESKTOP_NSIS, ()
+            if path.name.startswith("universal-prompt-studio-backend-") and path.suffix == ".exe":
+                PackageInspector._validate_windows_executable(path)
+                return PackageFormat.DESKTOP_SIDECAR, ()
             if path.suffix == ".whl":
                 with zipfile.ZipFile(path) as archive:
                     return PackageFormat.WHEEL, tuple(sorted(archive.namelist()))
             if path.suffix == ".zip":
                 with zipfile.ZipFile(path) as archive:
-                    return PackageFormat.FRONTEND_ZIP, tuple(
-                        sorted(archive.namelist())
-                    )
+                    return PackageFormat.FRONTEND_ZIP, tuple(sorted(archive.namelist()))
             if path.name.endswith(".tar.gz"):
                 with tarfile.open(path, mode="r:gz") as archive:
                     return PackageFormat.SDIST, tuple(
@@ -67,16 +68,16 @@ class PackageInspector:
 
     @staticmethod
     def _validate_windows_executable(path: Path) -> None:
-        """Validate the DOS and PE signatures without executing the installer."""
+        """Validate the DOS and PE signatures without executing the artifact."""
 
         with path.open("rb") as stream:
             header = stream.read(64)
             if len(header) != 64 or header[:2] != b"MZ":
-                raise ReleaseError("Desktop installer is not a Windows executable.")
+                raise ReleaseError("Desktop artifact is not a Windows executable.")
             pe_offset = struct.unpack_from("<I", header, 0x3C)[0]
             stream.seek(pe_offset)
             if stream.read(4) != b"PE\0\0":
-                raise ReleaseError("Desktop installer has an invalid PE signature.")
+                raise ReleaseError("Desktop artifact has an invalid PE signature.")
 
     @staticmethod
     def _validate_members(members: tuple[str, ...]) -> None:
@@ -90,22 +91,21 @@ class PackageInspector:
                 raise ReleaseError(f"Secret-bearing path found in package: {member}")
 
     @staticmethod
-    def _validate_required(
-        package_format: PackageFormat, members: tuple[str, ...]
-    ) -> None:
-        if package_format == PackageFormat.DESKTOP_NSIS:
+    def _validate_required(package_format: PackageFormat, members: tuple[str, ...]) -> None:
+        if package_format in (
+            PackageFormat.DESKTOP_NSIS,
+            PackageFormat.DESKTOP_SIDECAR,
+        ):
             return
         if package_format == PackageFormat.FRONTEND_ZIP:
             if "index.html" not in members:
                 raise ReleaseError("Frontend package is missing index.html.")
             if not any(
-                member.startswith("assets/") and member.endswith(".js")
-                for member in members
+                member.startswith("assets/") and member.endswith(".js") for member in members
             ):
                 raise ReleaseError("Frontend package is missing a JavaScript asset.")
             if not any(
-                member.startswith("assets/") and member.endswith(".css")
-                for member in members
+                member.startswith("assets/") and member.endswith(".css") for member in members
             ):
                 raise ReleaseError("Frontend package is missing a CSS asset.")
             return

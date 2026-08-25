@@ -24,6 +24,7 @@ from .models import (
 from .planner import ReleasePlanner
 from .preconditions import ReleasePreconditionChecker
 from .service import DefaultBuildGate, ReleaseExecution, ReleaseService
+from .sidecar import SidecarPackageBuilder
 from .verification import ReleaseArtifactVerifier, ReleaseVerificationReport
 
 __all__ = [
@@ -38,6 +39,7 @@ __all__ = [
     "PackageState",
     "PackagingPlan",
     "PythonPackageBuilder",
+    "SidecarPackageBuilder",
     "DefaultBuildGate",
     "RELEASE_MANIFEST_NAME",
     "ReleaseContext",

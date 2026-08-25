@@ -37,9 +37,10 @@ application service continues to depend only on `Backend.interfaces.AIProvider`;
 the composition root owns the concrete SDK registry, execution service, offline
 reference implementation, and adapter wiring.
 
-A-001.1 connects one frontend readiness action to this composition root through
-a Tauri-owned development Python process and strict JSON-lines protocol. Release
-builds fail closed until A-001.2 bundles an explicit sidecar/runtime.
+A-001.2 connects the frontend readiness action to this composition root through
+one Tauri-owned, target-triple frozen Python sidecar and strict JSON-lines
+protocol. Development and release builds use the same declared executable, and
+Rust verifies its identity, version, protocol, capability, and correlation.
 
 ## Engineering Toolkit
 

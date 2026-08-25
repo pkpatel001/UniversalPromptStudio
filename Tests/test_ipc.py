@@ -15,6 +15,7 @@ from Backend.ipc import (
     APPLICATION_READINESS_COMMAND,
     IPC_PROTOCOL_VERSION,
     MAX_IPC_MESSAGE_BYTES,
+    SIDECAR_IDENTITY,
     ApplicationIpcRouter,
     IpcErrorCode,
     IpcProtocolError,
@@ -57,6 +58,7 @@ def test_readiness_uses_one_long_lived_application_container() -> None:
     assert first.error is None and second.error is None
     assert first.result == {
         "status": "ready",
+        "sidecar_identity": SIDECAR_IDENTITY,
         "application_version": "0.2.0-alpha",
         "protocol_version": 1,
         "capabilities": ["application.readiness"],
@@ -169,4 +171,3 @@ def test_module_entrypoint_round_trips_one_request() -> None:
     response = json.loads(completed.stdout)
     assert response["request_id"] == "subprocess"
     assert response["result"]["status"] == "ready"
-

@@ -48,16 +48,21 @@ Run the desktop development host from `Frontend`:
 npm run tauri dev
 ```
 
-Select **Check backend**. The debug Rust host starts the fixed
-`python -m Backend.ipc` process from the repository root and reports readiness.
-Release builds intentionally report unavailable until A-001.2 bundles the
-Python sidecar/runtime.
+Select **Check backend**. The Rust host starts the declared target-triple
+`universal-prompt-studio-backend` sidecar and reports readiness only after exact
+identity, application-version, protocol-version, capability, and correlation
+validation. Development and release builds use the same frozen executable.
 
-The protocol can also be tested directly from the repository root:
+Build and validate the frozen sidecar from the repository root:
 
 ```powershell
-python -m pytest -q Tests/test_ipc.py
+powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/build-sidecar.ps1
+$env:UPS_REQUIRE_SIDECAR_TESTS = "1"
+python -m pytest -q Tests/test_ipc.py Tests/test_sidecar_build.py Tests/test_sidecar_lifecycle.py
 ```
+
+Generated sidecar executables and build manifests remain ignored. Tauri builds
+invoke the same locked build script automatically.
 
 ## Architecture entry points
 

@@ -23,8 +23,9 @@ and deferred scope.
 | A-006 | Extensibility UI | Supported theme, plugin, and provider lifecycle surfaces |
 | A-007 | Product hardening | Import/export, settings, diagnostics, onboarding, accessibility, localization, backup, and distribution polish |
 
-A-001.1 completes the bounded development readiness bridge. The immediate
-checkpoint is **A-001.2 — Bundled Python sidecar and installed lifecycle**.
+A-001.2 completes the bundled Python sidecar and installed lifecycle. The
+immediate checkpoint is **A-002.1 — SQLite prompt-library persistence
+foundation**.
 Scope and acceptance guidance are in `APPLICATION_DEVELOPMENT_HANDOFF.md`.
 
 ## Planning rule

@@ -1,4 +1,4 @@
-"""Closed application-owned command router for A-001.1."""
+"""Closed application-owned command router for the desktop sidecar."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from Engineering.core.version import VERSION
 from .models import IPC_PROTOCOL_VERSION, IpcErrorCode, IpcRequest, IpcResponse, JsonValue
 
 APPLICATION_READINESS_COMMAND = "application.readiness"
+SIDECAR_IDENTITY = "com.universalpromptstudio.backend"
 SUPPORTED_COMMANDS = (APPLICATION_READINESS_COMMAND,)
 
 
@@ -37,9 +38,9 @@ class ApplicationIpcRouter:
             )
         result: dict[str, JsonValue] = {
             "status": "ready",
+            "sidecar_identity": SIDECAR_IDENTITY,
             "application_version": VERSION,
             "protocol_version": IPC_PROTOCOL_VERSION,
             "capabilities": list(SUPPORTED_COMMANDS),
         }
         return IpcResponse.success(request.request_id, result)
-

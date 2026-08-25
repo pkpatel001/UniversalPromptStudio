@@ -1,8 +1,9 @@
 # Application IPC
 
-`Backend.ipc` is the A-001.1 application-owned JSON-lines boundary used by the
-Tauri host. It creates one in-memory `ApplicationContainer`, accepts only the
-closed `application.readiness` command, and serves until stdin reaches EOF.
+`Backend.ipc` is the application-owned JSON-lines boundary frozen into the
+A-001.2 Tauri sidecar. It creates one in-memory `ApplicationContainer`, accepts
+only the closed `application.readiness` command, and serves until stdin reaches
+EOF or the Rust host terminates it.
 
 Development probe:
 

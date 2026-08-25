@@ -9,6 +9,7 @@
   },
   "type": "module",
   "scripts": {
+    "sidecar:build": "powershell -NoProfile -ExecutionPolicy Bypass -File ../Scripts/build-sidecar.ps1",
     "dev": "vite",
     "build": "vite build",
     "test": "node --test src/*.test.js",

@@ -1,26 +1,20 @@
-//! Fixed, correlated lifecycle bridge to the A-001.1 Python application process.
+//! Fixed, correlated lifecycle bridge to the bundled A-001.2 application sidecar.
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::io::Write;
-#[cfg(debug_assertions)]
-use std::io::{BufRead, BufReader};
-#[cfg(debug_assertions)]
-use std::path::PathBuf;
-use std::process::{Child, ChildStdin};
-#[cfg(debug_assertions)]
-use std::process::{Command, Stdio};
-#[cfg(debug_assertions)]
-use std::sync::mpsc;
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use tauri::AppHandle;
+use tauri_plugin_shell::ShellExt;
+use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 
 const IPC_PROTOCOL_VERSION: u32 = 1;
 const MAX_IPC_MESSAGE_BYTES: usize = 16_384;
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(3);
 const READINESS_COMMAND: &str = "application.readiness";
+const SIDECAR_IDENTITY: &str = "com.universalpromptstudio.backend";
+const SIDECAR_NAME: &str = "universal-prompt-studio-backend";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -86,6 +80,7 @@ struct WireResponse {
 #[serde(deny_unknown_fields)]
 struct WireReadiness {
     status: String,
+    sidecar_identity: String,
     application_version: String,
     protocol_version: u32,
     capabilities: Vec<String>,
@@ -99,64 +94,49 @@ struct WireError {
 }
 
 struct BackendProcess {
-    child: Child,
-    input: Option<ChildStdin>,
+    child: Option<CommandChild>,
     output: Receiver<Result<Vec<u8>, ()>>,
 }
 
 impl BackendProcess {
-    #[cfg(debug_assertions)]
-    fn spawn_development() -> Result<Self, BackendCommandError> {
-        let project_root = development_project_root()?;
-        let mut command = Command::new("python");
-        command
-            .args(["-m", "Backend.ipc"])
-            .current_dir(project_root)
-            .env("PYTHONDONTWRITEBYTECODE", "1")
-            .env("PYTHONUNBUFFERED", "1")
-            .env("PYTHONUTF8", "1")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null());
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            command.creation_flags(0x0800_0000);
+    fn spawn(app: &AppHandle) -> Result<Self, BackendCommandError> {
+        let mut command = app
+            .shell()
+            .sidecar(SIDECAR_NAME)
+            .map_err(|_| BackendCommandError::unavailable())?
+            .env_clear();
+        for key in ["SystemRoot", "TEMP", "TMP"] {
+            if let Some(value) = std::env::var_os(key) {
+                command = command.env(key, value);
+            }
         }
-        let mut child = command
+        let (mut events, child) = command
             .spawn()
             .map_err(|_| BackendCommandError::unavailable())?;
-        let input = child
-            .stdin
-            .take()
-            .ok_or_else(BackendCommandError::unavailable)?;
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(BackendCommandError::unavailable)?;
         let (sender, output) = mpsc::channel();
-        thread::spawn(move || {
-            for line in BufReader::new(stdout).split(b'\n') {
-                let value = match line {
-                    Ok(value) if value.len() <= MAX_IPC_MESSAGE_BYTES => Ok(value),
-                    _ => Err(()),
-                };
-                let failed = value.is_err();
-                if sender.send(value).is_err() || failed {
-                    break;
+        tauri::async_runtime::spawn(async move {
+            while let Some(event) = events.recv().await {
+                match event {
+                    CommandEvent::Stdout(value) if value.len() <= MAX_IPC_MESSAGE_BYTES => {
+                        if sender.send(Ok(value)).is_err() {
+                            break;
+                        }
+                    }
+                    CommandEvent::Stdout(_)
+                    | CommandEvent::Error(_)
+                    | CommandEvent::Terminated(_) => {
+                        let _ = sender.send(Err(()));
+                        break;
+                    }
+                    CommandEvent::Stderr(_) => {}
+                    _ => {}
                 }
             }
         });
         Ok(Self {
-            child,
-            input: Some(input),
+            child: Some(child),
             output,
         })
-    }
-
-    #[cfg(not(debug_assertions))]
-    fn spawn_development() -> Result<Self, BackendCommandError> {
-        Err(BackendCommandError::unavailable())
     }
 
     fn readiness(&mut self, request_id: &str) -> Result<BackendReadiness, BackendCommandError> {
@@ -166,7 +146,7 @@ impl BackendProcess {
             command: READINESS_COMMAND,
             payload: WirePayload::default(),
         };
-        let encoded =
+        let mut encoded =
             serde_json::to_vec(&request).map_err(|_| BackendCommandError::unavailable())?;
         if encoded.len() > MAX_IPC_MESSAGE_BYTES {
             return Err(BackendCommandError::new(
@@ -174,14 +154,11 @@ impl BackendProcess {
                 "The backend request is too large.",
             ));
         }
-        let input = self
-            .input
+        encoded.push(b'\n');
+        self.child
             .as_mut()
-            .ok_or_else(BackendCommandError::unavailable)?;
-        input
-            .write_all(&encoded)
-            .and_then(|_| input.write_all(b"\n"))
-            .and_then(|_| input.flush())
+            .ok_or_else(BackendCommandError::unavailable)?
+            .write(&encoded)
             .map_err(|_| BackendCommandError::unavailable())?;
         let line = self
             .output
@@ -194,28 +171,24 @@ impl BackendProcess {
 
 impl Drop for BackendProcess {
     fn drop(&mut self) {
-        self.input.take();
-        let deadline = Instant::now() + Duration::from_millis(500);
-        while Instant::now() < deadline {
-            match self.child.try_wait() {
-                Ok(Some(_)) => return,
-                Ok(None) => thread::sleep(Duration::from_millis(20)),
-                Err(_) => break,
-            }
+        if let Some(child) = self.child.take() {
+            let _ = child.kill();
         }
-        let _ = self.child.kill();
-        let _ = self.child.wait();
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct BackendManager {
+    app: AppHandle,
     process: Arc<Mutex<Option<BackendProcess>>>,
 }
 
 impl BackendManager {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(app: AppHandle) -> Self {
+        Self {
+            app,
+            process: Arc::new(Mutex::new(None)),
+        }
     }
 
     fn readiness(&self, request_id: &str) -> Result<BackendReadiness, BackendCommandError> {
@@ -230,7 +203,7 @@ impl BackendManager {
             .lock()
             .map_err(|_| BackendCommandError::unavailable())?;
         if process.is_none() {
-            *process = Some(BackendProcess::spawn_development()?);
+            *process = Some(BackendProcess::spawn(&self.app)?);
         }
         let result = process
             .as_mut()
@@ -252,14 +225,6 @@ pub async fn backend_readiness(
     tauri::async_runtime::spawn_blocking(move || manager.readiness(&request_id))
         .await
         .map_err(|_| BackendCommandError::unavailable())?
-}
-
-#[cfg(debug_assertions)]
-fn development_project_root() -> Result<PathBuf, BackendCommandError> {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()
-        .map_err(|_| BackendCommandError::unavailable())
 }
 
 fn valid_request_id(value: &str) -> bool {
@@ -288,9 +253,10 @@ fn parse_readiness_response(
             .result
             .ok_or_else(BackendCommandError::unavailable)?;
         if result.status != "ready"
+            || result.sidecar_identity != SIDECAR_IDENTITY
+            || result.application_version != env!("CARGO_PKG_VERSION")
             || result.protocol_version != IPC_PROTOCOL_VERSION
             || result.capabilities != [READINESS_COMMAND]
-            || result.application_version.is_empty()
         {
             return Err(BackendCommandError::unavailable());
         }
@@ -328,8 +294,8 @@ mod tests {
     }
 
     #[test]
-    fn response_parser_requires_exact_correlation_and_contract() {
-        let valid = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","application_version":"0.2.0-alpha","protocol_version":1,"capabilities":["application.readiness"]}}"#;
+    fn response_parser_requires_identity_version_protocol_and_correlation() {
+        let valid = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"com.universalpromptstudio.backend","application_version":"0.2.0-alpha","protocol_version":1,"capabilities":["application.readiness"]}}"#;
         assert_eq!(
             parse_readiness_response(valid, "one").unwrap(),
             BackendReadiness {
@@ -340,8 +306,11 @@ mod tests {
             }
         );
         assert!(parse_readiness_response(valid, "two").is_err());
-        let extra = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","application_version":"0.2.0-alpha","protocol_version":1,"capabilities":["application.readiness"]},"extra":true}"#;
-        assert!(parse_readiness_response(extra, "one").is_err());
+
+        let wrong_identity = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"example.invalid","application_version":"0.2.0-alpha","protocol_version":1,"capabilities":["application.readiness"]}}"#;
+        assert!(parse_readiness_response(wrong_identity, "one").is_err());
+        let wrong_version = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"com.universalpromptstudio.backend","application_version":"0.2.1","protocol_version":1,"capabilities":["application.readiness"]}}"#;
+        assert!(parse_readiness_response(wrong_version, "one").is_err());
 
         let backend_error = br#"{"schema_version":1,"request_id":"one","ok":false,"error":{"code":"ipc.internal_error","message":"Untrusted backend detail."}}"#;
         let collapsed = parse_readiness_response(backend_error, "one").unwrap_err();
@@ -350,17 +319,5 @@ mod tests {
             collapsed.message,
             "The local application backend is unavailable."
         );
-    }
-
-    #[test]
-    fn one_python_process_serves_multiple_correlated_requests() {
-        let mut process = BackendProcess::spawn_development().unwrap();
-        let process_id = process.child.id();
-        let first = process.readiness("rust-one").unwrap();
-        let second = process.readiness("rust-two").unwrap();
-
-        assert_eq!(process.child.id(), process_id);
-        assert_eq!(first.status, "ready");
-        assert_eq!(second.application_version, "0.2.0-alpha");
     }
 }

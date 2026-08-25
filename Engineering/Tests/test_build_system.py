@@ -277,7 +277,8 @@ class TestFrontendReadinessStep:
             encoding="utf-8",
         )
         (frontend / "src-tauri" / "tauri.conf.json").write_text(
-            '{"build":{"beforeBuildCommand":"npm run build","frontendDist":"../dist"}}',
+            '{"build":{"beforeBuildCommand":"npm run sidecar:build && npm run build",'
+            '"frontendDist":"../dist"}}',
             encoding="utf-8",
         )
         for relative in ("index.html", "src/main.js", "src/styles.css"):

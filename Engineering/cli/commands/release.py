@@ -26,6 +26,7 @@ _LOCAL_FORMATS = (
     PackageFormat.WHEEL,
     PackageFormat.FRONTEND_ZIP,
     PackageFormat.DESKTOP_NSIS,
+    PackageFormat.DESKTOP_SIDECAR,
 )
 
 
@@ -68,19 +69,16 @@ def release_run(
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     overwrite: Annotated[bool, typer.Option("--overwrite")] = False,
 ) -> None:
-    """Create inspected Python and frontend packages locally."""
+    """Create inspected Python, frontend, desktop, and sidecar packages locally."""
 
-    execution = ReleaseService().run(
-        _context(dry_run=dry_run, overwrite=overwrite), _LOCAL_FORMATS
-    )
+    execution = ReleaseService().run(_context(dry_run=dry_run, overwrite=overwrite), _LOCAL_FORMATS)
     for issue in execution.preconditions.issues:
         console.print(f"FAILED {issue.code}: {issue.message}")
     if execution.report is None:
         raise typer.Exit(code=EXIT_CODE_VALIDATION_FAILURE)
     for result in execution.report.results:
         console.print(
-            f"{result.state.value.upper():9} "
-            f"{_package_id(result.package_format)}: {result.message}"
+            f"{result.state.value.upper():9} {_package_id(result.package_format)}: {result.message}"
         )
     console.print(execution.report.summary)
     if execution.manifest_path is not None:
@@ -120,4 +118,6 @@ def _package_id(package_format: PackageFormat) -> str:
         return "package.frontend.zip"
     if package_format == PackageFormat.DESKTOP_NSIS:
         return "package.desktop.nsis"
+    if package_format == PackageFormat.DESKTOP_SIDECAR:
+        return "package.desktop.sidecar"
     return f"package.python.{package_format.value}"
