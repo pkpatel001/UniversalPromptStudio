@@ -1,4 +1,4 @@
-"""Real frozen-sidecar lifecycle acceptance tests through A-002.1."""
+"""Real frozen-sidecar lifecycle acceptance tests through A-002.2."""
 
 from __future__ import annotations
 
@@ -15,9 +15,14 @@ from Backend.infrastructure.repositories.sqlite import DATABASE_FILE_NAME
 from Backend.ipc import (
     IPC_PROTOCOL_VERSION,
     PROJECT_CREATE_COMMAND,
+    PROJECT_DELETE_COMMAND,
     PROJECT_LIST_COMMAND,
     PROMPT_CREATE_COMMAND,
+    PROMPT_DELETE_COMMAND,
+    PROMPT_GET_COMMAND,
     PROMPT_LIST_COMMAND,
+    PROMPT_SEARCH_COMMAND,
+    PROMPT_UPDATE_COMMAND,
     SIDECAR_IDENTITY,
 )
 from Engineering.core.version import VERSION
@@ -28,8 +33,13 @@ CAPABILITIES = [
     "application.readiness",
     "library.projects.list",
     "library.projects.create",
+    "library.projects.delete",
     "library.prompts.list",
     "library.prompts.create",
+    "library.prompts.get",
+    "library.prompts.update",
+    "library.prompts.delete",
+    "library.prompts.search",
 ]
 
 
@@ -204,11 +214,31 @@ def test_installed_sidecar_persists_library_only_in_app_data(
         {"name": "Installed project", "description": ""},
     )
     project_id = project_response["result"]["project"]["project_id"]  # type: ignore[index]
-    _command(
+    prompt_response = _command(
         first,
         "create-prompt",
         PROMPT_CREATE_COMMAND,
         {"project_id": project_id, "title": "Installed prompt"},
+    )
+    prompt_id = prompt_response["result"]["prompt"]["prompt_id"]  # type: ignore[index]
+    _command(
+        first,
+        "update-prompt",
+        PROMPT_UPDATE_COMMAND,
+        {
+            "project_id": project_id,
+            "prompt_id": prompt_id,
+            "title": "Installed release prompt",
+            "category": "Delivery",
+            "tags": ["Windows", "Offline"],
+            "blocks": [
+                {
+                    "block_type": "goal",
+                    "content": "Ship the installer",
+                    "enabled": True,
+                }
+            ],
+        },
     )
     _stop(first)
 
@@ -220,9 +250,59 @@ def test_installed_sidecar_persists_library_only_in_app_data(
         PROMPT_LIST_COMMAND,
         {"project_id": project_id},
     )
+    fetched = _command(
+        second,
+        "get-prompt",
+        PROMPT_GET_COMMAND,
+        {"project_id": project_id, "prompt_id": prompt_id},
+    )
+    searched = _command(
+        second,
+        "search-prompts",
+        PROMPT_SEARCH_COMMAND,
+        {"project_id": project_id, "query": "INSTALLER"},
+    )
+    _command(
+        second,
+        "delete-prompt",
+        PROMPT_DELETE_COMMAND,
+        {"project_id": project_id, "prompt_id": prompt_id, "confirm": True},
+    )
+    replacement = _command(
+        second,
+        "create-dependent",
+        PROMPT_CREATE_COMMAND,
+        {"project_id": project_id, "title": "Delete with project"},
+    )
+    deleted_project = _command(
+        second,
+        "delete-project",
+        PROJECT_DELETE_COMMAND,
+        {"project_id": project_id, "confirm": True},
+    )
+    remaining_projects = _command(second, "remaining-projects", PROJECT_LIST_COMMAND, {})
     _stop(second)
 
     assert projects["result"]["projects"][0]["name"] == "Installed project"  # type: ignore[index]
-    assert prompts["result"]["prompts"][0]["title"] == "Installed prompt"  # type: ignore[index]
+    persisted = prompts["result"]["prompts"][0]  # type: ignore[index]
+    assert persisted["title"] == "Installed release prompt"  # type: ignore[index]
+    assert persisted["category"] == "Delivery"  # type: ignore[index]
+    assert persisted["tags"] == ["Offline", "Windows"]  # type: ignore[index]
+    assert persisted["blocks"] == [  # type: ignore[index]
+        {
+            "block_type": "goal",
+            "content": "Ship the installer",
+            "order": 0,
+            "enabled": True,
+        }
+    ]
+    assert fetched["result"]["prompt"] == persisted  # type: ignore[index]
+    assert searched["result"]["prompts"] == [persisted]  # type: ignore[index]
+    assert replacement["result"]["prompt"]["title"] == "Delete with project"  # type: ignore[index]
+    assert deleted_project["result"] == {
+        "deleted_project_id": project_id,
+        "deleted_prompt_count": 1,
+    }
+    assert remaining_projects["result"] == {"projects": [], "has_more": False}
     assert (app_data / DATABASE_FILE_NAME).is_file()
     assert list(installed.parent.rglob("*.sqlite3")) == []

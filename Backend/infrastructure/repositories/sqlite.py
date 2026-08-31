@@ -277,6 +277,24 @@ class SQLiteProjectRepository(ProjectRepository):
             ).all()
             return [_project_from_record(record) for record in records]
 
+    def delete(self, project_id: str) -> int | None:
+        """Delete a project and all dependent prompts in one transaction."""
+
+        with self._storage_provider.session() as session:
+            project = session.get(ProjectRecord, project_id)
+            if project is None:
+                return None
+            prompts = session.scalars(
+                select(PromptRecord).where(PromptRecord.project_id == project_id)
+            ).all()
+            deleted_prompt_count = len(prompts)
+            for prompt in prompts:
+                session.delete(prompt)
+            session.flush()
+            session.delete(project)
+            session.commit()
+            return deleted_prompt_count
+
 
 class SQLitePromptRepository(PromptRepository):
     """SQLite implementation of the prompt repository contract."""
@@ -331,6 +349,17 @@ class SQLitePromptRepository(PromptRepository):
         with self._storage_provider.session() as session:
             records = session.scalars(statement).all()
             return [_prompt_from_record(record) for record in records]
+
+    def delete(self, prompt_id: str, project_id: str) -> bool:
+        """Delete one prompt only when its ownership matches."""
+
+        with self._storage_provider.session() as session:
+            record = session.get(PromptRecord, prompt_id)
+            if record is None or record.project_id != project_id:
+                return False
+            session.delete(record)
+            session.commit()
+            return True
 
 
 def _project_from_record(record: ProjectRecord) -> Project:

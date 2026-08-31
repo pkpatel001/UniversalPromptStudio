@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from datetime import UTC, datetime
+
 from Backend.application.prompt_builder import PromptBuilder
 from Backend.core.events import DomainEvent, EventBus, EventNames
 from Backend.core.registry import ProviderRegistry
-from Backend.domain.models import Project, Prompt, PromptExecutionRequest, PromptExecutionResult
+from Backend.domain.models import (
+    Project,
+    Prompt,
+    PromptBlock,
+    PromptExecutionRequest,
+    PromptExecutionResult,
+)
 from Backend.interfaces.providers import (
     AIProvider,
     HistoryProvider,
@@ -14,6 +23,14 @@ from Backend.interfaces.providers import (
     SearchProvider,
 )
 from Backend.repositories.contracts import ProjectRepository, PromptRepository
+
+MAX_CATEGORY_LENGTH = 80
+MAX_TAGS = 10
+MAX_TAG_LENGTH = 32
+MAX_BLOCKS = 12
+MAX_BLOCK_CONTENT_LENGTH = 2_000
+MAX_TOTAL_BLOCK_CONTENT_LENGTH = 12_000
+MAX_SEARCH_QUERY_LENGTH = 120
 
 
 class ProjectService:
@@ -43,6 +60,20 @@ class ProjectService:
         """Return the durable project library."""
 
         return list(self._repository.list())
+
+    def delete_project(self, project_id: str) -> int:
+        """Delete a project and its dependent prompts."""
+
+        deleted_prompt_count = self._repository.delete(project_id)
+        if deleted_prompt_count is None:
+            raise LookupError("Project does not exist.")
+        self._event_bus.publish(
+            DomainEvent(
+                EventNames.PROJECT_CLOSED,
+                {"project_id": project_id, "deleted_prompt_count": deleted_prompt_count},
+            )
+        )
+        return deleted_prompt_count
 
 
 class PromptService:
@@ -87,10 +118,128 @@ class PromptService:
             raise LookupError("Project does not exist.")
         return list(self._repository.list(project_id))
 
+    def get_project_prompt(self, project_id: str, prompt_id: str) -> Prompt:
+        """Load one prompt only within its owning project."""
+
+        self._require_project(project_id)
+        prompt = self._repository.get(prompt_id)
+        if prompt is None or prompt.project_id != project_id:
+            raise LookupError("Prompt does not exist in this project.")
+        return prompt
+
+    def update_library_prompt(
+        self,
+        project_id: str,
+        prompt_id: str,
+        title: str,
+        category: str | None,
+        tags: Sequence[str],
+        blocks: Sequence[PromptBlock],
+    ) -> Prompt:
+        """Validate and durably replace editable prompt content."""
+
+        prompt = self.get_project_prompt(project_id, prompt_id)
+        prompt.title = _bounded_text(title, 120, "Prompt title")
+        prompt.category = _optional_bounded_text(category, MAX_CATEGORY_LENGTH, "Prompt category")
+        prompt.tags = _normalize_tags(tags)
+        prompt.blocks = _normalize_blocks(blocks)
+        prompt.updated_at = datetime.now(UTC)
+        self._repository.add(prompt)
+        self._event_bus.publish(
+            DomainEvent(EventNames.PROMPT_UPDATED, {"prompt_id": prompt.prompt_id})
+        )
+        return prompt
+
+    def delete_library_prompt(self, project_id: str, prompt_id: str) -> None:
+        """Delete one prompt only within its owning project."""
+
+        self._require_project(project_id)
+        if not self._repository.delete(prompt_id, project_id):
+            raise LookupError("Prompt does not exist in this project.")
+        self._event_bus.publish(DomainEvent(EventNames.PROMPT_DELETED, {"prompt_id": prompt_id}))
+
+    def search_project_prompts(self, project_id: str, query: str) -> list[Prompt]:
+        """Search deterministic local prompt text within one project."""
+
+        self._require_project(project_id)
+        normalized_query = _bounded_text(query, MAX_SEARCH_QUERY_LENGTH, "Search query")
+        needle = normalized_query.casefold()
+        return [
+            prompt
+            for prompt in self._repository.list(project_id)
+            if needle in _prompt_search_text(prompt)
+        ]
+
+    def _require_project(self, project_id: str) -> None:
+        if self._project_repository is None or self._project_repository.get(project_id) is None:
+            raise LookupError("Project does not exist.")
+
     def render_prompt(self, prompt: Prompt) -> str:
         """Build the final prompt text."""
 
         return self._prompt_builder.build(prompt)
+
+
+def _bounded_text(value: str, maximum: int, label: str) -> str:
+    normalized = value.strip()
+    if not normalized or len(normalized) > maximum:
+        raise ValueError(f"{label} must contain 1 to {maximum} characters.")
+    return normalized
+
+
+def _optional_bounded_text(value: str | None, maximum: int, label: str) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if len(normalized) > maximum:
+        raise ValueError(f"{label} must not exceed {maximum} characters.")
+    return normalized
+
+
+def _normalize_tags(tags: Sequence[str]) -> set[str]:
+    if isinstance(tags, str) or len(tags) > MAX_TAGS:
+        raise ValueError(f"A prompt supports at most {MAX_TAGS} tags.")
+    normalized: dict[str, str] = {}
+    for tag in tags:
+        value = _bounded_text(tag, MAX_TAG_LENGTH, "Prompt tag")
+        if "\n" in value or "\r" in value:
+            raise ValueError("Prompt tags must be single-line text.")
+        key = value.casefold()
+        if key in normalized:
+            raise ValueError("Prompt tags must be unique ignoring case.")
+        normalized[key] = value
+    return set(normalized.values())
+
+
+def _normalize_blocks(blocks: Sequence[PromptBlock]) -> list[PromptBlock]:
+    if len(blocks) > MAX_BLOCKS:
+        raise ValueError(f"A prompt supports at most {MAX_BLOCKS} blocks.")
+    normalized: list[PromptBlock] = []
+    total_content = 0
+    for order, block in enumerate(blocks):
+        content = _bounded_text(block.content, MAX_BLOCK_CONTENT_LENGTH, "Prompt block content")
+        total_content += len(content)
+        normalized.append(
+            PromptBlock(
+                block_type=block.block_type,
+                content=content,
+                order=order,
+                enabled=block.enabled,
+            )
+        )
+    if total_content > MAX_TOTAL_BLOCK_CONTENT_LENGTH:
+        raise ValueError(
+            f"Prompt block content must not exceed {MAX_TOTAL_BLOCK_CONTENT_LENGTH} characters."
+        )
+    return normalized
+
+
+def _prompt_search_text(prompt: Prompt) -> str:
+    values = [prompt.title, prompt.category or "", *sorted(prompt.tags, key=str.casefold)]
+    values.extend(block.content for block in sorted(prompt.blocks, key=lambda item: item.order))
+    return "\n".join(values).casefold()
 
 
 class PromptExecutionService:

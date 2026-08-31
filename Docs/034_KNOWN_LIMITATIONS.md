@@ -2,13 +2,15 @@
 
 ## Product integration
 
-- A-002.1 persists projects and project-owned prompt summaries under Tauri's
-  per-user app-data directory. Editing, deletion, categories, tags, and local
-  search remain scheduled for A-002.2.
+- A-002.2 provides project-owned prompt editing, ordered blocks, categories,
+  tags, deterministic project-scoped search, and explicit prompt/project
+  deletion under Tauri's per-user app-data directory.
 - The product bundles and verifies the Windows x86_64 Python sidecar. Other target
   triples still require platform-native locked builds and acceptance evidence.
-- Prompt-library management and search are not yet complete desktop workflows.
+- Search is a bounded synchronous scan of the selected local project; there is no
+  background index, ranking, fuzzy matching, or cross-project search.
 - Prompt composition and execution controls are deferred to A-003.
+- Deleted projects and prompts are not recoverable in the application UI.
 - Workflow authoring and execution have no product UI.
 
 ## Extensibility and trust

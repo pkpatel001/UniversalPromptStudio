@@ -52,10 +52,12 @@ The Engineering Toolkit is complete through E-017. The repository contains:
 * Automated Python, frontend, and Rust validation
 * A minimal Tauri/Vite frontend shell with controlled theme selection
 
-The desktop product remains alpha. A-002.1 provides a versioned SQLite prompt
-library in Tauri-managed app data, with durable project and project-owned prompt
-creation/listing across installed application restarts. A-002.2 is the exact
-next checkpoint: prompt editing, deletion, organization, and local search.
+The desktop product remains alpha. A-002.2 provides a usable versioned SQLite
+prompt library in Tauri-managed app data, with durable project and prompt
+creation, ordered-block editing, category/tag organization, project-scoped local
+search, and explicit prompt/project deletion across installed application
+restarts. A-003 is the exact next checkpoint: prompt composition and offline
+reference execution.
 
 ## Technology Stack
 

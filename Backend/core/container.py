@@ -75,9 +75,10 @@ class ApplicationContainer:
 def create_in_memory_container() -> ApplicationContainer:
     """Create a container backed by in-memory repositories."""
 
+    prompt_repository = InMemoryPromptRepository()
     return _create_container(
-        project_repository=InMemoryProjectRepository(),
-        prompt_repository=InMemoryPromptRepository(),
+        project_repository=InMemoryProjectRepository(prompt_repository),
+        prompt_repository=prompt_repository,
     )
 
 

@@ -23,6 +23,10 @@ class ProjectRepository(ABC):
     def list(self) -> Sequence[Project]:
         """Return all projects."""
 
+    @abstractmethod
+    def delete(self, project_id: str) -> int | None:
+        """Delete a project and return its dependent-prompt count, if found."""
+
 
 class PromptRepository(ABC):
     """Persistence contract for prompts."""
@@ -38,6 +42,10 @@ class PromptRepository(ABC):
     @abstractmethod
     def list(self, project_id: str | None = None) -> Sequence[Prompt]:
         """Return prompts, optionally restricted to one project."""
+
+    @abstractmethod
+    def delete(self, prompt_id: str, project_id: str) -> bool:
+        """Delete one project-owned prompt."""
 
 
 class HistoryRepository(ABC):

@@ -27,10 +27,16 @@
   migration ownership and non-destructive corrupt/future-schema recovery.
 - Added durable project creation/listing and project-owned prompt
   creation/listing across source, frozen-sidecar, restart, and installed paths.
+- Added durable prompt title, category, tag, and ordered-block editing while
+  retaining schema version 1 and existing user data.
+- Added deterministic case-insensitive local search scoped to the selected
+  project across titles, categories, tags, and block content.
+- Added explicit prompt deletion and project deletion with dependent-prompt
+  removal, confirmation, ownership validation, and installed restart coverage.
 - Replaced the readiness-only screen with the minimal offline prompt library and
-  five strictly validated desktop-to-sidecar commands.
-- The next checkpoint is A-002.2: prompt editing, deletion, organization, and
-  local search.
+  expanded it into a usable management workspace backed by ten strictly
+  validated desktop-to-sidecar commands.
+- The next checkpoint is A-003: prompt composition and offline reference execution.
 
 This changelog records milestone-level changes. Git history remains the source
 for checkpoint-level implementation detail.

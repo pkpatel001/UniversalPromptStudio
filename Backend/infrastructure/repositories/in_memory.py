@@ -9,8 +9,9 @@ from Backend.repositories.contracts import ProjectRepository, PromptRepository
 class InMemoryProjectRepository(ProjectRepository):
     """In-memory project repository."""
 
-    def __init__(self) -> None:
+    def __init__(self, prompt_repository: InMemoryPromptRepository | None = None) -> None:
         self._projects: dict[str, Project] = {}
+        self._prompt_repository = prompt_repository
 
     def add(self, project: Project) -> None:
         """Persist a project."""
@@ -29,6 +30,17 @@ class InMemoryProjectRepository(ProjectRepository):
             self._projects.values(),
             key=lambda project: (project.name.casefold(), project.project_id),
         )
+
+    def delete(self, project_id: str) -> int | None:
+        """Delete a project and all dependent prompts."""
+
+        if project_id not in self._projects:
+            return None
+        dependent_count = 0
+        if self._prompt_repository is not None:
+            dependent_count = self._prompt_repository.delete_for_project(project_id)
+        del self._projects[project_id]
+        return dependent_count
 
 
 class InMemoryPromptRepository(PromptRepository):
@@ -56,3 +68,24 @@ class InMemoryPromptRepository(PromptRepository):
             if project_id is None or prompt.project_id == project_id
         ]
         return sorted(prompts, key=lambda prompt: (prompt.title.casefold(), prompt.prompt_id))
+
+    def delete(self, prompt_id: str, project_id: str) -> bool:
+        """Delete one prompt only when its ownership matches."""
+
+        prompt = self._prompts.get(prompt_id)
+        if prompt is None or prompt.project_id != project_id:
+            return False
+        del self._prompts[prompt_id]
+        return True
+
+    def delete_for_project(self, project_id: str) -> int:
+        """Delete all prompts owned by one project."""
+
+        prompt_ids = [
+            prompt_id
+            for prompt_id, prompt in self._prompts.items()
+            if prompt.project_id == project_id
+        ]
+        for prompt_id in prompt_ids:
+            del self._prompts[prompt_id]
+        return len(prompt_ids)

@@ -48,6 +48,7 @@ class EventNames:
     PROJECT_CLOSED = "ProjectClosed"
     PROMPT_CREATED = "PromptCreated"
     PROMPT_UPDATED = "PromptUpdated"
+    PROMPT_DELETED = "PromptDeleted"
     PROMPT_EXECUTED = "PromptExecuted"
     WORKFLOW_STARTED = "WorkflowStarted"
     WORKFLOW_COMPLETED = "WorkflowCompleted"
@@ -55,4 +56,3 @@ class EventNames:
     PLUGIN_UNLOADED = "PluginUnloaded"
     SETTINGS_CHANGED = "SettingsChanged"
     HISTORY_RECORDED = "HistoryRecorded"
-

@@ -8,8 +8,16 @@ from uuid import UUID
 
 from sqlalchemy.exc import SQLAlchemyError
 
+from Backend.application.services import (
+    MAX_BLOCK_CONTENT_LENGTH,
+    MAX_BLOCKS,
+    MAX_CATEGORY_LENGTH,
+    MAX_SEARCH_QUERY_LENGTH,
+    MAX_TAG_LENGTH,
+    MAX_TAGS,
+)
 from Backend.core.container import ApplicationContainer, create_in_memory_container
-from Backend.domain.models import Project, Prompt
+from Backend.domain.models import Project, Prompt, PromptBlock, PromptBlockType
 from Backend.infrastructure.repositories.sqlite import (
     CURRENT_SCHEMA_VERSION,
     DatabaseUnavailableError,
@@ -23,15 +31,25 @@ from .models import IPC_PROTOCOL_VERSION, IpcErrorCode, IpcRequest, IpcResponse,
 APPLICATION_READINESS_COMMAND = "application.readiness"
 PROJECT_LIST_COMMAND = "library.projects.list"
 PROJECT_CREATE_COMMAND = "library.projects.create"
+PROJECT_DELETE_COMMAND = "library.projects.delete"
 PROMPT_LIST_COMMAND = "library.prompts.list"
 PROMPT_CREATE_COMMAND = "library.prompts.create"
+PROMPT_GET_COMMAND = "library.prompts.get"
+PROMPT_UPDATE_COMMAND = "library.prompts.update"
+PROMPT_DELETE_COMMAND = "library.prompts.delete"
+PROMPT_SEARCH_COMMAND = "library.prompts.search"
 SIDECAR_IDENTITY = "com.universalpromptstudio.backend"
 SUPPORTED_COMMANDS = (
     APPLICATION_READINESS_COMMAND,
     PROJECT_LIST_COMMAND,
     PROJECT_CREATE_COMMAND,
+    PROJECT_DELETE_COMMAND,
     PROMPT_LIST_COMMAND,
     PROMPT_CREATE_COMMAND,
+    PROMPT_GET_COMMAND,
+    PROMPT_UPDATE_COMMAND,
+    PROMPT_DELETE_COMMAND,
+    PROMPT_SEARCH_COMMAND,
 )
 MAX_LIBRARY_ITEMS = 50
 
@@ -84,16 +102,20 @@ class ApplicationIpcRouter:
                 IpcErrorCode.INTERNAL_ERROR,
                 "The local application backend could not start safely.",
             )
+        handlers = {
+            APPLICATION_READINESS_COMMAND: self._readiness,
+            PROJECT_LIST_COMMAND: self._list_projects,
+            PROJECT_CREATE_COMMAND: self._create_project,
+            PROJECT_DELETE_COMMAND: self._delete_project,
+            PROMPT_LIST_COMMAND: self._list_prompts,
+            PROMPT_CREATE_COMMAND: self._create_prompt,
+            PROMPT_GET_COMMAND: self._get_prompt,
+            PROMPT_UPDATE_COMMAND: self._update_prompt,
+            PROMPT_DELETE_COMMAND: self._delete_prompt,
+            PROMPT_SEARCH_COMMAND: self._search_prompts,
+        }
         try:
-            if request.command == APPLICATION_READINESS_COMMAND:
-                return self._readiness(request)
-            if request.command == PROJECT_LIST_COMMAND:
-                return self._list_projects(request)
-            if request.command == PROJECT_CREATE_COMMAND:
-                return self._create_project(request)
-            if request.command == PROMPT_LIST_COMMAND:
-                return self._list_prompts(request)
-            return self._create_prompt(request)
+            return handlers[request.command](request)
         except ValueError:
             return IpcResponse.failure(
                 request.request_id,
@@ -104,7 +126,7 @@ class ApplicationIpcRouter:
             return IpcResponse.failure(
                 request.request_id,
                 IpcErrorCode.NOT_FOUND,
-                "The requested project does not exist.",
+                "The requested library item does not exist.",
             )
         except SQLAlchemyError:
             return IpcResponse.failure(
@@ -148,6 +170,17 @@ class ApplicationIpcRouter:
         project = self._container.project_service.create_project(name, description)
         return IpcResponse.success(request.request_id, {"project": _project_value(project)})
 
+    def _delete_project(self, request: IpcRequest) -> IpcResponse:
+        _require_fields(request.payload, frozenset({"project_id", "confirm"}))
+        project_id = _canonical_identifier(request.payload["project_id"])
+        _require_confirmation(request.payload["confirm"])
+        assert self._container is not None
+        deleted_prompt_count = self._container.project_service.delete_project(project_id)
+        return IpcResponse.success(
+            request.request_id,
+            {"deleted_project_id": project_id, "deleted_prompt_count": deleted_prompt_count},
+        )
+
     def _list_prompts(self, request: IpcRequest) -> IpcResponse:
         _require_fields(request.payload, frozenset({"project_id"}))
         project_id = _canonical_identifier(request.payload["project_id"])
@@ -166,6 +199,54 @@ class ApplicationIpcRouter:
         prompt = self._container.prompt_service.create_library_prompt(project_id, title)
         return IpcResponse.success(request.request_id, {"prompt": _prompt_value(prompt)})
 
+    def _get_prompt(self, request: IpcRequest) -> IpcResponse:
+        project_id, prompt_id = _prompt_identifiers(request.payload)
+        assert self._container is not None
+        prompt = self._container.prompt_service.get_project_prompt(project_id, prompt_id)
+        return IpcResponse.success(request.request_id, {"prompt": _prompt_value(prompt)})
+
+    def _update_prompt(self, request: IpcRequest) -> IpcResponse:
+        _require_fields(
+            request.payload,
+            frozenset({"project_id", "prompt_id", "title", "category", "tags", "blocks"}),
+        )
+        project_id = _canonical_identifier(request.payload["project_id"])
+        prompt_id = _canonical_identifier(request.payload["prompt_id"])
+        title = _bounded_string(request.payload["title"], 120)
+        category = _optional_bounded_string(request.payload["category"], MAX_CATEGORY_LENGTH)
+        tags = _tag_values(request.payload["tags"])
+        blocks = _block_values(request.payload["blocks"])
+        assert self._container is not None
+        prompt = self._container.prompt_service.update_library_prompt(
+            project_id,
+            prompt_id,
+            title,
+            category,
+            tags,
+            blocks,
+        )
+        return IpcResponse.success(request.request_id, {"prompt": _prompt_value(prompt)})
+
+    def _delete_prompt(self, request: IpcRequest) -> IpcResponse:
+        _require_fields(request.payload, frozenset({"project_id", "prompt_id", "confirm"}))
+        project_id = _canonical_identifier(request.payload["project_id"])
+        prompt_id = _canonical_identifier(request.payload["prompt_id"])
+        _require_confirmation(request.payload["confirm"])
+        assert self._container is not None
+        self._container.prompt_service.delete_library_prompt(project_id, prompt_id)
+        return IpcResponse.success(request.request_id, {"deleted_prompt_id": prompt_id})
+
+    def _search_prompts(self, request: IpcRequest) -> IpcResponse:
+        _require_fields(request.payload, frozenset({"project_id", "query"}))
+        project_id = _canonical_identifier(request.payload["project_id"])
+        query = _bounded_string(request.payload["query"], MAX_SEARCH_QUERY_LENGTH)
+        assert self._container is not None
+        prompts = self._container.prompt_service.search_project_prompts(project_id, query)
+        return IpcResponse.success(
+            request.request_id,
+            _bounded_collection("prompts", [_prompt_value(prompt) for prompt in prompts]),
+        )
+
 
 def _require_fields(payload: dict[str, JsonValue], expected: frozenset[str]) -> None:
     if set(payload) != expected:
@@ -181,6 +262,12 @@ def _bounded_string(value: JsonValue, maximum: int, *, allow_empty: bool = False
     return normalized
 
 
+def _optional_bounded_string(value: JsonValue, maximum: int) -> str | None:
+    if value is None:
+        return None
+    return _bounded_string(value, maximum, allow_empty=True) or None
+
+
 def _canonical_identifier(value: JsonValue) -> str:
     if not isinstance(value, str) or len(value) != 36:
         raise ValueError("Identifier is invalid.")
@@ -188,6 +275,53 @@ def _canonical_identifier(value: JsonValue) -> str:
     if str(parsed) != value:
         raise ValueError("Identifier is not canonical.")
     return value
+
+
+def _prompt_identifiers(payload: dict[str, JsonValue]) -> tuple[str, str]:
+    _require_fields(payload, frozenset({"project_id", "prompt_id"}))
+    return (
+        _canonical_identifier(payload["project_id"]),
+        _canonical_identifier(payload["prompt_id"]),
+    )
+
+
+def _require_confirmation(value: JsonValue) -> None:
+    if value is not True:
+        raise ValueError("Deletion requires explicit confirmation.")
+
+
+def _tag_values(value: JsonValue) -> list[str]:
+    if not isinstance(value, list) or len(value) > MAX_TAGS:
+        raise ValueError("Prompt tags are invalid.")
+    tags = [_bounded_string(tag, MAX_TAG_LENGTH) for tag in value]
+    if any("\n" in tag or "\r" in tag for tag in tags):
+        raise ValueError("Prompt tags must be single-line text.")
+    if len({tag.casefold() for tag in tags}) != len(tags):
+        raise ValueError("Prompt tags must be unique ignoring case.")
+    return tags
+
+
+def _block_values(value: JsonValue) -> list[PromptBlock]:
+    if not isinstance(value, list) or len(value) > MAX_BLOCKS:
+        raise ValueError("Prompt blocks are invalid.")
+    blocks: list[PromptBlock] = []
+    for order, raw_block in enumerate(value):
+        if not isinstance(raw_block, dict):
+            raise ValueError("Prompt block is invalid.")
+        _require_fields(raw_block, frozenset({"block_type", "content", "enabled"}))
+        block_type_value = raw_block["block_type"]
+        enabled = raw_block["enabled"]
+        if not isinstance(block_type_value, str) or not isinstance(enabled, bool):
+            raise ValueError("Prompt block is invalid.")
+        blocks.append(
+            PromptBlock(
+                block_type=PromptBlockType(block_type_value),
+                content=_bounded_string(raw_block["content"], MAX_BLOCK_CONTENT_LENGTH),
+                order=order,
+                enabled=enabled,
+            )
+        )
+    return blocks
 
 
 def _bounded_collection(name: str, values: list[dict[str, JsonValue]]) -> dict[str, JsonValue]:
@@ -210,10 +344,24 @@ def _project_value(project: Project) -> dict[str, JsonValue]:
 def _prompt_value(prompt: Prompt) -> dict[str, JsonValue]:
     if prompt.project_id is None:
         raise ValueError("Library prompt has no project ownership.")
+    blocks: list[JsonValue] = [
+        {
+            "block_type": block.block_type.value,
+            "content": block.content,
+            "order": order,
+            "enabled": block.enabled,
+        }
+        for order, block in enumerate(sorted(prompt.blocks, key=lambda item: item.order))
+    ]
+    sorted_tags = sorted(prompt.tags, key=str.casefold)
+    tags: list[JsonValue] = list(sorted_tags)
     return {
         "prompt_id": prompt.prompt_id,
         "project_id": prompt.project_id,
         "title": prompt.title,
+        "category": prompt.category,
+        "tags": tags,
+        "blocks": blocks,
         "created_at": _timestamp(prompt.created_at),
         "updated_at": _timestamp(prompt.updated_at),
     }

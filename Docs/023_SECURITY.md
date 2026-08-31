@@ -395,10 +395,11 @@ Every generated diff still requires human review.
 
 ## Bounded desktop-to-Python IPC
 
-A-002.1 exposes five Tauri commands: readiness, project list/create, and
-project-scoped prompt list/create. Each accepts only bounded command-specific
-values. The webview cannot select an executable, database path, environment
-value, Python module, function, sidecar command, arbitrary payload, or SQL.
+A-002.2 exposes ten Tauri commands: readiness, project list/create/delete, and
+project-scoped prompt list/create/get/update/delete/search. Each accepts only
+bounded command-specific values. The webview cannot select an executable,
+database path, environment value, Python module, function, sidecar command,
+arbitrary payload, SQL, search index, or filesystem destination.
 
 Both development and release hosts launch only the target-triple sidecar declared
 by Tauri `externalBin`. The webview retains only `core:default`; no shell-plugin
@@ -411,10 +412,24 @@ The JSON-lines protocol rejects unknown or duplicate fields, malformed UTF-8 or
 JSON, unsupported versions, non-finite values, malformed identifiers, unknown
 payload fields, messages over 16 KiB, uncorrelated responses, and responses
 outside the three-second timeout. Rust revalidates entity shapes, UUIDs,
-timestamps, text and collection bounds, and project ownership. Transport failure
-discards the child so a later action may start a fresh process.
+timestamps, categories, tags, block types/order/content, text and collection
+bounds, confirmations, deletion results, and project ownership. The frontend's
+camelCase block input is explicitly converted to the sidecar's snake_case wire
+field. Transport failure or malformed output discards the child so a later
+action may start a fresh process.
 
 SQLite schema version 1 is application-owned through `PRAGMA user_version`.
+A-002.2 requires no migration because categories, tags, ordered blocks, and
+update timestamps were already owned by schema 1. Prompt access always includes
+the owning project. Prompt deletion removes only that owned record. Project
+deletion removes dependent prompts in one repository transaction and both
+deletion commands require exact `confirm: true` payloads.
+
+Local search case-folds one bounded query and performs a deterministic substring
+scan across title, category, tags, and block content within the selected project.
+It exposes no arbitrary filter, sort, SQL, path, background index, cross-project
+scope, or network operation.
+
 Startup checks database integrity, required schema shape, and foreign-key
 relationships. Foreign keys are enabled on every connection. Future, corrupt,
 unmanaged, incomplete, relationship-invalid, or unavailable databases fail with
@@ -425,7 +440,8 @@ The router performs no prompt execution, provider request, workflow execution,
 credential access, network operation, arbitrary file access, or subprocess
 launch. Python error detail never crosses Rust; unknown failures collapse to a
 fixed unavailable response. Source, frozen, restart, and installed-layout tests
-verify records remain under per-user app data rather than the installation.
+verify editing, organization, search, and deletion while records remain under
+per-user app data rather than the installation.
 
 The Python process remains trusted code with normal process authority. IPC
 validation reduces the webview's authority but is not a sandbox or process

@@ -18,8 +18,13 @@ const capabilities = [
   "application.readiness",
   "library.projects.list",
   "library.projects.create",
+  "library.projects.delete",
   "library.prompts.list",
   "library.prompts.create",
+  "library.prompts.get",
+  "library.prompts.update",
+  "library.prompts.delete",
+  "library.prompts.search",
 ];
 const ready = Object.freeze({
   status: "ready",
@@ -38,18 +43,26 @@ const prompt = Object.freeze({
   promptId,
   projectId,
   title: "Architecture",
+  category: "Engineering",
+  tags: ["offline"],
+  blocks: [{ blockType: "role", content: "Architect", order: 0, enabled: true }],
   createdAt,
   updatedAt: createdAt,
 });
 
-test("client invokes only the five fixed library commands", async () => {
+test("client invokes only the ten fixed library commands", async () => {
   const calls = [];
   const responses = [
     ready,
     { projects: [project], hasMore: false },
     { project },
+    { deletedProjectId: projectId, deletedPromptCount: 1 },
     { prompts: [prompt], hasMore: false },
     { prompt },
+    { prompt },
+    { prompt },
+    { deletedPromptId: promptId },
+    { prompts: [prompt], hasMore: false },
   ];
   let request = 0;
   const client = new BackendClient(async (...args) => {
@@ -60,22 +73,45 @@ test("client invokes only the five fixed library commands", async () => {
   await client.checkReadiness();
   await client.listProjects();
   await client.createProject(" UPS ", " Offline library ");
+  await client.deleteProject(projectId, true);
   await client.listPrompts(projectId);
   await client.createPrompt(projectId, " Architecture ");
+  await client.getPrompt(projectId, promptId);
+  await client.updatePrompt(projectId, promptId, {
+    title: " Architecture ",
+    category: " Engineering ",
+    tags: ["offline"],
+    blocks: [{ blockType: "role", content: " Architect ", enabled: true }],
+  });
+  await client.deletePrompt(projectId, promptId, true);
+  await client.searchPrompts(projectId, " architect ");
 
   assert.deepEqual(calls, [
     ["backend_readiness", { requestId: "request-1" }],
     ["library_projects", { requestId: "request-2" }],
     ["library_create_project", {
-      requestId: "request-3",
-      name: "UPS",
-      description: "Offline library",
+      requestId: "request-3", name: "UPS", description: "Offline library",
     }],
-    ["library_prompts", { requestId: "request-4", projectId }],
+    ["library_delete_project", { requestId: "request-4", projectId, confirm: true }],
+    ["library_prompts", { requestId: "request-5", projectId }],
     ["library_create_prompt", {
-      requestId: "request-5",
+      requestId: "request-6", projectId, title: "Architecture",
+    }],
+    ["library_get_prompt", { requestId: "request-7", projectId, promptId }],
+    ["library_update_prompt", {
+      requestId: "request-8",
       projectId,
+      promptId,
       title: "Architecture",
+      category: "Engineering",
+      tags: ["offline"],
+      blocks: [{ blockType: "role", content: "Architect", enabled: true }],
+    }],
+    ["library_delete_prompt", {
+      requestId: "request-9", projectId, promptId, confirm: true,
+    }],
+    ["library_search_prompts", {
+      requestId: "request-10", projectId, query: "architect",
     }],
   ]);
 });
@@ -87,12 +123,14 @@ test("client rejects invalid inputs before invoking Tauri", async () => {
   }, () => "bad id");
 
   await assert.rejects(() => client.checkReadiness(), /identifier is invalid/);
+  const validClient = new BackendClient(async () => ready, () => "request-1");
+  assert.throws(() => validClient.createProject("   "), BackendClientError);
+  assert.throws(() => validClient.listPrompts("../db"), BackendClientError);
+  assert.throws(() => validClient.deleteProject(projectId, false), BackendClientError);
   assert.throws(
-    () => new BackendClient(async () => ready, () => "request-1").createProject("   "),
-    BackendClientError,
-  );
-  assert.throws(
-    () => new BackendClient(async () => ready, () => "request-1").listPrompts("../db"),
+    () => validClient.updatePrompt(projectId, promptId, {
+      title: "Prompt", category: null, tags: ["same", "SAME"], blocks: [],
+    }),
     BackendClientError,
   );
   assert.equal(called, false);
@@ -124,17 +162,26 @@ test("project lists and create results are exact, bounded, and frozen", () => {
   );
 });
 
-test("prompt responses must remain inside the requested project", () => {
+test("prompt responses are detailed, frozen, ordered, and project scoped", () => {
   const listed = validatePromptList({ prompts: [prompt], hasMore: false }, projectId);
   const created = validateCreatedPrompt({ prompt }, projectId);
 
   assert.deepEqual(listed.prompts, [prompt]);
   assert.deepEqual(created.prompt, prompt);
+  assert.ok(Object.isFrozen(listed.prompts[0].blocks));
+  assert.ok(Object.isFrozen(listed.prompts[0].blocks[0]));
   assert.throws(
     () => validatePromptList(
       { prompts: [{ ...prompt, projectId: "ba9fc9fc-71a1-411c-9d54-cf6a9c3f5233" }], hasMore: false },
       projectId,
     ),
+    BackendClientError,
+  );
+  assert.throws(
+    () => validatePromptList({
+      prompts: [{ ...prompt, blocks: [{ ...prompt.blocks[0], order: 1 }] }],
+      hasMore: false,
+    }, projectId),
     BackendClientError,
   );
 });
@@ -151,6 +198,10 @@ test("validators reject extra, missing, malformed, and unbounded data", () => {
     assert.throws(() => validateProjectList(value), BackendClientError);
   }
   assert.throws(() => validateCreatedPrompt({ prompt, extra: true }, projectId), BackendClientError);
+  assert.throws(
+    () => validateCreatedPrompt({ prompt: { ...prompt, tags: Array(11).fill("tag") } }, projectId),
+    BackendClientError,
+  );
 });
 
 test("only allowlisted bounded backend errors reach presentation code", async () => {

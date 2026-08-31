@@ -18,17 +18,27 @@ const RESPONSE_TIMEOUT: Duration = Duration::from_secs(3);
 const READINESS_COMMAND: &str = "application.readiness";
 const PROJECT_LIST_COMMAND: &str = "library.projects.list";
 const PROJECT_CREATE_COMMAND: &str = "library.projects.create";
+const PROJECT_DELETE_COMMAND: &str = "library.projects.delete";
 const PROMPT_LIST_COMMAND: &str = "library.prompts.list";
 const PROMPT_CREATE_COMMAND: &str = "library.prompts.create";
+const PROMPT_GET_COMMAND: &str = "library.prompts.get";
+const PROMPT_UPDATE_COMMAND: &str = "library.prompts.update";
+const PROMPT_DELETE_COMMAND: &str = "library.prompts.delete";
+const PROMPT_SEARCH_COMMAND: &str = "library.prompts.search";
 const SIDECAR_IDENTITY: &str = "com.universalpromptstudio.backend";
 const SIDECAR_NAME: &str = "universal-prompt-studio-backend";
 const APP_DATA_ENV: &str = "UPS_APP_DATA_DIR";
-const CAPABILITIES: [&str; 5] = [
+const CAPABILITIES: [&str; 10] = [
     READINESS_COMMAND,
     PROJECT_LIST_COMMAND,
     PROJECT_CREATE_COMMAND,
+    PROJECT_DELETE_COMMAND,
     PROMPT_LIST_COMMAND,
     PROMPT_CREATE_COMMAND,
+    PROMPT_GET_COMMAND,
+    PROMPT_UPDATE_COMMAND,
+    PROMPT_DELETE_COMMAND,
+    PROMPT_SEARCH_COMMAND,
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -52,10 +62,22 @@ pub struct ProjectSummary {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct PromptBlockSummary {
+    block_type: String,
+    content: String,
+    order: usize,
+    enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct PromptSummary {
     prompt_id: String,
     project_id: String,
     title: String,
+    category: Option<String>,
+    tags: Vec<String>,
+    blocks: Vec<PromptBlockSummary>,
     created_at: String,
     updated_at: String,
 }
@@ -84,6 +106,30 @@ pub struct CreatedProject {
 #[serde(rename_all = "camelCase")]
 pub struct CreatedPrompt {
     prompt: PromptSummary,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeletedProject {
+    deleted_project_id: String,
+    deleted_prompt_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeletedPrompt {
+    deleted_prompt_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(
+    deny_unknown_fields,
+    rename_all(serialize = "snake_case", deserialize = "camelCase")
+)]
+pub struct PromptBlockInput {
+    block_type: String,
+    content: String,
+    enabled: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -145,9 +191,44 @@ struct ProjectPayload<'a> {
 }
 
 #[derive(Debug, Serialize)]
+struct DeleteProjectPayload<'a> {
+    project_id: &'a str,
+    confirm: bool,
+}
+
+#[derive(Debug, Serialize)]
 struct CreatePromptPayload<'a> {
     project_id: &'a str,
     title: &'a str,
+}
+
+#[derive(Debug, Serialize)]
+struct PromptPayload<'a> {
+    project_id: &'a str,
+    prompt_id: &'a str,
+}
+
+#[derive(Debug, Serialize)]
+struct DeletePromptPayload<'a> {
+    project_id: &'a str,
+    prompt_id: &'a str,
+    confirm: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct SearchPromptPayload<'a> {
+    project_id: &'a str,
+    query: &'a str,
+}
+
+#[derive(Debug, Serialize)]
+struct UpdatePromptPayload<'a> {
+    project_id: &'a str,
+    prompt_id: &'a str,
+    title: &'a str,
+    category: &'a Option<String>,
+    tags: &'a [String],
+    blocks: &'a [PromptBlockInput],
 }
 
 #[derive(Debug, Deserialize)]
@@ -199,6 +280,19 @@ struct WireCreatedPrompt {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct WireDeletedProject {
+    deleted_project_id: String,
+    deleted_prompt_count: usize,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireDeletedPrompt {
+    deleted_prompt_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct WireProject {
     project_id: String,
     name: String,
@@ -212,8 +306,20 @@ struct WirePrompt {
     prompt_id: String,
     project_id: String,
     title: String,
+    category: Option<String>,
+    tags: Vec<String>,
+    blocks: Vec<WirePromptBlock>,
     created_at: String,
     updated_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WirePromptBlock {
+    block_type: String,
+    content: String,
+    order: usize,
+    enabled: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -388,6 +494,37 @@ pub async fn backend_readiness(
 }
 
 #[tauri::command]
+pub async fn library_delete_project(
+    state: tauri::State<'_, BackendManager>,
+    request_id: String,
+    project_id: String,
+    confirm: bool,
+) -> Result<DeletedProject, BackendCommandError> {
+    validate_identifier(&project_id)?;
+    validate_confirmation(confirm)?;
+    let manager = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let wire: WireDeletedProject = manager.request(
+            &request_id,
+            PROJECT_DELETE_COMMAND,
+            DeleteProjectPayload {
+                project_id: &project_id,
+                confirm,
+            },
+        )?;
+        if wire.deleted_project_id != project_id {
+            return Err(BackendCommandError::unavailable());
+        }
+        Ok(DeletedProject {
+            deleted_project_id: wire.deleted_project_id,
+            deleted_prompt_count: wire.deleted_prompt_count,
+        })
+    })
+    .await
+    .map_err(|_| BackendCommandError::unavailable())?
+}
+
+#[tauri::command]
 pub async fn library_projects(
     state: tauri::State<'_, BackendManager>,
     request_id: String,
@@ -480,6 +617,133 @@ pub async fn library_create_prompt(
     .map_err(|_| BackendCommandError::unavailable())?
 }
 
+#[tauri::command]
+pub async fn library_get_prompt(
+    state: tauri::State<'_, BackendManager>,
+    request_id: String,
+    project_id: String,
+    prompt_id: String,
+) -> Result<CreatedPrompt, BackendCommandError> {
+    validate_identifier(&project_id)?;
+    validate_identifier(&prompt_id)?;
+    let manager = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let wire: WireCreatedPrompt = manager.request(
+            &request_id,
+            PROMPT_GET_COMMAND,
+            PromptPayload {
+                project_id: &project_id,
+                prompt_id: &prompt_id,
+            },
+        )?;
+        Ok(CreatedPrompt {
+            prompt: validate_owned_prompt(wire.prompt, &project_id, Some(&prompt_id))?,
+        })
+    })
+    .await
+    .map_err(|_| BackendCommandError::unavailable())?
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn library_update_prompt(
+    state: tauri::State<'_, BackendManager>,
+    request_id: String,
+    project_id: String,
+    prompt_id: String,
+    title: String,
+    category: Option<String>,
+    tags: Vec<String>,
+    blocks: Vec<PromptBlockInput>,
+) -> Result<CreatedPrompt, BackendCommandError> {
+    validate_identifier(&project_id)?;
+    validate_identifier(&prompt_id)?;
+    validate_text(&title, 120, false)?;
+    if let Some(value) = &category {
+        validate_text(value, 80, true)?;
+    }
+    validate_tags(&tags)?;
+    validate_block_inputs(&blocks)?;
+    let manager = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let wire: WireCreatedPrompt = manager.request(
+            &request_id,
+            PROMPT_UPDATE_COMMAND,
+            UpdatePromptPayload {
+                project_id: &project_id,
+                prompt_id: &prompt_id,
+                title: &title,
+                category: &category,
+                tags: &tags,
+                blocks: &blocks,
+            },
+        )?;
+        Ok(CreatedPrompt {
+            prompt: validate_owned_prompt(wire.prompt, &project_id, Some(&prompt_id))?,
+        })
+    })
+    .await
+    .map_err(|_| BackendCommandError::unavailable())?
+}
+
+#[tauri::command]
+pub async fn library_delete_prompt(
+    state: tauri::State<'_, BackendManager>,
+    request_id: String,
+    project_id: String,
+    prompt_id: String,
+    confirm: bool,
+) -> Result<DeletedPrompt, BackendCommandError> {
+    validate_identifier(&project_id)?;
+    validate_identifier(&prompt_id)?;
+    validate_confirmation(confirm)?;
+    let manager = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let wire: WireDeletedPrompt = manager.request(
+            &request_id,
+            PROMPT_DELETE_COMMAND,
+            DeletePromptPayload {
+                project_id: &project_id,
+                prompt_id: &prompt_id,
+                confirm,
+            },
+        )?;
+        if wire.deleted_prompt_id != prompt_id {
+            return Err(BackendCommandError::unavailable());
+        }
+        Ok(DeletedPrompt {
+            deleted_prompt_id: wire.deleted_prompt_id,
+        })
+    })
+    .await
+    .map_err(|_| BackendCommandError::unavailable())?
+}
+
+#[tauri::command]
+pub async fn library_search_prompts(
+    state: tauri::State<'_, BackendManager>,
+    request_id: String,
+    project_id: String,
+    query: String,
+) -> Result<PromptList, BackendCommandError> {
+    validate_identifier(&project_id)?;
+    validate_text(&query, 120, false)?;
+    let manager = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let wire: WirePromptList = manager.request(
+            &request_id,
+            PROMPT_SEARCH_COMMAND,
+            SearchPromptPayload {
+                project_id: &project_id,
+                query: &query,
+            },
+        )?;
+        validate_prompt_list(wire, &project_id)
+    })
+    .await
+    .map_err(|_| BackendCommandError::unavailable())?
+}
+
 fn decode_response<T: DeserializeOwned>(
     line: &[u8],
     expected_request_id: &str,
@@ -519,7 +783,7 @@ fn map_wire_error<T>(error: WireError) -> Result<T, BackendCommandError> {
         }
         "library.not_found" => BackendCommandError::new(
             "library.not_found",
-            "The selected project no longer exists.",
+            "The selected library item no longer exists.",
             false,
         ),
         "storage.invalid_database" => BackendCommandError::new(
@@ -614,15 +878,138 @@ fn validate_prompt(value: WirePrompt) -> Result<PromptSummary, BackendCommandErr
     validate_identifier(&value.prompt_id)?;
     validate_identifier(&value.project_id)?;
     validate_text(&value.title, 120, false)?;
+    if let Some(category) = &value.category {
+        validate_text(category, 80, false)?;
+    }
+    validate_tags(&value.tags)?;
+    if value.blocks.len() > 12 {
+        return Err(BackendCommandError::unavailable());
+    }
+    let mut total_content = 0usize;
+    let blocks = value
+        .blocks
+        .into_iter()
+        .enumerate()
+        .map(|(order, block)| {
+            if block.order != order || !valid_block_type(&block.block_type) {
+                return Err(BackendCommandError::unavailable());
+            }
+            validate_text(&block.content, 2_000, false)?;
+            total_content += block.content.trim().len();
+            if total_content > 12_000 {
+                return Err(BackendCommandError::unavailable());
+            }
+            Ok(PromptBlockSummary {
+                block_type: block.block_type,
+                content: block.content,
+                order: block.order,
+                enabled: block.enabled,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     validate_timestamp(&value.created_at)?;
     validate_timestamp(&value.updated_at)?;
     Ok(PromptSummary {
         prompt_id: value.prompt_id,
         project_id: value.project_id,
         title: value.title,
+        category: value.category,
+        tags: value.tags,
+        blocks,
         created_at: value.created_at,
         updated_at: value.updated_at,
     })
+}
+
+fn validate_owned_prompt(
+    value: WirePrompt,
+    project_id: &str,
+    prompt_id: Option<&str>,
+) -> Result<PromptSummary, BackendCommandError> {
+    let prompt = validate_prompt(value)?;
+    if prompt.project_id != project_id
+        || prompt_id.is_some_and(|expected| prompt.prompt_id != expected)
+    {
+        return Err(BackendCommandError::unavailable());
+    }
+    Ok(prompt)
+}
+
+fn validate_confirmation(value: bool) -> Result<(), BackendCommandError> {
+    if value {
+        Ok(())
+    } else {
+        Err(BackendCommandError::invalid_request(
+            "Deletion requires confirmation.",
+        ))
+    }
+}
+
+fn validate_tags(values: &[String]) -> Result<(), BackendCommandError> {
+    if values.len() > 10 {
+        return Err(BackendCommandError::invalid_request(
+            "Prompt tags are invalid.",
+        ));
+    }
+    let mut normalized = Vec::with_capacity(values.len());
+    for value in values {
+        validate_text(value, 32, false)?;
+        if value.contains(['\n', '\r']) {
+            return Err(BackendCommandError::invalid_request(
+                "Prompt tags are invalid.",
+            ));
+        }
+        let folded = value.to_lowercase();
+        if normalized.contains(&folded) {
+            return Err(BackendCommandError::invalid_request(
+                "Prompt tags are invalid.",
+            ));
+        }
+        normalized.push(folded);
+    }
+    Ok(())
+}
+
+fn validate_block_inputs(values: &[PromptBlockInput]) -> Result<(), BackendCommandError> {
+    if values.len() > 12 {
+        return Err(BackendCommandError::invalid_request(
+            "Prompt blocks are invalid.",
+        ));
+    }
+    let mut total_content = 0usize;
+    for value in values {
+        if !valid_block_type(&value.block_type) {
+            return Err(BackendCommandError::invalid_request(
+                "Prompt blocks are invalid.",
+            ));
+        }
+        validate_text(&value.content, 2_000, false)?;
+        total_content += value.content.trim().len();
+        if total_content > 12_000 {
+            return Err(BackendCommandError::invalid_request(
+                "Prompt blocks are invalid.",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn valid_block_type(value: &str) -> bool {
+    matches!(
+        value,
+        "role"
+            | "goal"
+            | "context"
+            | "audience"
+            | "constraints"
+            | "requirements"
+            | "tone"
+            | "output_format"
+            | "reasoning_style"
+            | "examples"
+            | "validation_rules"
+            | "final_instructions"
+    )
 }
 
 fn valid_request_id(value: &str) -> bool {
@@ -689,7 +1076,7 @@ mod tests {
 
     #[test]
     fn readiness_requires_identity_versions_and_exact_capabilities() {
-        let valid = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"com.universalpromptstudio.backend","application_version":"0.2.0-alpha","protocol_version":1,"storage_schema_version":1,"capabilities":["application.readiness","library.projects.list","library.projects.create","library.prompts.list","library.prompts.create"]}}"#;
+        let valid = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"com.universalpromptstudio.backend","application_version":"0.2.0-alpha","protocol_version":1,"storage_schema_version":1,"capabilities":["application.readiness","library.projects.list","library.projects.create","library.projects.delete","library.prompts.list","library.prompts.create","library.prompts.get","library.prompts.update","library.prompts.delete","library.prompts.search"]}}"#;
         let wire: WireReadiness = decode_response(valid, "one").unwrap();
         assert_eq!(validate_readiness(wire).unwrap().storage_schema_version, 1);
         assert!(decode_response::<WireReadiness>(valid, "two").is_err());
@@ -706,7 +1093,7 @@ mod tests {
         assert_eq!(validate_project_list(wire).unwrap().projects.len(), 1);
 
         let prompts = format!(
-            r#"{{"schema_version":1,"request_id":"two","ok":true,"result":{{"prompts":[{{"prompt_id":"{prompt_id}","project_id":"{project_id}","title":"First","created_at":"2026-08-26T00:00:00Z","updated_at":"2026-08-26T00:00:00Z"}}],"has_more":false}}}}"#
+            r#"{{"schema_version":1,"request_id":"two","ok":true,"result":{{"prompts":[{{"prompt_id":"{prompt_id}","project_id":"{project_id}","title":"First","category":"Delivery","tags":["offline"],"blocks":[{{"block_type":"goal","content":"Ship it","order":0,"enabled":true}}],"created_at":"2026-08-26T00:00:00Z","updated_at":"2026-08-26T00:00:00Z"}}],"has_more":false}}}}"#
         );
         let wire: WirePromptList = decode_response(prompts.as_bytes(), "two").unwrap();
         assert_eq!(
@@ -716,6 +1103,32 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[test]
+    fn update_payload_maps_frontend_blocks_to_the_exact_sidecar_schema() {
+        let category = Some("Delivery".to_owned());
+        let tags = vec!["Offline".to_owned()];
+        let blocks = vec![PromptBlockInput {
+            block_type: "goal".to_owned(),
+            content: "Ship it".to_owned(),
+            enabled: true,
+        }];
+        let payload = UpdatePromptPayload {
+            project_id: "550e8400-e29b-41d4-a716-446655440000",
+            prompt_id: "76c7169d-9e5d-4db4-bf61-856695d2a91e",
+            title: "Release",
+            category: &category,
+            tags: &tags,
+            blocks: &blocks,
+        };
+        let value = serde_json::to_value(payload).unwrap();
+        assert_eq!(value["blocks"][0]["block_type"], "goal");
+        assert!(value["blocks"][0].get("blockType").is_none());
+        let frontend: PromptBlockInput =
+            serde_json::from_str(r#"{"blockType":"goal","content":"Ship it","enabled":true}"#)
+                .unwrap();
+        assert_eq!(frontend.block_type, "goal");
     }
 
     #[test]

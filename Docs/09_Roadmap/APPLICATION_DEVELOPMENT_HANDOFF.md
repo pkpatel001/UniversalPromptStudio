@@ -1,86 +1,91 @@
 # Application development handoff
 
-**Completed checkpoint:** A-002.1 — SQLite prompt-library persistence foundation
-**Immediate checkpoint:** A-002.2 — Prompt editing, deletion, organization, and local search
+**Completed checkpoint:** A-002.2 — Prompt editing, deletion, organization, and local search
+**Immediate checkpoint:** A-003 — Prompt composition and offline reference execution
 
 ## Current application baseline
 
-A-002.1 establishes the first durable offline product flow:
+A-002.2 completes the local prompt-library management lifecycle:
 
 ```text
 desktop launch
     -> Rust resolves Tauri app_data_dir
         -> long-lived frozen Python sidecar
             -> schema-1 SQLite prompt library
-                -> create/list projects
-                -> create/list project-owned prompts
+                -> create/list/delete projects
+                -> create/select/edit/delete project-owned prompts
+                -> organize with category, tags, and ordered blocks
+                -> deterministic project-scoped local search
 ```
 
-The minimal desktop library automatically starts the backend, creates a project,
-creates prompts inside the selected project, and shows the same saved records
-after application restart. Theme selection remains available.
+The desktop automatically opens the local library. Users can create and select
+projects, create and select prompts, edit title/category/tags, add/reorder/
+enable/remove typed blocks, search titles/organization/block content, and
+delete prompts or projects after explicit confirmation. All supported state
+survives restart until explicitly deleted. Theme selection remains available.
 
-SQLite lives only at the fixed `prompt-library.sqlite3` path under Tauri's
-per-user app-data directory. Schema version 1 has explicit forward migration
-ownership, foreign-key enforcement, integrity and shape checks, and safe
-failures for unavailable, corrupt, unmanaged, incomplete, relationship-invalid,
-or future-schema databases. Recovery never silently destroys user data.
+SQLite remains only at the fixed `prompt-library.sqlite3` path under Tauri's
+per-user app-data directory. Schema version 1 already contained every A-002.2
+field, so no migration was added. The A-002.1 integrity, shape, relationship,
+future-schema, unavailable-storage, and non-destructive recovery guarantees
+remain unchanged.
 
-The webview has five fixed Tauri commands and no shell or filesystem authority.
-Rust maps those calls to five fixed sidecar commands, validates all entity and
-collection results, and allowlists safe errors. Source-process, frozen-sidecar,
-restart, crash, and installed-layout tests prove persistence stays outside the
-installation directory.
+The webview has ten fixed Tauri commands and no shell or filesystem authority.
+Rust maps those calls to ten fixed sidecar commands and independently validates
+correlation, identities, versions, capabilities, UUIDs, timestamps, ownership,
+categories, tags, block types/order/content, confirmations, deletion results,
+and bounded collections. Source-process and frozen installed-layout tests prove
+edits, search, restart persistence, and deletion remain outside installation.
 
-## A-002.2 — Prompt editing, deletion, organization, and local search
+## A-003 — Prompt composition and offline reference execution
 
-Extend the proven persistence lifecycle into a usable management flow. Deliver:
+Turn the saved ordered blocks into the first usable composition and execution
+flow. Deliver:
 
-- prompt title and ordered-block editing with explicit validation and durable
-  update timestamps;
-- explicit prompt deletion and project deletion with clear confirmation and
-  defined dependent-prompt behavior;
-- category and tag organization through the existing domain fields;
-- deterministic local prompt search scoped to supported project/library
-  boundaries;
-- desktop views for selecting, editing, organizing, searching, and deleting
-  saved prompts without exposing arbitrary SQL or filesystem paths;
-- forward-only schema migration only where A-002.2 persistence changes require
-  it, preserving schema-1 user data;
-- typed IPC and frontend validation for the exact new operations; and
-- deterministic repository, service, IPC, frontend, migration, restart, and
-  installed-path tests.
+- deterministic composition of enabled blocks in stored order using the
+  existing `PromptBuilder` and domain block types;
+- a desktop composition preview that clearly distinguishes saved block content
+  from the final assembled prompt;
+- explicit offline execution through the already registered host-authored
+  `ups.offline-echo` reference provider only;
+- typed request/result IPC with bounded prompt text, provider identity,
+  correlation, safe failures, and no arbitrary provider or option selection;
+- presentation of the offline result and minimal non-secret execution metadata;
+- deterministic service, IPC, frontend, Rust, frozen-sidecar, restart, and
+  installed-path tests; and
+- documentation of the transition from library management to controlled local
+  composition/execution.
 
-Do not add provider execution, credentials, remote endpoints, workflow
-authoring, sync, import/export, arbitrary SQL, arbitrary filesystem access, or
-background indexing outside the application-owned data directory. Prompt
-composition and offline reference execution begin in A-003 after the local
-library management lifecycle is complete.
+Do not add external endpoints, credentials, model discovery, streaming,
+cancellation, retries, workflow authoring, background execution, history
+persistence, arbitrary provider loading, arbitrary options, network access,
+import/export, or sync. Controlled provider configuration begins in A-004.
 
 ## Subsequent application sequence
 
-1. **A-003:** Prompt composition and offline reference execution.
-2. **A-004:** Controlled provider selection, endpoint configuration, and credential handling.
-3. **A-005:** Workflow authoring, validation, and sequential execution UI.
-4. **A-006:** Theme and managed extension lifecycle UI at supported trust boundaries.
-5. **A-007:** Import/export, settings, diagnostics, onboarding, and distribution polish.
+1. **A-004:** Controlled provider selection, endpoint configuration, and credential handling.
+2. **A-005:** Workflow authoring, validation, and sequential execution UI.
+3. **A-006:** Theme and managed extension lifecycle UI at supported trust boundaries.
+4. **A-007:** Import/export, settings, diagnostics, onboarding, and distribution polish.
 
 Each slice must produce a usable vertical outcome and reuse existing domain
 contracts. Add Engineering capability only when the slice exposes a specific
 gap.
 
-## Starting points for A-002.2
+## Starting points for A-003
 
-- `Backend/domain/models.py`
-- `Backend/repositories/contracts.py`
-- `Backend/infrastructure/repositories/sqlite.py`
+- `Backend/application/prompt_builder.py`
 - `Backend/application/services.py`
+- `Backend/domain/models.py`
+- `Backend/core/container.py`
 - `Backend/ipc/router.py`
+- `Backend/infrastructure/providers/runtime_adapter.py`
 - `Frontend/src/backend-client.js`
 - `Frontend/src/main.js`
 - `Frontend/src-tauri/src/backend.rs`
 - `Docs/04_Backend/IPC_PROTOCOL.md`
 
 Before edits, verify clean local/origin/live GitHub parity and inspect the
-current schema-1 acceptance evidence. Preserve schema-1 databases through any
-new migration and keep project/prompt ownership explicit.
+A-002.2 acceptance evidence. Preserve the A-002.2 management lifecycle and the
+schema-1 database. Keep the first execution path explicitly offline and
+host-authored.

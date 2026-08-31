@@ -71,8 +71,13 @@ def test_readiness_uses_one_long_lived_application_container() -> None:
             "application.readiness",
             "library.projects.list",
             "library.projects.create",
+            "library.projects.delete",
             "library.prompts.list",
             "library.prompts.create",
+            "library.prompts.get",
+            "library.prompts.update",
+            "library.prompts.delete",
+            "library.prompts.search",
         ],
     }
     assert second.request_id == "second"

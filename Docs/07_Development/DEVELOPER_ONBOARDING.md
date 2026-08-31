@@ -49,9 +49,11 @@ npm run tauri dev
 ```
 
 The Rust host starts the declared target-triple
-`universal-prompt-studio-backend` sidecar automatically. Create a project and a
-prompt, close the app, reopen it, and confirm both records remain. Rust resolves
-the Tauri app-data directory and validates identity, application/protocol/storage
+`universal-prompt-studio-backend` sidecar automatically. Create a project and
+prompt, add category/tags and ordered blocks, search for block content, close the
+app, reopen it, and confirm the edited record remains. Exercise prompt deletion
+and project deletion only with their explicit confirmations. Rust resolves the
+Tauri app-data directory and validates identity, application/protocol/storage
 versions, capabilities, correlation, result shapes, bounds, and project
 ownership. Development and release builds use the same frozen executable.
 
@@ -61,7 +63,9 @@ Build and validate the frozen sidecar from the repository root:
 powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/build-sidecar.ps1
 $env:UPS_REQUIRE_SIDECAR_TESTS = "1"
 python -m pytest -q Tests/test_ipc.py Tests/test_prompt_library_ipc.py `
-  Tests/test_prompt_library_persistence.py Tests/test_sidecar_build.py `
+  Tests/test_prompt_library_management_ipc.py `
+  Tests/test_prompt_library_persistence.py `
+  Tests/test_prompt_library_management.py Tests/test_sidecar_build.py `
   Tests/test_sidecar_lifecycle.py
 ```
 

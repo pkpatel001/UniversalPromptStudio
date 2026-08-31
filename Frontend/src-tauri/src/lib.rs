@@ -2,7 +2,8 @@ mod backend;
 
 use backend::{
     BackendManager, backend_readiness, library_create_project, library_create_prompt,
-    library_projects, library_prompts,
+    library_delete_project, library_delete_prompt, library_get_prompt, library_projects,
+    library_prompts, library_search_prompts, library_update_prompt,
 };
 use tauri::Manager;
 
@@ -18,8 +19,13 @@ pub fn run() {
             backend_readiness,
             library_projects,
             library_create_project,
+            library_delete_project,
             library_prompts,
             library_create_prompt,
+            library_get_prompt,
+            library_update_prompt,
+            library_delete_prompt,
+            library_search_prompts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Universal Prompt Studio");
