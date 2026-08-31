@@ -40,6 +40,7 @@ class Prompt:
     """A saved prompt definition."""
 
     title: str
+    project_id: str | None = None
     blocks: list[PromptBlock] = field(default_factory=list)
     prompt_id: str = field(default_factory=lambda: str(uuid4()))
     tags: set[str] = field(default_factory=set)
@@ -74,4 +75,3 @@ class PromptExecutionResult:
     output: str
     provider_name: str
     metadata: dict[str, str | int | float | bool] = field(default_factory=dict)
-

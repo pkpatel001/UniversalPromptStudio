@@ -3,4 +3,3 @@
 from .server import serve_stdio
 
 raise SystemExit(serve_stdio())
-

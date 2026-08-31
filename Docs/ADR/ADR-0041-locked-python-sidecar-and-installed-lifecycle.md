@@ -1,6 +1,6 @@
 # ADR-0041: Locked Python sidecar and installed lifecycle
 
-**Status:** Accepted  
+**Status:** Superseded by ADR-0042
 **Date:** 2026-08-24
 
 ## Context
@@ -41,8 +41,9 @@ five artifacts. Windows NSIS remains unsigned. Other target triples require
 their own platform-native locked build and acceptance evidence before support is
 claimed.
 
-The application command surface remains readiness-only. Persistence begins in
-A-002.1 after the installed process lifecycle is established.
+At the A-001.2 boundary, the application command surface remained
+readiness-only. ADR-0042 supersedes that application-layer lifecycle with the
+versioned app-data SQLite prompt library.
 
 ## References
 

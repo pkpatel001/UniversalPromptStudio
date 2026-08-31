@@ -22,6 +22,14 @@ class InMemoryProjectRepository(ProjectRepository):
 
         return self._projects.get(project_id)
 
+    def list(self) -> list[Project]:
+        """Return projects ordered by name and stable identifier."""
+
+        return sorted(
+            self._projects.values(),
+            key=lambda project: (project.name.casefold(), project.project_id),
+        )
+
 
 class InMemoryPromptRepository(PromptRepository):
     """In-memory prompt repository."""
@@ -39,8 +47,12 @@ class InMemoryPromptRepository(PromptRepository):
 
         return self._prompts.get(prompt_id)
 
-    def list(self) -> list[Prompt]:
-        """Return all prompts."""
+    def list(self, project_id: str | None = None) -> list[Prompt]:
+        """Return prompts, optionally restricted to one project."""
 
-        return list(self._prompts.values())
-
+        prompts = [
+            prompt
+            for prompt in self._prompts.values()
+            if project_id is None or prompt.project_id == project_id
+        ]
+        return sorted(prompts, key=lambda prompt: (prompt.title.casefold(), prompt.prompt_id))

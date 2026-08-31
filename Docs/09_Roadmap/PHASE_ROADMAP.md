@@ -23,9 +23,9 @@ and deferred scope.
 | A-006 | Extensibility UI | Supported theme, plugin, and provider lifecycle surfaces |
 | A-007 | Product hardening | Import/export, settings, diagnostics, onboarding, accessibility, localization, backup, and distribution polish |
 
-A-001.2 completes the bundled Python sidecar and installed lifecycle. The
-immediate checkpoint is **A-002.1 — SQLite prompt-library persistence
-foundation**.
+A-002.1 completes the SQLite prompt-library persistence foundation. The
+immediate checkpoint is **A-002.2 — Prompt editing, deletion, organization, and
+local search**.
 Scope and acceptance guidance are in `APPLICATION_DEVELOPMENT_HANDOFF.md`.
 
 ## Planning rule

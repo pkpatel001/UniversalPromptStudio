@@ -37,10 +37,13 @@ application service continues to depend only on `Backend.interfaces.AIProvider`;
 the composition root owns the concrete SDK registry, execution service, offline
 reference implementation, and adapter wiring.
 
-A-001.2 connects the frontend readiness action to this composition root through
+A-002.1 connects the desktop prompt library to this composition root through
 one Tauri-owned, target-triple frozen Python sidecar and strict JSON-lines
-protocol. Development and release builds use the same declared executable, and
-Rust verifies its identity, version, protocol, capability, and correlation.
+protocol. Rust resolves the application data directory and Python owns a
+versioned SQLite database there. Development and release builds use the same
+declared executable. Rust verifies identity, application/protocol/storage
+versions, capabilities, correlation, entity shapes, collection bounds, and
+project ownership before returning project or prompt data to the webview.
 
 ## Engineering Toolkit
 

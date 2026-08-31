@@ -40,7 +40,7 @@ cargo test --locked
 cargo check --release --locked
 ```
 
-## Development IPC probe
+## Development prompt-library flow
 
 Run the desktop development host from `Frontend`:
 
@@ -48,17 +48,21 @@ Run the desktop development host from `Frontend`:
 npm run tauri dev
 ```
 
-Select **Check backend**. The Rust host starts the declared target-triple
-`universal-prompt-studio-backend` sidecar and reports readiness only after exact
-identity, application-version, protocol-version, capability, and correlation
-validation. Development and release builds use the same frozen executable.
+The Rust host starts the declared target-triple
+`universal-prompt-studio-backend` sidecar automatically. Create a project and a
+prompt, close the app, reopen it, and confirm both records remain. Rust resolves
+the Tauri app-data directory and validates identity, application/protocol/storage
+versions, capabilities, correlation, result shapes, bounds, and project
+ownership. Development and release builds use the same frozen executable.
 
 Build and validate the frozen sidecar from the repository root:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/build-sidecar.ps1
 $env:UPS_REQUIRE_SIDECAR_TESTS = "1"
-python -m pytest -q Tests/test_ipc.py Tests/test_sidecar_build.py Tests/test_sidecar_lifecycle.py
+python -m pytest -q Tests/test_ipc.py Tests/test_prompt_library_ipc.py `
+  Tests/test_prompt_library_persistence.py Tests/test_sidecar_build.py `
+  Tests/test_sidecar_lifecycle.py
 ```
 
 Generated sidecar executables and build manifests remain ignored. Tauri builds
@@ -67,9 +71,10 @@ invoke the same locked build script automatically.
 ## Architecture entry points
 
 - `Backend/core/container.py` — application composition root.
-- `Backend/ipc/` — application-owned protocol and command router.
-- `Frontend/src/backend-client.js` — strict webview readiness client.
-- `Frontend/src-tauri/src/backend.rs` — process lifecycle and correlation.
+- `Backend/infrastructure/repositories/sqlite.py` — schema and persistence lifecycle.
+- `Backend/ipc/` — typed application-owned command router.
+- `Frontend/src/backend-client.js` — strict webview library client.
+- `Frontend/src-tauri/src/backend.rs` — app-data, process, and correlation boundary.
 - `Docs/04_Backend/IPC_PROTOCOL.md` — IPC and trust boundary.
 - `Docs/09_Roadmap/APPLICATION_DEVELOPMENT_HANDOFF.md` — next product slice.
 

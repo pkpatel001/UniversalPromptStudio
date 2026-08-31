@@ -395,29 +395,37 @@ Every generated diff still requires human review.
 
 ## Bounded desktop-to-Python IPC
 
-A-001.2 exposes one Tauri custom command, `backend_readiness`. The webview may
-provide only a bounded request ID; it cannot select an executable, path, Python
-module, function, application command, or payload. Rust maps the call to the
-fixed `application.readiness` command.
+A-002.1 exposes five Tauri commands: readiness, project list/create, and
+project-scoped prompt list/create. Each accepts only bounded command-specific
+values. The webview cannot select an executable, database path, environment
+value, Python module, function, sidecar command, arbitrary payload, or SQL.
 
 Both development and release hosts launch only the target-triple sidecar declared
 by Tauri `externalBin`. The webview retains only `core:default`; no shell-plugin
-permission is exposed. Rust clears the child environment and restores only
-`SystemRoot`, `TEMP`, and `TMP`, which the Windows frozen runtime requires. It
-verifies the exact sidecar identity, application version, protocol version,
-capability, schema, and correlation before returning readiness.
+or filesystem permission is exposed. Rust clears the child environment,
+restores only the three variables required by the Windows frozen runtime, and
+adds the trusted `UPS_APP_DATA_DIR` value resolved through Tauri. Python appends
+only the fixed `prompt-library.sqlite3` filename.
 
 The JSON-lines protocol rejects unknown or duplicate fields, malformed UTF-8 or
-JSON, unsupported versions, non-finite values, malformed identifiers, payload
-fields, messages over 16 KiB, uncorrelated responses, and responses outside the
-three-second timeout. Transport failure discards the child so later explicit
-user action may start a fresh process.
+JSON, unsupported versions, non-finite values, malformed identifiers, unknown
+payload fields, messages over 16 KiB, uncorrelated responses, and responses
+outside the three-second timeout. Rust revalidates entity shapes, UUIDs,
+timestamps, text and collection bounds, and project ownership. Transport failure
+discards the child so a later action may start a fresh process.
 
-The Python router creates one in-memory application container and supports only
-the non-destructive readiness command. It performs no persistence, provider
-request, workflow execution, credential access, network operation, repository
-write, or subprocess launch. Error responses never include raw exceptions,
-tracebacks, stderr, paths, or environment values.
+SQLite schema version 1 is application-owned through `PRAGMA user_version`.
+Startup checks database integrity, required schema shape, and foreign-key
+relationships. Foreign keys are enabled on every connection. Future, corrupt,
+unmanaged, incomplete, relationship-invalid, or unavailable databases fail with
+bounded errors and are never deleted, replaced, renamed, truncated, downgraded,
+or automatically repaired.
+
+The router performs no prompt execution, provider request, workflow execution,
+credential access, network operation, arbitrary file access, or subprocess
+launch. Python error detail never crosses Rust; unknown failures collapse to a
+fixed unavailable response. Source, frozen, restart, and installed-layout tests
+verify records remain under per-user app data rather than the installation.
 
 The Python process remains trusted code with normal process authority. IPC
 validation reduces the webview's authority but is not a sandbox or process

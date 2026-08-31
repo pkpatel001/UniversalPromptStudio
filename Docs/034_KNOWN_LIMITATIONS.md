@@ -2,11 +2,13 @@
 
 ## Product integration
 
-- A-001.2 bundles and verifies the Windows x86_64 Python sidecar. Other target
+- A-002.1 persists projects and project-owned prompt summaries under Tauri's
+  per-user app-data directory. Editing, deletion, categories, tags, and local
+  search remain scheduled for A-002.2.
+- The product bundles and verifies the Windows x86_64 Python sidecar. Other target
   triples still require platform-native locked builds and acceptance evidence.
-- Prompt/project persistence and search are not exposed as complete desktop
-  workflows.
-- Prompt builder editing and execution controls remain mostly static shell UI.
+- Prompt-library management and search are not yet complete desktop workflows.
+- Prompt composition and execution controls are deferred to A-003.
 - Workflow authoring and execution have no product UI.
 
 ## Extensibility and trust

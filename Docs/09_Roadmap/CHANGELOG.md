@@ -23,7 +23,14 @@
 - Added real frozen-process start, reuse, crash/restart, shutdown, installed-path,
   unsigned NSIS, and sidecar checksum coverage.
 - Added frontend pending, ready, and unavailable presentation.
-- The next checkpoint is A-002.1, SQLite prompt-library persistence foundation.
+- Added schema-1 SQLite persistence under Tauri-managed app data with explicit
+  migration ownership and non-destructive corrupt/future-schema recovery.
+- Added durable project creation/listing and project-owned prompt
+  creation/listing across source, frozen-sidecar, restart, and installed paths.
+- Replaced the readiness-only screen with the minimal offline prompt library and
+  five strictly validated desktop-to-sidecar commands.
+- The next checkpoint is A-002.2: prompt editing, deletion, organization, and
+  local search.
 
 This changelog records milestone-level changes. Git history remains the source
 for checkpoint-level implementation detail.

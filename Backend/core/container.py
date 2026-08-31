@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,6 +28,8 @@ from Backend.infrastructure.repositories.in_memory import (
     InMemoryPromptRepository,
 )
 from Backend.infrastructure.repositories.sqlite import (
+    DATABASE_FILE_NAME,
+    DatabaseUnavailableError,
     SQLiteProjectRepository,
     SQLitePromptRepository,
     SQLiteStorageProvider,
@@ -47,6 +50,8 @@ from Engineering.WorkflowSystem import (
     offline_text_workflow_plan,
     register_offline_workflow_handlers,
 )
+
+DESKTOP_APP_DATA_ENV = "UPS_APP_DATA_DIR"
 
 
 @dataclass(frozen=True)
@@ -74,6 +79,18 @@ def create_in_memory_container() -> ApplicationContainer:
         project_repository=InMemoryProjectRepository(),
         prompt_repository=InMemoryPromptRepository(),
     )
+
+
+def create_desktop_container() -> ApplicationContainer:
+    """Create the installed application container in Tauri-owned app data."""
+
+    configured = os.environ.get(DESKTOP_APP_DATA_ENV)
+    if configured is None or not configured.strip():
+        raise DatabaseUnavailableError("The application data directory is unavailable.")
+    app_data_directory = Path(configured)
+    if not app_data_directory.is_absolute():
+        raise DatabaseUnavailableError("The application data directory is invalid.")
+    return create_sqlite_container(app_data_directory / DATABASE_FILE_NAME)
 
 
 def create_sqlite_container(database_path: Path) -> ApplicationContainer:
@@ -126,7 +143,12 @@ def _create_container(
         project_repository=project_repository,
         prompt_repository=prompt_repository,
         project_service=ProjectService(project_repository, event_bus),
-        prompt_service=PromptService(prompt_repository, prompt_builder, event_bus),
+        prompt_service=PromptService(
+            prompt_repository,
+            prompt_builder,
+            event_bus,
+            project_repository,
+        ),
         prompt_execution_service=PromptExecutionService(
             ai_providers=ai_providers,
             validator=BasicPromptValidator(),

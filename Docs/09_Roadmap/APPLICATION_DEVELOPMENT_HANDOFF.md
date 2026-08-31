@@ -1,81 +1,86 @@
 # Application development handoff
 
-**Completed checkpoint:** A-001.2 — Bundled Python sidecar and installed lifecycle
-**Immediate checkpoint:** A-002.1 — SQLite prompt-library persistence foundation
+**Completed checkpoint:** A-002.1 — SQLite prompt-library persistence foundation
+**Immediate checkpoint:** A-002.2 — Prompt editing, deletion, organization, and local search
 
 ## Current application baseline
 
-A-001.2 establishes one installed-safe application path:
+A-002.1 establishes the first durable offline product flow:
 
 ```text
-frontend Check backend action
-    -> Tauri backend_readiness command
-        -> long-lived Rust-owned declared sidecar
-            -> application.readiness
-                -> one in-memory ApplicationContainer
+desktop launch
+    -> Rust resolves Tauri app_data_dir
+        -> long-lived frozen Python sidecar
+            -> schema-1 SQLite prompt library
+                -> create/list projects
+                -> create/list project-owned prompts
 ```
 
-The Python application is frozen by a SHA-256-locked PyInstaller toolchain,
-named for the Rust target triple, declared through Tauri `externalBin`, and used
-by both development and release builds. Rust verifies sidecar identity,
-application version, protocol version, capability, schema, and correlation
-before reporting ready.
+The minimal desktop library automatically starts the backend, creates a project,
+creates prompts inside the selected project, and shows the same saved records
+after application restart. Theme selection remains available.
 
-The webview has no shell authority and cannot choose a process, path, argument,
-module, function, IPC command, or payload. Lifecycle tests cover start, process
-reuse, timeout behavior in the host, crash/restart, EOF shutdown, and execution
-from an installed-style path. Release packaging records the sidecar as a
-separate checksummed PE artifact in addition to the unsigned NSIS installer.
+SQLite lives only at the fixed `prompt-library.sqlite3` path under Tauri's
+per-user app-data directory. Schema version 1 has explicit forward migration
+ownership, foreign-key enforcement, integrity and shape checks, and safe
+failures for unavailable, corrupt, unmanaged, incomplete, relationship-invalid,
+or future-schema databases. Recovery never silently destroys user data.
 
-## A-002.1 — SQLite prompt-library persistence foundation
+The webview has five fixed Tauri commands and no shell or filesystem authority.
+Rust maps those calls to five fixed sidecar commands, validates all entity and
+collection results, and allowlists safe errors. Source-process, frozen-sidecar,
+restart, crash, and installed-layout tests prove persistence stays outside the
+installation directory.
 
-Replace the readiness-only in-memory product experience with the first durable,
-offline prompt-library slice. Deliver:
+## A-002.2 — Prompt editing, deletion, organization, and local search
 
-- an application-owned SQLite database under the supported per-user app-data
-  location, never the installation or repository directory;
-- explicit schema creation and forward-only migration ownership;
-- durable project and prompt creation plus project-scoped prompt listing;
-- a minimal desktop library view that can create a project, create a prompt,
-  restart the application, and show the saved records;
-- typed IPC commands and frontend validation limited to that vertical flow;
-- deterministic repository, service, IPC, frontend, restart, and installed-path
-  tests; and
-- recovery behavior for unavailable, invalid, or future-schema databases that
-  does not silently destroy user data.
+Extend the proven persistence lifecycle into a usable management flow. Deliver:
 
-Do not add prompt execution, provider credentials, workflow authoring, import,
-sync, arbitrary SQL, or broad filesystem access. Editing, deletion, full-text
-search, and organization refinements belong to later A-002 checkpoints after
-the persistence lifecycle is proven.
+- prompt title and ordered-block editing with explicit validation and durable
+  update timestamps;
+- explicit prompt deletion and project deletion with clear confirmation and
+  defined dependent-prompt behavior;
+- category and tag organization through the existing domain fields;
+- deterministic local prompt search scoped to supported project/library
+  boundaries;
+- desktop views for selecting, editing, organizing, searching, and deleting
+  saved prompts without exposing arbitrary SQL or filesystem paths;
+- forward-only schema migration only where A-002.2 persistence changes require
+  it, preserving schema-1 user data;
+- typed IPC and frontend validation for the exact new operations; and
+- deterministic repository, service, IPC, frontend, migration, restart, and
+  installed-path tests.
+
+Do not add provider execution, credentials, remote endpoints, workflow
+authoring, sync, import/export, arbitrary SQL, arbitrary filesystem access, or
+background indexing outside the application-owned data directory. Prompt
+composition and offline reference execution begin in A-003 after the local
+library management lifecycle is complete.
 
 ## Subsequent application sequence
 
-1. **A-002.2:** Prompt editing, deletion, organization, and local search.
-2. **A-003:** Prompt composition and offline reference execution.
-3. **A-004:** Controlled provider selection, endpoint configuration, and
-   credential handling.
-4. **A-005:** Workflow authoring, validation, and sequential execution UI.
-5. **A-006:** Theme and managed extension lifecycle UI at supported trust
-   boundaries.
-6. **A-007:** Import/export, settings, diagnostics, onboarding, and distribution
-   polish.
+1. **A-003:** Prompt composition and offline reference execution.
+2. **A-004:** Controlled provider selection, endpoint configuration, and credential handling.
+3. **A-005:** Workflow authoring, validation, and sequential execution UI.
+4. **A-006:** Theme and managed extension lifecycle UI at supported trust boundaries.
+5. **A-007:** Import/export, settings, diagnostics, onboarding, and distribution polish.
 
 Each slice must produce a usable vertical outcome and reuse existing domain
 contracts. Add Engineering capability only when the slice exposes a specific
 gap.
 
-## Starting points for A-002.1
+## Starting points for A-002.2
 
-- `Backend/core/container.py`
+- `Backend/domain/models.py`
+- `Backend/repositories/contracts.py`
 - `Backend/infrastructure/repositories/sqlite.py`
 - `Backend/application/services.py`
-- `Backend/ipc/`
+- `Backend/ipc/router.py`
 - `Frontend/src/backend-client.js`
 - `Frontend/src/main.js`
 - `Frontend/src-tauri/src/backend.rs`
 - `Docs/04_Backend/IPC_PROTOCOL.md`
 
-Before edits, verify clean local/origin/live GitHub parity and inspect current
-Tauri app-data path, SQLite lifecycle, and migration guidance from primary
-sources.
+Before edits, verify clean local/origin/live GitHub parity and inspect the
+current schema-1 acceptance evidence. Preserve schema-1 databases through any
+new migration and keep project/prompt ownership explicit.

@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
-from Backend.core.container import ApplicationContainer, create_in_memory_container
+from Backend.core.container import (
+    DESKTOP_APP_DATA_ENV,
+    ApplicationContainer,
+    create_in_memory_container,
+)
 from Backend.ipc import (
     APPLICATION_READINESS_COMMAND,
     IPC_PROTOCOL_VERSION,
@@ -61,7 +66,14 @@ def test_readiness_uses_one_long_lived_application_container() -> None:
         "sidecar_identity": SIDECAR_IDENTITY,
         "application_version": "0.2.0-alpha",
         "protocol_version": 1,
-        "capabilities": ["application.readiness"],
+        "storage_schema_version": 1,
+        "capabilities": [
+            "application.readiness",
+            "library.projects.list",
+            "library.projects.create",
+            "library.prompts.list",
+            "library.prompts.create",
+        ],
     }
     assert second.request_id == "second"
 
@@ -157,12 +169,15 @@ def test_response_encoding_is_deterministic_and_bounded() -> None:
     assert first.startswith(b'{"ok":true,"request_id":"request-1"')
 
 
-def test_module_entrypoint_round_trips_one_request() -> None:
+def test_module_entrypoint_round_trips_one_request(tmp_path: Path) -> None:
+    environment = os.environ.copy()
+    environment[DESKTOP_APP_DATA_ENV] = str(tmp_path / "app-data")
     completed = subprocess.run(
         [sys.executable, "-m", "Backend.ipc"],
         input=_request(request_id="subprocess") + b"\n",
         capture_output=True,
         check=False,
+        env=environment,
         timeout=5,
     )
 

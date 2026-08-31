@@ -148,4 +148,3 @@ def encode_response(response: IpcResponse) -> bytes:
             separators=(",", ":"),
         ).encode("utf-8")
     return encoded
-

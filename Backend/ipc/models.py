@@ -21,6 +21,10 @@ class IpcErrorCode(StrEnum):
     UNKNOWN_COMMAND = "ipc.unknown_command"
     INVALID_PAYLOAD = "ipc.invalid_payload"
     INTERNAL_ERROR = "ipc.internal_error"
+    NOT_FOUND = "library.not_found"
+    STORAGE_UNAVAILABLE = "storage.unavailable"
+    INVALID_DATABASE = "storage.invalid_database"
+    FUTURE_SCHEMA = "storage.future_schema"
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,4 +82,3 @@ class IpcResponse:
         else:
             encoded["error"] = self.error.to_dict()
         return encoded
-

@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 from typing import BinaryIO
 
+from Backend.core.container import create_desktop_container
+
 from .models import MAX_IPC_MESSAGE_BYTES, IpcErrorCode, IpcResponse
 from .protocol import INVALID_REQUEST_ID, IpcProtocolError, encode_response, parse_request
 from .router import ApplicationIpcRouter
@@ -65,5 +67,5 @@ class IpcServer:
 def serve_stdio() -> int:
     """Create one application container and serve the host until EOF."""
 
-    return IpcServer().run(sys.stdin.buffer, sys.stdout.buffer)
-
+    router = ApplicationIpcRouter(create_desktop_container)
+    return IpcServer(router).run(sys.stdin.buffer, sys.stdout.buffer)

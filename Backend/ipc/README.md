@@ -1,20 +1,28 @@
 # Application IPC
 
 `Backend.ipc` is the application-owned JSON-lines boundary frozen into the
-A-001.2 Tauri sidecar. It creates one in-memory `ApplicationContainer`, accepts
-only the closed `application.readiness` command, and serves until stdin reaches
-EOF or the Rust host terminates it.
+Tauri sidecar. A-002.1 creates one SQLite `ApplicationContainer` in the fixed
+app-data directory supplied by Rust. It serves five closed readiness and
+prompt-library commands until stdin reaches EOF or Rust terminates it.
 
-Development probe:
+Temporary development probe:
 
 ```powershell
+$env:UPS_APP_DATA_DIR = Join-Path $env:TEMP "ups-ipc-probe"
 '{"schema_version":1,"request_id":"manual-1","command":"application.readiness","payload":{}}' |
   python -m Backend.ipc
+Remove-Item -LiteralPath $env:UPS_APP_DATA_DIR -Recurse -Force
+Remove-Item Env:UPS_APP_DATA_DIR
 ```
 
-The server writes protocol responses only to stdout. It performs no persistence,
-provider request, workflow execution, network access, subprocess launch, or
-repository write.
+Production does not accept this directory from the webview: Rust resolves
+Tauri's application data directory after clearing the child environment. The
+server writes protocol responses only to stdout. It performs bounded SQLite
+project/prompt operations but no prompt execution, provider request, workflow
+execution, network access, arbitrary file access, or subprocess launch.
+
+Future, invalid, and unavailable databases return safe errors and remain
+unchanged.
 
 See `Docs/04_Backend/IPC_PROTOCOL.md` for the complete host and trust boundary.
 

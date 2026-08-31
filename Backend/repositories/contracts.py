@@ -19,6 +19,10 @@ class ProjectRepository(ABC):
     def get(self, project_id: str) -> Project | None:
         """Load a project by id."""
 
+    @abstractmethod
+    def list(self) -> Sequence[Project]:
+        """Return all projects."""
+
 
 class PromptRepository(ABC):
     """Persistence contract for prompts."""
@@ -32,8 +36,8 @@ class PromptRepository(ABC):
         """Load a prompt by id."""
 
     @abstractmethod
-    def list(self) -> Sequence[Prompt]:
-        """Return all prompts."""
+    def list(self, project_id: str | None = None) -> Sequence[Prompt]:
+        """Return prompts, optionally restricted to one project."""
 
 
 class HistoryRepository(ABC):
@@ -54,4 +58,3 @@ class SettingsRepository(ABC):
 
 class TagRepository(ABC):
     """Persistence contract for tags."""
-

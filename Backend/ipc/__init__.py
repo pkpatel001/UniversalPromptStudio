@@ -9,13 +9,25 @@ from .models import (
     IpcResponse,
 )
 from .protocol import IpcProtocolError, encode_response, parse_request
-from .router import APPLICATION_READINESS_COMMAND, SIDECAR_IDENTITY, ApplicationIpcRouter
+from .router import (
+    APPLICATION_READINESS_COMMAND,
+    PROJECT_CREATE_COMMAND,
+    PROJECT_LIST_COMMAND,
+    PROMPT_CREATE_COMMAND,
+    PROMPT_LIST_COMMAND,
+    SIDECAR_IDENTITY,
+    ApplicationIpcRouter,
+)
 from .server import IpcServer, serve_stdio
 
 __all__ = [
     "APPLICATION_READINESS_COMMAND",
     "IPC_PROTOCOL_VERSION",
     "MAX_IPC_MESSAGE_BYTES",
+    "PROJECT_CREATE_COMMAND",
+    "PROJECT_LIST_COMMAND",
+    "PROMPT_CREATE_COMMAND",
+    "PROMPT_LIST_COMMAND",
     "SIDECAR_IDENTITY",
     "ApplicationIpcRouter",
     "IpcError",

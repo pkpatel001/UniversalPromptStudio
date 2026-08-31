@@ -4,37 +4,38 @@ import { themeSelectionKey, THEME_CATALOG } from "./theme-catalog.js";
 import { ThemeApplicationController } from "./theme-controller.js";
 import { ThemePreferenceStore } from "./theme-preference.js";
 
-const blocks = [
-  "Role",
-  "Goal",
-  "Context",
-  "Audience",
-  "Constraints",
-  "Requirements",
-  "Tone",
-  "Output Format",
-  "Reasoning Style",
-  "Examples",
-  "Validation Rules",
-  "Final Instructions",
-];
-
 document.querySelector("#app").innerHTML = `
   <main class="app-shell">
     <aside class="sidebar">
-      <h1>Universal Prompt Studio</h1>
-      <nav>
-        <button class="active">Builder</button>
-        <button>Templates</button>
-        <button>History</button>
-        <button>Settings</button>
-      </nav>
+      <div class="brand">
+        <p>Offline workspace</p>
+        <h1>Universal Prompt Studio</h1>
+      </div>
+      <form id="project-form" class="compact-form">
+        <label>
+          New project
+          <input id="project-name" name="name" maxlength="120" required
+            placeholder="Project name" autocomplete="off">
+        </label>
+        <label>
+          Description <span>optional</span>
+          <textarea id="project-description" name="description" maxlength="1000"
+            placeholder="What is this prompt library for?"></textarea>
+        </label>
+        <button class="primary" type="submit">Create project</button>
+      </form>
+      <div class="section-heading">
+        <h2>Projects</h2>
+        <span id="project-count">0</span>
+      </div>
+      <nav id="project-list" class="project-list" aria-label="Prompt library projects"></nav>
     </aside>
+
     <section class="workspace">
       <header>
         <div>
-          <p>Prompt Builder</p>
-          <h2>New prompt</h2>
+          <p>Prompt library</p>
+          <h2 id="workspace-title">Choose or create a project</h2>
         </div>
         <div class="header-actions">
           <label class="theme-control">
@@ -45,81 +46,246 @@ document.querySelector("#app").innerHTML = `
           </label>
           <label class="remember-theme">
             <input id="remember-theme" type="checkbox" disabled>
-            Remember theme
+            Remember
           </label>
-          <button id="revert-theme" class="secondary" type="button" disabled>Revert theme</button>
-          <button id="backend-readiness" class="primary" type="button">Check backend</button>
+          <button id="revert-theme" class="secondary" type="button" disabled>Revert</button>
         </div>
       </header>
+
       <p id="theme-status" class="theme-status" role="status" aria-live="polite">
         Using the default application colors.
       </p>
-      <p id="backend-status" class="backend-status" data-state="idle" role="status" aria-live="polite">
-        Backend connection has not been checked.
-      </p>
-      <div class="builder-grid">
-        <section class="block-list">
-          ${blocks.map((block) => `<button>${block}</button>`).join("")}
-        </section>
-        <section class="editor">
-          <label>
-            Role
-            <textarea>Senior software architect</textarea>
-          </label>
-          <label>
-            Goal
-            <textarea>Design a maintainable offline prompt engineering app.</textarea>
-          </label>
-        </section>
-        <section class="preview">
-          <h3>Preview</h3>
-          <pre>Role:
-Senior software architect
-
-Goal:
-Design a maintainable offline prompt engineering app.</pre>
-        </section>
+      <div id="library-status" class="library-status" data-state="pending" role="status"
+        aria-live="polite">
+        Opening your local prompt library…
       </div>
+
+      <section class="library-panel">
+        <form id="prompt-form" class="prompt-form">
+          <label>
+            New prompt
+            <input id="prompt-title" name="title" maxlength="120" required
+              placeholder="Prompt title" autocomplete="off" disabled>
+          </label>
+          <button class="primary" type="submit" disabled>Create prompt</button>
+        </form>
+
+        <div class="section-heading prompt-heading">
+          <div>
+            <p>Saved locally</p>
+            <h3>Prompts</h3>
+          </div>
+          <span id="prompt-count">0</span>
+        </div>
+        <div id="prompt-list" class="prompt-list"></div>
+      </section>
     </section>
   </main>
 `;
+
+const backendClient = new BackendClient();
+const projectForm = document.querySelector("#project-form");
+const projectName = document.querySelector("#project-name");
+const projectDescription = document.querySelector("#project-description");
+const projectList = document.querySelector("#project-list");
+const projectCount = document.querySelector("#project-count");
+const promptForm = document.querySelector("#prompt-form");
+const promptTitle = document.querySelector("#prompt-title");
+const promptList = document.querySelector("#prompt-list");
+const promptCount = document.querySelector("#prompt-count");
+const workspaceTitle = document.querySelector("#workspace-title");
+const libraryStatus = document.querySelector("#library-status");
+let projects = [];
+let prompts = [];
+let selectedProjectId = null;
+
+function setLibraryStatus(state, message) {
+  libraryStatus.dataset.state = state;
+  libraryStatus.textContent = message;
+}
+
+function selectedProject() {
+  return projects.find((project) => project.projectId === selectedProjectId) ?? null;
+}
+
+function renderProjects() {
+  projectList.replaceChildren();
+  projectCount.textContent = String(projects.length);
+  for (const project of projects) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = project.projectId === selectedProjectId ? "active" : "";
+    button.dataset.projectId = project.projectId;
+    const name = document.createElement("strong");
+    name.textContent = project.name;
+    const description = document.createElement("span");
+    description.textContent = project.description || "No description";
+    button.append(name, description);
+    projectList.append(button);
+  }
+  if (projects.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-sidebar";
+    empty.textContent = "Create your first project to begin.";
+    projectList.append(empty);
+  }
+}
+
+function renderPrompts() {
+  promptList.replaceChildren();
+  promptCount.textContent = String(prompts.length);
+  const project = selectedProject();
+  workspaceTitle.textContent = project?.name ?? "Choose or create a project";
+  promptTitle.disabled = project === null;
+  promptForm.querySelector("button").disabled = project === null;
+  if (project === null) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.innerHTML = "<strong>No project selected</strong><span>Create a project to start a durable prompt library.</span>";
+    promptList.append(empty);
+    return;
+  }
+  if (prompts.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.innerHTML = "<strong>No prompts yet</strong><span>Create the first prompt in this project.</span>";
+    promptList.append(empty);
+    return;
+  }
+  for (const prompt of prompts) {
+    const card = document.createElement("article");
+    card.className = "prompt-card";
+    const marker = document.createElement("span");
+    marker.className = "prompt-marker";
+    marker.textContent = "P";
+    const details = document.createElement("div");
+    const title = document.createElement("h4");
+    title.textContent = prompt.title;
+    const saved = document.createElement("p");
+    saved.textContent = `Saved ${new Date(prompt.createdAt).toLocaleString()}`;
+    details.append(title, saved);
+    card.append(marker, details);
+    promptList.append(card);
+  }
+}
+
+async function loadPrompts(projectId) {
+  const result = await backendClient.listPrompts(projectId);
+  if (selectedProjectId !== projectId) {
+    return;
+  }
+  prompts = [...result.prompts];
+  renderPrompts();
+  setLibraryStatus(
+    "ready",
+    result.hasMore
+      ? "Showing the first 50 saved prompts in this project."
+      : "Your local prompt library is ready.",
+  );
+}
+
+async function selectProject(projectId) {
+  selectedProjectId = projectId;
+  prompts = [];
+  renderProjects();
+  renderPrompts();
+  setLibraryStatus("pending", "Loading saved prompts…");
+  try {
+    await loadPrompts(projectId);
+  } catch (error) {
+    setLibraryStatus("error", error?.message ?? "The prompt library is unavailable.");
+  }
+}
+
+async function initializeLibrary(preferredProjectId = null) {
+  setLibraryStatus("pending", "Opening your local prompt library…");
+  try {
+    await backendClient.checkReadiness();
+    const result = await backendClient.listProjects();
+    projects = [...result.projects];
+    const preferred = projects.some((project) => project.projectId === preferredProjectId)
+      ? preferredProjectId
+      : projects[0]?.projectId ?? null;
+    selectedProjectId = preferred;
+    renderProjects();
+    renderPrompts();
+    if (preferred !== null) {
+      await loadPrompts(preferred);
+    } else {
+      setLibraryStatus("ready", "Your local prompt library is ready for its first project.");
+    }
+  } catch (error) {
+    projects = [];
+    prompts = [];
+    selectedProjectId = null;
+    renderProjects();
+    renderPrompts();
+    setLibraryStatus("error", error?.message ?? "The prompt library is unavailable.");
+  }
+}
+
+projectList.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-project-id]");
+  if (button === null || button.dataset.projectId === selectedProjectId) {
+    return;
+  }
+  void selectProject(button.dataset.projectId);
+});
+
+projectForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submit = projectForm.querySelector("button");
+  submit.disabled = true;
+  setLibraryStatus("pending", "Creating project…");
+  try {
+    const result = await backendClient.createProject(
+      projectName.value,
+      projectDescription.value,
+    );
+    projectForm.reset();
+    await initializeLibrary(result.project.projectId);
+    projectName.focus();
+  } catch (error) {
+    setLibraryStatus("error", error?.message ?? "The project could not be created.");
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+promptForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (selectedProjectId === null) {
+    return;
+  }
+  const submit = promptForm.querySelector("button");
+  submit.disabled = true;
+  promptTitle.disabled = true;
+  setLibraryStatus("pending", "Saving prompt…");
+  try {
+    await backendClient.createPrompt(selectedProjectId, promptTitle.value);
+    promptForm.reset();
+    await loadPrompts(selectedProjectId);
+    promptTitle.focus();
+  } catch (error) {
+    setLibraryStatus("error", error?.message ?? "The prompt could not be saved.");
+  } finally {
+    submit.disabled = selectedProjectId === null;
+    promptTitle.disabled = selectedProjectId === null;
+  }
+});
 
 const themeController = new ThemeApplicationController(document.documentElement);
 const themeSelect = document.querySelector("#theme-select");
 const rememberTheme = document.querySelector("#remember-theme");
 const revertTheme = document.querySelector("#revert-theme");
 const themeStatus = document.querySelector("#theme-status");
-const backendButton = document.querySelector("#backend-readiness");
-const backendStatus = document.querySelector("#backend-status");
-const backendClient = new BackendClient();
 let preferenceStore = null;
-
-backendButton.addEventListener("click", async () => {
-  backendButton.disabled = true;
-  backendButton.textContent = "Checking backend…";
-  backendStatus.dataset.state = "pending";
-  backendStatus.textContent = "Starting the local application backend…";
-  try {
-    const readiness = await backendClient.checkReadiness();
-    backendStatus.dataset.state = "ready";
-    backendStatus.textContent =
-      `Backend ready — Universal Prompt Studio ${readiness.applicationVersion}.`;
-  } catch (error) {
-    backendStatus.dataset.state = "unavailable";
-    backendStatus.textContent =
-      error?.message ?? "The local application backend is unavailable.";
-  } finally {
-    backendButton.disabled = false;
-    backendButton.textContent = "Check backend";
-  }
-});
 
 const appearancePresentation = {
   light: { label: "Light", order: 0 },
   dark: { label: "Dark", order: 1 },
   "high-contrast": { label: "High contrast", order: 2 },
 };
-
 const presentedEntries = [...THEME_CATALOG.entries].sort(
   (left, right) =>
     appearancePresentation[left.selection.appearance].order -
@@ -160,9 +326,8 @@ if (preferenceStore !== null) {
   const preference = preferenceStore.load();
   if (preference.status === "restored") {
     try {
-      const active = themeController.apply(preference.selection);
+      showActiveTheme(themeController.apply(preference.selection), true);
       rememberTheme.checked = true;
-      showActiveTheme(active, true);
     } catch {
       themeStatus.textContent = "Saved theme could not be applied; using default colors.";
     }
@@ -179,71 +344,39 @@ themeSelect.addEventListener("change", () => {
   if (themeSelect.value === "") {
     try {
       themeController.revert();
+      preferenceStore?.clear();
+      showDefaultTheme();
     } catch {
-      themeSelect.value = themeController.activeSelection
-        ? themeSelectionKey(themeController.activeSelection)
-        : "";
       themeStatus.textContent = "Theme revert failed; the active colors were retained.";
-      return;
-    }
-    let preferenceCleared = true;
-    if (preferenceStore !== null) {
-      try {
-        preferenceStore.clear();
-      } catch {
-        preferenceCleared = false;
-      }
-    }
-    showDefaultTheme();
-    if (!preferenceCleared) {
-      themeStatus.textContent =
-        "Default colors restored, but the saved preference could not be cleared.";
     }
     return;
   }
-  let active;
   try {
-    const selection = THEME_CATALOG.selectionForKey(themeSelect.value);
-    active = themeController.apply(selection);
-  } catch {
-    themeSelect.value = themeController.activeSelection
-      ? themeSelectionKey(themeController.activeSelection)
-      : "";
-    themeStatus.textContent = "Theme change failed; the previous colors were retained.";
-    return;
-  }
-  showActiveTheme(active);
-  if (rememberTheme.checked && preferenceStore !== null) {
-    try {
+    const active = themeController.apply(THEME_CATALOG.selectionForKey(themeSelect.value));
+    showActiveTheme(active);
+    if (rememberTheme.checked && preferenceStore !== null) {
       preferenceStore.save(active);
       themeStatus.textContent = `Applied and remembered ${active.appearance} theme.`;
-    } catch {
-      rememberTheme.checked = false;
-      themeStatus.textContent =
-        `Applied ${active.appearance} theme, but the preference could not be saved.`;
     }
+  } catch {
+    themeStatus.textContent = "Theme change failed; the previous colors were retained.";
   }
 });
 
 rememberTheme.addEventListener("change", () => {
-  const requested = rememberTheme.checked;
   try {
     const active = themeController.activeSelection;
-    if (requested) {
-      if (active === null || preferenceStore === null) {
-        rememberTheme.checked = false;
-        return;
-      }
+    if (rememberTheme.checked && active !== null && preferenceStore !== null) {
       preferenceStore.save(active);
       themeStatus.textContent = `Remembering ${active.appearance} theme on this device.`;
-    } else if (preferenceStore !== null) {
-      preferenceStore.clear();
+    } else {
+      preferenceStore?.clear();
       themeStatus.textContent = active
         ? `Applied ${active.appearance} theme for this session only.`
         : "Using the default application colors.";
     }
   } catch {
-    rememberTheme.checked = !requested;
+    rememberTheme.checked = !rememberTheme.checked;
     themeStatus.textContent = "Theme preference could not be changed.";
   }
 });
@@ -251,21 +384,13 @@ rememberTheme.addEventListener("change", () => {
 revertTheme.addEventListener("click", () => {
   try {
     themeController.revert();
+    preferenceStore?.clear();
+    showDefaultTheme();
   } catch {
     themeStatus.textContent = "Theme revert failed; the active colors were retained.";
-    return;
-  }
-  let preferenceCleared = true;
-  if (preferenceStore !== null) {
-    try {
-      preferenceStore.clear();
-    } catch {
-      preferenceCleared = false;
-    }
-  }
-  showDefaultTheme();
-  if (!preferenceCleared) {
-    themeStatus.textContent =
-      "Default colors restored, but the saved preference could not be cleared.";
   }
 });
+
+renderProjects();
+renderPrompts();
+void initializeLibrary();

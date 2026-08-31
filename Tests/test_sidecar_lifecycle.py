@@ -1,4 +1,4 @@
-"""Real frozen-sidecar lifecycle acceptance tests for A-001.2."""
+"""Real frozen-sidecar lifecycle acceptance tests through A-002.1."""
 
 from __future__ import annotations
 
@@ -10,11 +10,27 @@ from pathlib import Path
 
 import pytest
 
-from Backend.ipc import IPC_PROTOCOL_VERSION, SIDECAR_IDENTITY
+from Backend.core.container import DESKTOP_APP_DATA_ENV
+from Backend.infrastructure.repositories.sqlite import DATABASE_FILE_NAME
+from Backend.ipc import (
+    IPC_PROTOCOL_VERSION,
+    PROJECT_CREATE_COMMAND,
+    PROJECT_LIST_COMMAND,
+    PROMPT_CREATE_COMMAND,
+    PROMPT_LIST_COMMAND,
+    SIDECAR_IDENTITY,
+)
 from Engineering.core.version import VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
 SIDECAR_BASENAME = "universal-prompt-studio-backend"
+CAPABILITIES = [
+    "application.readiness",
+    "library.projects.list",
+    "library.projects.create",
+    "library.prompts.list",
+    "library.prompts.create",
+]
 
 
 def _sidecar_path() -> Path:
@@ -35,8 +51,13 @@ def _sidecar_path() -> Path:
     )
 
 
-def _minimal_environment() -> dict[str, str]:
-    return {key: os.environ[key] for key in ("SystemRoot", "TEMP", "TMP") if key in os.environ}
+def _minimal_environment(app_data: Path | None = None) -> dict[str, str]:
+    environment = {
+        key: os.environ[key] for key in ("SystemRoot", "TEMP", "TMP") if key in os.environ
+    }
+    if app_data is not None:
+        environment[DESKTOP_APP_DATA_ENV] = str(app_data)
+    return environment
 
 
 @pytest.fixture(scope="module")
@@ -49,35 +70,48 @@ def sidecar() -> Path:
     return path
 
 
-def _start(path: Path) -> subprocess.Popen[bytes]:
+def _start(path: Path, app_data: Path) -> subprocess.Popen[bytes]:
     return subprocess.Popen(
         [str(path)],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env=_minimal_environment(),
+        env=_minimal_environment(app_data),
     )
 
 
-def _request(process: subprocess.Popen[bytes], request_id: str) -> dict[str, object]:
+def _command(
+    process: subprocess.Popen[bytes],
+    request_id: str,
+    command: str,
+    payload: dict[str, object],
+) -> dict[str, object]:
     assert process.stdin is not None
     assert process.stdout is not None
     value = json.dumps(
         {
             "schema_version": IPC_PROTOCOL_VERSION,
             "request_id": request_id,
-            "command": "application.readiness",
-            "payload": {},
+            "command": command,
+            "payload": payload,
         },
         separators=(",", ":"),
     ).encode("utf-8")
     process.stdin.write(value + b"\n")
     process.stdin.flush()
     response = process.stdout.readline()
-    assert response
+    if not response:
+        process.wait(timeout=5)
+        assert process.stderr is not None
+        detail = process.stderr.read().decode("utf-8", errors="replace")
+        pytest.fail(f"Frozen sidecar exited without a response: {detail}")
     decoded = json.loads(response)
     assert isinstance(decoded, dict)
     return decoded
+
+
+def _readiness(process: subprocess.Popen[bytes], request_id: str) -> dict[str, object]:
+    return _command(process, request_id, "application.readiness", {})
 
 
 def _assert_readiness(response: dict[str, object], request_id: str) -> None:
@@ -88,38 +122,47 @@ def _assert_readiness(response: dict[str, object], request_id: str) -> None:
         "sidecar_identity": SIDECAR_IDENTITY,
         "application_version": VERSION,
         "protocol_version": IPC_PROTOCOL_VERSION,
-        "capabilities": ["application.readiness"],
+        "storage_schema_version": 1,
+        "capabilities": CAPABILITIES,
     }
 
 
-def test_frozen_sidecar_starts_reuses_and_stops_on_eof(sidecar: Path) -> None:
-    process = _start(sidecar)
+def _stop(process: subprocess.Popen[bytes]) -> None:
+    assert process.stdin is not None
+    process.stdin.close()
+    assert process.wait(timeout=5) == 0
+    assert process.stderr is not None
+    assert process.stderr.read() == b""
+
+
+def test_frozen_sidecar_starts_reuses_and_stops_on_eof(
+    sidecar: Path,
+    tmp_path: Path,
+) -> None:
+    process = _start(sidecar, tmp_path / "app-data")
     try:
         process_id = process.pid
-        _assert_readiness(_request(process, "installed-one"), "installed-one")
-        _assert_readiness(_request(process, "installed-two"), "installed-two")
+        _assert_readiness(_readiness(process, "installed-one"), "installed-one")
+        _assert_readiness(_readiness(process, "installed-two"), "installed-two")
         assert process.pid == process_id
-        assert process.stdin is not None
-        process.stdin.close()
-        assert process.wait(timeout=3) == 0
-        assert process.stderr is not None
-        assert process.stderr.read() == b""
+        _stop(process)
     finally:
         if process.poll() is None:
             process.kill()
             process.wait(timeout=3)
 
 
-def test_frozen_sidecar_recovers_after_crash(sidecar: Path) -> None:
-    first = _start(sidecar)
+def test_frozen_sidecar_recovers_after_crash(sidecar: Path, tmp_path: Path) -> None:
+    app_data = tmp_path / "app-data"
+    first = _start(sidecar, app_data)
     first_id = first.pid
-    _assert_readiness(_request(first, "before-crash"), "before-crash")
+    _assert_readiness(_readiness(first, "before-crash"), "before-crash")
     first.kill()
     first.wait(timeout=3)
 
-    second = _start(sidecar)
+    second = _start(sidecar, app_data)
     try:
-        _assert_readiness(_request(second, "after-crash"), "after-crash")
+        _assert_readiness(_readiness(second, "after-crash"), "after-crash")
         assert second.pid != first_id
     finally:
         second.kill()
@@ -143,3 +186,43 @@ def test_installed_layout_preserves_identity_and_protocol(sidecar: Path, tmp_pat
         "sidecar_identity": SIDECAR_IDENTITY,
     }
     assert completed.stderr == b""
+
+
+def test_installed_sidecar_persists_library_only_in_app_data(
+    sidecar: Path,
+    tmp_path: Path,
+) -> None:
+    installed = tmp_path / "installed" / f"{SIDECAR_BASENAME}.exe"
+    installed.parent.mkdir()
+    shutil.copy2(sidecar, installed)
+    app_data = tmp_path / "per-user-app-data"
+    first = _start(installed, app_data)
+    project_response = _command(
+        first,
+        "create-project",
+        PROJECT_CREATE_COMMAND,
+        {"name": "Installed project", "description": ""},
+    )
+    project_id = project_response["result"]["project"]["project_id"]  # type: ignore[index]
+    _command(
+        first,
+        "create-prompt",
+        PROMPT_CREATE_COMMAND,
+        {"project_id": project_id, "title": "Installed prompt"},
+    )
+    _stop(first)
+
+    second = _start(installed, app_data)
+    projects = _command(second, "list-projects", PROJECT_LIST_COMMAND, {})
+    prompts = _command(
+        second,
+        "list-prompts",
+        PROMPT_LIST_COMMAND,
+        {"project_id": project_id},
+    )
+    _stop(second)
+
+    assert projects["result"]["projects"][0]["name"] == "Installed project"  # type: ignore[index]
+    assert prompts["result"]["prompts"][0]["title"] == "Installed prompt"  # type: ignore[index]
+    assert (app_data / DATABASE_FILE_NAME).is_file()
+    assert list(installed.parent.rglob("*.sqlite3")) == []
