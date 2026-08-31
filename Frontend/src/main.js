@@ -75,6 +75,25 @@ document.querySelector("#app").innerHTML = `
             <div class="block-heading"><div><h4>Ordered blocks</h4><p>Blocks are assembled from top to bottom.</p></div><button id="add-block" class="secondary" type="button">Add block</button></div>
             <div id="block-list" class="block-list"></div>
             <div class="editor-actions"><span id="editor-saved"></span><button class="primary" type="submit">Save changes</button></div>
+            <section class="runtime-panel" aria-labelledby="runtime-heading">
+              <div class="runtime-heading">
+                <div><p>Saved composition</p><h4 id="runtime-heading">Preview and run</h4></div>
+                <span class="offline-badge">Offline only</span>
+              </div>
+              <p class="runtime-help">Composition uses the enabled blocks already saved above. Execution is fixed to the host-authored <code>ups.offline-echo</code> reference provider.</p>
+              <div class="runtime-actions">
+                <button id="compose-prompt" class="secondary" type="button">Compose saved prompt</button>
+                <button id="execute-prompt" class="primary" type="button" disabled>Run offline echo</button>
+              </div>
+              <div class="runtime-output">
+                <div class="runtime-label"><strong>Final assembled prompt</strong><span id="composition-metadata">Not composed yet</span></div>
+                <pre id="composition-preview">Compose the saved prompt to preview its assembled text.</pre>
+              </div>
+              <div id="execution-result" class="runtime-output" hidden>
+                <div class="runtime-label"><strong>Offline result</strong><span id="execution-metadata"></span></div>
+                <pre id="execution-output"></pre>
+              </div>
+            </section>
           </form>
         </section>
       </section>
@@ -107,6 +126,13 @@ const editorCategory = byId("editor-category");
 const editorTags = byId("editor-tags");
 const editorSaved = byId("editor-saved");
 const blockList = byId("block-list");
+const composePrompt = byId("compose-prompt");
+const executePrompt = byId("execute-prompt");
+const compositionPreview = byId("composition-preview");
+const compositionMetadata = byId("composition-metadata");
+const executionResult = byId("execution-result");
+const executionOutput = byId("execution-output");
+const executionMetadata = byId("execution-metadata");
 let projects = [];
 let prompts = [];
 let selectedProjectId = null;
@@ -254,6 +280,21 @@ function renderBlocks() {
   });
 }
 
+function resetRuntime(message = "Compose the saved prompt to preview its assembled text.") {
+  compositionPreview.textContent = message;
+  compositionMetadata.textContent = "Not composed yet";
+  executionResult.hidden = true;
+  executionOutput.textContent = "";
+  executionMetadata.textContent = "";
+  executePrompt.disabled = true;
+}
+
+function markRuntimeStale() {
+  if (!selectedPrompt || compositionMetadata.textContent === "Not composed yet") return;
+  resetRuntime("Save your changes, then compose the saved prompt again.");
+  compositionMetadata.textContent = "Unsaved changes";
+}
+
 function showEditor(prompt) {
   selectedPrompt = prompt;
   editorBlocks = prompt.blocks.map(({ blockType, content, enabled }) => ({ blockType, content, enabled }));
@@ -265,6 +306,7 @@ function showEditor(prompt) {
   editorForm.hidden = false;
   renderBlocks();
   renderPrompts();
+  resetRuntime();
 }
 
 function closeEditor() {
@@ -273,6 +315,7 @@ function closeEditor() {
   editorForm.hidden = true;
   editorEmpty.hidden = false;
   renderPrompts();
+  resetRuntime();
 }
 
 async function loadPrompts(projectId) {
@@ -376,6 +419,7 @@ deleteProject.addEventListener("click", async () => {
 
 byId("add-block").addEventListener("click", () => {
   if (editorBlocks.length >= 12) { setLibraryStatus("error", "A prompt supports at most 12 blocks."); return; }
+  markRuntimeStale();
   syncEditorBlocks(); editorBlocks.push({ blockType: "context", content: "", enabled: true }); renderBlocks();
   blockList.lastElementChild?.querySelector("textarea")?.focus();
 });
@@ -389,7 +433,10 @@ blockList.addEventListener("click", (event) => {
   if (button.dataset.action === "up" && index > 0) [editorBlocks[index - 1], editorBlocks[index]] = [editorBlocks[index], editorBlocks[index - 1]];
   if (button.dataset.action === "down" && index < editorBlocks.length - 1) [editorBlocks[index + 1], editorBlocks[index]] = [editorBlocks[index], editorBlocks[index + 1]];
   renderBlocks();
+  markRuntimeStale();
 });
+
+editorForm.addEventListener("input", markRuntimeStale);
 
 editorForm.addEventListener("submit", async (event) => {
   event.preventDefault(); if (!selectedProjectId || !selectedPrompt) return;
@@ -411,6 +458,56 @@ byId("delete-prompt").addEventListener("click", async () => {
   setLibraryStatus("pending", "Deleting prompt…");
   try { await backendClient.deletePrompt(selectedProjectId, selectedPrompt.promptId, true); closeEditor(); await loadPrompts(selectedProjectId); }
   catch (error) { setLibraryStatus("error", error?.message ?? "The prompt could not be deleted."); }
+});
+
+composePrompt.addEventListener("click", async () => {
+  if (!selectedProjectId || !selectedPrompt) return;
+  composePrompt.disabled = true;
+  executePrompt.disabled = true;
+  setLibraryStatus("pending", "Composing enabled saved blocks…");
+  try {
+    const composition = await backendClient.composePrompt(
+      selectedProjectId,
+      selectedPrompt.promptId,
+    );
+    compositionPreview.textContent = composition.finalPrompt;
+    compositionMetadata.textContent = `${composition.enabledBlockCount} of ${composition.totalBlockCount} blocks · ${composition.characterCount} characters`;
+    executionResult.hidden = true;
+    executePrompt.disabled = false;
+    setLibraryStatus("ready", "Saved prompt composed locally.");
+  } catch (error) {
+    resetRuntime("The saved prompt could not be composed.");
+    setLibraryStatus("error", error?.message ?? "Prompt composition failed safely.");
+  } finally {
+    composePrompt.disabled = false;
+  }
+});
+
+executePrompt.addEventListener("click", async () => {
+  if (
+    !selectedProjectId || !selectedPrompt ||
+    !window.confirm("Run this saved composition through the offline echo reference provider?")
+  ) return;
+  composePrompt.disabled = true;
+  executePrompt.disabled = true;
+  setLibraryStatus("pending", "Running the saved prompt through offline echo…");
+  try {
+    const execution = await backendClient.executePromptOffline(
+      selectedProjectId,
+      selectedPrompt.promptId,
+      true,
+    );
+    executionOutput.textContent = execution.output;
+    executionMetadata.textContent = `${execution.providerId} ${execution.providerVersion} · ${execution.inputUnits} input / ${execution.outputUnits} output units`;
+    executionResult.hidden = false;
+    executePrompt.disabled = false;
+    setLibraryStatus("ready", "Offline reference execution completed.");
+  } catch (error) {
+    executionResult.hidden = true;
+    setLibraryStatus("error", error?.message ?? "Offline execution failed safely.");
+  } finally {
+    composePrompt.disabled = false;
+  }
 });
 
 const themeController = new ThemeApplicationController(document.documentElement);

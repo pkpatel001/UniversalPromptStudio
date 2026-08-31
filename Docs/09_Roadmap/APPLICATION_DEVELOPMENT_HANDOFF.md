@@ -1,11 +1,11 @@
 # Application development handoff
 
-**Completed checkpoint:** A-002.2 — Prompt editing, deletion, organization, and local search
-**Immediate checkpoint:** A-003 — Prompt composition and offline reference execution
+**Completed checkpoint:** A-003 — Prompt composition and offline reference execution
+**Immediate checkpoint:** A-004 — Controlled provider selection, endpoint configuration, and credential handling
 
 ## Current application baseline
 
-A-002.2 completes the local prompt-library management lifecycle:
+A-003 completes the first controlled local prompt runtime:
 
 ```text
 desktop launch
@@ -16,76 +16,84 @@ desktop launch
                 -> create/select/edit/delete project-owned prompts
                 -> organize with category, tags, and ordered blocks
                 -> deterministic project-scoped local search
+                -> compose enabled saved blocks in durable order
+                -> preview the final assembled prompt separately
+                -> explicitly execute only through ups.offline-echo
 ```
 
 The desktop automatically opens the local library. Users can create and select
 projects, create and select prompts, edit title/category/tags, add/reorder/
 enable/remove typed blocks, search titles/organization/block content, and
 delete prompts or projects after explicit confirmation. All supported state
-survives restart until explicitly deleted. Theme selection remains available.
+survives restart until explicitly deleted. Users can compose saved enabled blocks,
+inspect the distinct final prompt, and explicitly run that durable state through
+the offline echo provider. Execution results remain ephemeral.
 
 SQLite remains only at the fixed `prompt-library.sqlite3` path under Tauri's
-per-user app-data directory. Schema version 1 already contained every A-002.2
+per-user app-data directory. Schema version 1 already contained every A-003
 field, so no migration was added. The A-002.1 integrity, shape, relationship,
 future-schema, unavailable-storage, and non-destructive recovery guarantees
 remain unchanged.
 
-The webview has ten fixed Tauri commands and no shell or filesystem authority.
-Rust maps those calls to ten fixed sidecar commands and independently validates
+The webview has twelve fixed Tauri commands and no shell or filesystem authority.
+Rust maps those calls to twelve fixed sidecar commands and independently validates
 correlation, identities, versions, capabilities, UUIDs, timestamps, ownership,
 categories, tags, block types/order/content, confirmations, deletion results,
-and bounded collections. Source-process and frozen installed-layout tests prove
-edits, search, restart persistence, and deletion remain outside installation.
+bounded collections, composition counts/text, fixed provider identity/version,
+execution correlation, and output bounds. Source-process and frozen installed-layout
+tests prove management, restart persistence, composition, and offline execution.
 
-## A-003 — Prompt composition and offline reference execution
+## A-004 — Controlled provider selection, endpoint configuration, and credential handling
 
-Turn the saved ordered blocks into the first usable composition and execution
-flow. Deliver:
+Extend the fixed offline execution path into the first controlled configurable
+provider path. Deliver:
 
-- deterministic composition of enabled blocks in stored order using the
-  existing `PromptBuilder` and domain block types;
-- a desktop composition preview that clearly distinguishes saved block content
-  from the final assembled prompt;
-- explicit offline execution through the already registered host-authored
-  `ups.offline-echo` reference provider only;
-- typed request/result IPC with bounded prompt text, provider identity,
-  correlation, safe failures, and no arbitrary provider or option selection;
-- presentation of the offline result and minimal non-secret execution metadata;
-- deterministic service, IPC, frontend, Rust, frozen-sidecar, restart, and
-  installed-path tests; and
-- documentation of the transition from library management to controlled local
-  composition/execution.
+- a desktop provider-settings surface populated only from host-authorized provider
+  identities and metadata rather than arbitrary names or dynamic imports;
+- bounded provider-specific endpoint, model, and option configuration through an
+  explicit schema owned by the application;
+- credential references backed by an OS-appropriate secret-storage abstraction,
+  with secret values excluded from SQLite, web storage, logs, errors, and results;
+- explicit provider selection per execution while preserving `ups.offline-echo`
+  as the credential-free deterministic reference path;
+- safe availability/validation feedback and one explicitly initiated configured
+  provider execution path through the existing provider SDK boundary;
+- typed IPC and independent frontend/Rust/Python validation for every new setting,
+  identifier, credential reference, request, result, and safe failure; and
+- deterministic service, security, frontend, Rust, restart, installed-path, and
+  secret-redaction tests.
 
-Do not add external endpoints, credentials, model discovery, streaming,
-cancellation, retries, workflow authoring, background execution, history
-persistence, arbitrary provider loading, arbitrary options, network access,
-import/export, or sync. Controlled provider configuration begins in A-004.
+Do not add arbitrary provider loading, unrestricted endpoints/options, raw secret
+transport to the webview, model discovery, streaming, cancellation, retries,
+workflow authoring, background execution, history persistence, import/export,
+sync, or marketplace behavior.
 
 ## Subsequent application sequence
 
-1. **A-004:** Controlled provider selection, endpoint configuration, and credential handling.
-2. **A-005:** Workflow authoring, validation, and sequential execution UI.
-3. **A-006:** Theme and managed extension lifecycle UI at supported trust boundaries.
-4. **A-007:** Import/export, settings, diagnostics, onboarding, and distribution polish.
+1. **A-005:** Workflow authoring, validation, and sequential execution UI.
+2. **A-006:** Theme and managed extension lifecycle UI at supported trust boundaries.
+3. **A-007:** Import/export, settings, diagnostics, onboarding, and distribution polish.
 
 Each slice must produce a usable vertical outcome and reuse existing domain
 contracts. Add Engineering capability only when the slice exposes a specific
 gap.
 
-## Starting points for A-003
+## Starting points for A-004
 
-- `Backend/application/prompt_builder.py`
 - `Backend/application/services.py`
 - `Backend/domain/models.py`
 - `Backend/core/container.py`
 - `Backend/ipc/router.py`
 - `Backend/infrastructure/providers/runtime_adapter.py`
+- `Backend/interfaces/providers.py`
+- `Engineering/ProviderSystem/`
 - `Frontend/src/backend-client.js`
 - `Frontend/src/main.js`
 - `Frontend/src-tauri/src/backend.rs`
+- `Docs/023_SECURITY.md`
 - `Docs/04_Backend/IPC_PROTOCOL.md`
 
 Before edits, verify clean local/origin/live GitHub parity and inspect the
-A-002.2 acceptance evidence. Preserve the A-002.2 management lifecycle and the
-schema-1 database. Keep the first execution path explicitly offline and
-host-authored.
+A-003 acceptance evidence. Preserve the A-003 offline reference path and the
+schema-1 library. Make credential storage and redaction decisions explicit before
+adding any external provider execution.

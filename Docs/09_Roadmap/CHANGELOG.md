@@ -34,9 +34,16 @@
 - Added explicit prompt deletion and project deletion with dependent-prompt
   removal, confirmation, ownership validation, and installed restart coverage.
 - Replaced the readiness-only screen with the minimal offline prompt library and
-  expanded it into a usable management workspace backed by ten strictly
+  expanded it into a usable management workspace backed by twelve strictly
   validated desktop-to-sidecar commands.
-- The next checkpoint is A-003: prompt composition and offline reference execution.
+- Added deterministic composition of enabled saved blocks in durable order through
+  the existing `PromptBuilder` boundary.
+- Added a distinct final-prompt preview and explicitly confirmed execution through
+  only the host-authored `ups.offline-echo` provider.
+- Added bounded non-secret execution metadata plus source, Rust, frontend,
+  frozen-sidecar, restart, and installed-layout coverage.
+- The next checkpoint is A-004: controlled provider selection, endpoint
+  configuration, and credential handling.
 
 This changelog records milestone-level changes. Git history remains the source
 for checkpoint-level implementation detail.

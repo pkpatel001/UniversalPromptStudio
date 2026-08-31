@@ -50,8 +50,10 @@ npm run tauri dev
 
 The Rust host starts the declared target-triple
 `universal-prompt-studio-backend` sidecar automatically. Create a project and
-prompt, add category/tags and ordered blocks, search for block content, close the
-app, reopen it, and confirm the edited record remains. Exercise prompt deletion
+prompt, add category/tags and ordered blocks, save, preview the final assembled
+prompt, and explicitly run the offline echo provider. Disable one block and
+confirm it is absent from the preview. Close the app, reopen it, and confirm the
+edited record remains while the prior execution result does not. Exercise prompt
 and project deletion only with their explicit confirmations. Rust resolves the
 Tauri app-data directory and validates identity, application/protocol/storage
 versions, capabilities, correlation, result shapes, bounds, and project
@@ -66,7 +68,7 @@ python -m pytest -q Tests/test_ipc.py Tests/test_prompt_library_ipc.py `
   Tests/test_prompt_library_management_ipc.py `
   Tests/test_prompt_library_persistence.py `
   Tests/test_prompt_library_management.py Tests/test_sidecar_build.py `
-  Tests/test_sidecar_lifecycle.py
+  Tests/test_saved_prompt_runtime.py Tests/test_sidecar_lifecycle.py
 ```
 
 Generated sidecar executables and build manifests remain ignored. Tauri builds

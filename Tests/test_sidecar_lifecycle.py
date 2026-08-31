@@ -17,8 +17,10 @@ from Backend.ipc import (
     PROJECT_CREATE_COMMAND,
     PROJECT_DELETE_COMMAND,
     PROJECT_LIST_COMMAND,
+    PROMPT_COMPOSE_COMMAND,
     PROMPT_CREATE_COMMAND,
     PROMPT_DELETE_COMMAND,
+    PROMPT_EXECUTE_OFFLINE_COMMAND,
     PROMPT_GET_COMMAND,
     PROMPT_LIST_COMMAND,
     PROMPT_SEARCH_COMMAND,
@@ -40,6 +42,8 @@ CAPABILITIES = [
     "library.prompts.update",
     "library.prompts.delete",
     "library.prompts.search",
+    "library.prompts.compose",
+    "library.prompts.execute-offline",
 ]
 
 
@@ -262,6 +266,23 @@ def test_installed_sidecar_persists_library_only_in_app_data(
         PROMPT_SEARCH_COMMAND,
         {"project_id": project_id, "query": "INSTALLER"},
     )
+    composed = _command(
+        second,
+        "compose-prompt",
+        PROMPT_COMPOSE_COMMAND,
+        {"project_id": project_id, "prompt_id": prompt_id},
+    )
+    executed = _command(
+        second,
+        "execute-prompt",
+        PROMPT_EXECUTE_OFFLINE_COMMAND,
+        {
+            "project_id": project_id,
+            "prompt_id": prompt_id,
+            "provider_id": "ups.offline-echo",
+            "confirm": True,
+        },
+    )
     _command(
         second,
         "delete-prompt",
@@ -298,6 +319,18 @@ def test_installed_sidecar_persists_library_only_in_app_data(
     ]
     assert fetched["result"]["prompt"] == persisted  # type: ignore[index]
     assert searched["result"]["prompts"] == [persisted]  # type: ignore[index]
+    composition = composed["result"]["composition"]  # type: ignore[index]
+    assert composition["final_prompt"] == "Goal:\nShip the installer"  # type: ignore[index]
+    assert composition["enabled_block_count"] == 1  # type: ignore[index]
+    execution = executed["result"]["execution"]  # type: ignore[index]
+    assert execution["provider_id"] == "ups.offline-echo"  # type: ignore[index]
+    assert execution["provider_version"] == "1.0.0"  # type: ignore[index]
+    assert execution["output"] == (  # type: ignore[index]
+        "[offline provider response]\nGoal:\nShip the installer"
+    )
+    assert execution["prompt_character_count"] == len(  # type: ignore[index]
+        composition["final_prompt"]  # type: ignore[index]
+    )
     assert replacement["result"]["prompt"]["title"] == "Delete with project"  # type: ignore[index]
     assert deleted_project["result"] == {
         "deleted_project_id": project_id,

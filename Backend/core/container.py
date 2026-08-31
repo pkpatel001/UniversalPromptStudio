@@ -11,6 +11,7 @@ from Backend.application.services import (
     ProjectService,
     PromptExecutionService,
     PromptService,
+    SavedPromptRuntimeService,
     SearchService,
 )
 from Backend.core.events import EventBus
@@ -69,6 +70,7 @@ class ApplicationContainer:
     project_service: ProjectService
     prompt_service: PromptService
     prompt_execution_service: PromptExecutionService
+    saved_prompt_runtime_service: SavedPromptRuntimeService
     search_service: SearchService
 
 
@@ -133,6 +135,21 @@ def _create_container(
     prompt_builder = PromptBuilder()
     history_provider = InMemoryHistoryProvider()
     search_provider = BasicSearchProvider()
+    project_service = ProjectService(project_repository, event_bus)
+    prompt_service = PromptService(
+        prompt_repository,
+        prompt_builder,
+        event_bus,
+        project_repository,
+    )
+    prompt_execution_service = PromptExecutionService(
+        ai_providers=ai_providers,
+        validator=BasicPromptValidator(),
+        optimizer=NoOpPromptOptimizer(),
+        history_provider=history_provider,
+        event_bus=event_bus,
+    )
+
 
     return ApplicationContainer(
         event_bus=event_bus,
@@ -143,19 +160,11 @@ def _create_container(
         offline_workflow_plan=offline_workflow_plan,
         project_repository=project_repository,
         prompt_repository=prompt_repository,
-        project_service=ProjectService(project_repository, event_bus),
-        prompt_service=PromptService(
-            prompt_repository,
-            prompt_builder,
-            event_bus,
-            project_repository,
-        ),
-        prompt_execution_service=PromptExecutionService(
-            ai_providers=ai_providers,
-            validator=BasicPromptValidator(),
-            optimizer=NoOpPromptOptimizer(),
-            history_provider=history_provider,
-            event_bus=event_bus,
+        project_service=project_service,
+        prompt_service=prompt_service,
+        prompt_execution_service=prompt_execution_service,
+        saved_prompt_runtime_service=SavedPromptRuntimeService(
+            prompt_service, prompt_execution_service
         ),
         search_service=SearchService(search_provider),
     )

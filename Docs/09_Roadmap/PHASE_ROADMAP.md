@@ -23,10 +23,10 @@ and deferred scope.
 | A-006 | Extensibility UI | Supported theme, plugin, and provider lifecycle surfaces |
 | A-007 | Product hardening | Import/export, settings, diagnostics, onboarding, accessibility, localization, backup, and distribution polish |
 
-A-002.2 completes the local prompt-library management lifecycle: durable
-ordered-block editing, organization, project-scoped search, and explicit
-deletion. The immediate checkpoint is **A-003 — Prompt composition and offline
-reference execution**.
+A-003 completes the first controlled prompt runtime: deterministic saved-block
+composition, a distinct final-prompt preview, and explicitly confirmed execution
+through only the host-authored offline echo provider. The immediate checkpoint is
+**A-004 — Controlled provider selection, endpoint configuration, and credential handling**.
 Scope and acceptance guidance are in `APPLICATION_DEVELOPMENT_HANDOFF.md`.
 
 ## Planning rule

@@ -25,10 +25,16 @@ const PROMPT_GET_COMMAND: &str = "library.prompts.get";
 const PROMPT_UPDATE_COMMAND: &str = "library.prompts.update";
 const PROMPT_DELETE_COMMAND: &str = "library.prompts.delete";
 const PROMPT_SEARCH_COMMAND: &str = "library.prompts.search";
+const PROMPT_COMPOSE_COMMAND: &str = "library.prompts.compose";
+const PROMPT_EXECUTE_OFFLINE_COMMAND: &str = "library.prompts.execute-offline";
+const OFFLINE_REFERENCE_PROVIDER: &str = "ups.offline-echo";
+const OFFLINE_REFERENCE_VERSION: &str = "1.0.0";
+const MAX_COMPOSED_PROMPT_LENGTH: usize = 12_500;
+const MAX_EXECUTION_OUTPUT_LENGTH: usize = MAX_COMPOSED_PROMPT_LENGTH + 64;
 const SIDECAR_IDENTITY: &str = "com.universalpromptstudio.backend";
 const SIDECAR_NAME: &str = "universal-prompt-studio-backend";
 const APP_DATA_ENV: &str = "UPS_APP_DATA_DIR";
-const CAPABILITIES: [&str; 10] = [
+const CAPABILITIES: [&str; 12] = [
     READINESS_COMMAND,
     PROJECT_LIST_COMMAND,
     PROJECT_CREATE_COMMAND,
@@ -39,6 +45,8 @@ const CAPABILITIES: [&str; 10] = [
     PROMPT_UPDATE_COMMAND,
     PROMPT_DELETE_COMMAND,
     PROMPT_SEARCH_COMMAND,
+    PROMPT_COMPOSE_COMMAND,
+    PROMPT_EXECUTE_OFFLINE_COMMAND,
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -121,6 +129,31 @@ pub struct DeletedPrompt {
     deleted_prompt_id: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptCompositionSummary {
+    project_id: String,
+    prompt_id: String,
+    title: String,
+    final_prompt: String,
+    enabled_block_count: usize,
+    total_block_count: usize,
+    character_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OfflineExecutionSummary {
+    project_id: String,
+    prompt_id: String,
+    provider_id: String,
+    provider_version: String,
+    execution_id: String,
+    output: String,
+    input_units: usize,
+    output_units: usize,
+    prompt_character_count: usize,
+}
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(
     deny_unknown_fields,
@@ -222,6 +255,14 @@ struct SearchPromptPayload<'a> {
 }
 
 #[derive(Debug, Serialize)]
+struct ExecutePromptPayload<'a> {
+    project_id: &'a str,
+    prompt_id: &'a str,
+    provider_id: &'static str,
+    confirm: bool,
+}
+
+#[derive(Debug, Serialize)]
 struct UpdatePromptPayload<'a> {
     project_id: &'a str,
     prompt_id: &'a str,
@@ -298,6 +339,44 @@ struct WireProject {
     name: String,
     description: String,
     created_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireCompositionResult {
+    composition: WireComposition,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireComposition {
+    project_id: String,
+    prompt_id: String,
+    title: String,
+    final_prompt: String,
+    enabled_block_count: usize,
+    total_block_count: usize,
+    character_count: usize,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireExecutionResult {
+    execution: WireExecution,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireExecution {
+    project_id: String,
+    prompt_id: String,
+    provider_id: String,
+    provider_version: String,
+    execution_id: String,
+    output: String,
+    input_units: usize,
+    output_units: usize,
+    prompt_character_count: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -744,6 +823,66 @@ pub async fn library_search_prompts(
     .map_err(|_| BackendCommandError::unavailable())?
 }
 
+#[tauri::command]
+pub async fn library_compose_prompt(
+    state: tauri::State<'_, BackendManager>,
+    request_id: String,
+    project_id: String,
+    prompt_id: String,
+) -> Result<PromptCompositionSummary, BackendCommandError> {
+    validate_identifier(&project_id)?;
+    validate_identifier(&prompt_id)?;
+    let manager = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let wire: WireCompositionResult = manager.request(
+            &request_id,
+            PROMPT_COMPOSE_COMMAND,
+            PromptPayload {
+                project_id: &project_id,
+                prompt_id: &prompt_id,
+            },
+        )?;
+        validate_composition(wire.composition, &project_id, &prompt_id)
+    })
+    .await
+    .map_err(|_| BackendCommandError::unavailable())?
+}
+
+#[tauri::command]
+pub async fn library_execute_prompt_offline(
+    state: tauri::State<'_, BackendManager>,
+    request_id: String,
+    project_id: String,
+    prompt_id: String,
+    provider_id: String,
+    confirm: bool,
+) -> Result<OfflineExecutionSummary, BackendCommandError> {
+    validate_identifier(&project_id)?;
+    validate_identifier(&prompt_id)?;
+    if provider_id != OFFLINE_REFERENCE_PROVIDER {
+        return Err(BackendCommandError::invalid_request(
+            "Only the offline reference provider is supported.",
+        ));
+    }
+    validate_confirmation(confirm)?;
+    let manager = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let wire: WireExecutionResult = manager.request(
+            &request_id,
+            PROMPT_EXECUTE_OFFLINE_COMMAND,
+            ExecutePromptPayload {
+                project_id: &project_id,
+                prompt_id: &prompt_id,
+                provider_id: OFFLINE_REFERENCE_PROVIDER,
+                confirm,
+            },
+        )?;
+        validate_execution(wire.execution, &project_id, &prompt_id)
+    })
+    .await
+    .map_err(|_| BackendCommandError::unavailable())?
+}
+
 fn decode_response<T: DeserializeOwned>(
     line: &[u8],
     expected_request_id: &str,
@@ -801,6 +940,11 @@ fn map_wire_error<T>(error: WireError) -> Result<T, BackendCommandError> {
             "The prompt library is unavailable.",
             true,
         ),
+        "execution.failed" => BackendCommandError::new(
+            "execution.failed",
+            "Offline prompt execution failed safely.",
+            false,
+        ),
         _ => BackendCommandError::unavailable(),
     };
     Err(safe)
@@ -822,6 +966,66 @@ fn validate_readiness(value: WireReadiness) -> Result<BackendReadiness, BackendC
         protocol_version: value.protocol_version,
         storage_schema_version: value.storage_schema_version,
         capabilities: value.capabilities,
+    })
+}
+
+fn validate_composition(
+    value: WireComposition,
+    project_id: &str,
+    prompt_id: &str,
+) -> Result<PromptCompositionSummary, BackendCommandError> {
+    let character_count = value.final_prompt.chars().count();
+    if value.project_id != project_id
+        || value.prompt_id != prompt_id
+        || value.final_prompt.trim().is_empty()
+        || character_count > MAX_COMPOSED_PROMPT_LENGTH
+        || value.character_count != character_count
+        || value.enabled_block_count == 0
+        || value.total_block_count < value.enabled_block_count
+        || value.total_block_count > 12
+    {
+        return Err(BackendCommandError::unavailable());
+    }
+    validate_text(&value.title, 120, false)?;
+    Ok(PromptCompositionSummary {
+        project_id: value.project_id,
+        prompt_id: value.prompt_id,
+        title: value.title,
+        final_prompt: value.final_prompt,
+        enabled_block_count: value.enabled_block_count,
+        total_block_count: value.total_block_count,
+        character_count: value.character_count,
+    })
+}
+
+fn validate_execution(
+    value: WireExecution,
+    project_id: &str,
+    prompt_id: &str,
+) -> Result<OfflineExecutionSummary, BackendCommandError> {
+    let output_count = value.output.chars().count();
+    if value.project_id != project_id
+        || value.prompt_id != prompt_id
+        || value.provider_id != OFFLINE_REFERENCE_PROVIDER
+        || value.provider_version != OFFLINE_REFERENCE_VERSION
+        || value.output.trim().is_empty()
+        || output_count > MAX_EXECUTION_OUTPUT_LENGTH
+        || value.prompt_character_count == 0
+        || value.prompt_character_count > MAX_COMPOSED_PROMPT_LENGTH
+    {
+        return Err(BackendCommandError::unavailable());
+    }
+    validate_identifier(&value.execution_id)?;
+    Ok(OfflineExecutionSummary {
+        project_id: value.project_id,
+        prompt_id: value.prompt_id,
+        provider_id: value.provider_id,
+        provider_version: value.provider_version,
+        execution_id: value.execution_id,
+        output: value.output,
+        input_units: value.input_units,
+        output_units: value.output_units,
+        prompt_character_count: value.prompt_character_count,
     })
 }
 
@@ -940,7 +1144,7 @@ fn validate_confirmation(value: bool) -> Result<(), BackendCommandError> {
         Ok(())
     } else {
         Err(BackendCommandError::invalid_request(
-            "Deletion requires confirmation.",
+            "Operation requires confirmation.",
         ))
     }
 }
@@ -1076,7 +1280,7 @@ mod tests {
 
     #[test]
     fn readiness_requires_identity_versions_and_exact_capabilities() {
-        let valid = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"com.universalpromptstudio.backend","application_version":"0.2.0-alpha","protocol_version":1,"storage_schema_version":1,"capabilities":["application.readiness","library.projects.list","library.projects.create","library.projects.delete","library.prompts.list","library.prompts.create","library.prompts.get","library.prompts.update","library.prompts.delete","library.prompts.search"]}}"#;
+        let valid = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"com.universalpromptstudio.backend","application_version":"0.2.0-alpha","protocol_version":1,"storage_schema_version":1,"capabilities":["application.readiness","library.projects.list","library.projects.create","library.projects.delete","library.prompts.list","library.prompts.create","library.prompts.get","library.prompts.update","library.prompts.delete","library.prompts.search","library.prompts.compose","library.prompts.execute-offline"]}}"#;
         let wire: WireReadiness = decode_response(valid, "one").unwrap();
         assert_eq!(validate_readiness(wire).unwrap().storage_schema_version, 1);
         assert!(decode_response::<WireReadiness>(valid, "two").is_err());
@@ -1132,7 +1336,83 @@ mod tests {
     }
 
     #[test]
+    fn composition_and_execution_are_owned_bounded_and_offline_only() {
+        let project_id = "550e8400-e29b-41d4-a716-446655440000";
+        let prompt_id = "76c7169d-9e5d-4db4-bf61-856695d2a91e";
+        let execution_id = "9a4da4c4-a794-48a1-98f2-99d0bf3f7902";
+        let composition = validate_composition(
+            WireComposition {
+                project_id: project_id.to_owned(),
+                prompt_id: prompt_id.to_owned(),
+                title: "Architecture".to_owned(),
+                final_prompt: "Role:\nArchitect".to_owned(),
+                enabled_block_count: 1,
+                total_block_count: 2,
+                character_count: 15,
+            },
+            project_id,
+            prompt_id,
+        )
+        .unwrap();
+        let execution = validate_execution(
+            WireExecution {
+                project_id: project_id.to_owned(),
+                prompt_id: prompt_id.to_owned(),
+                provider_id: OFFLINE_REFERENCE_PROVIDER.to_owned(),
+                provider_version: OFFLINE_REFERENCE_VERSION.to_owned(),
+                execution_id: execution_id.to_owned(),
+                output: "[offline provider response]\nRole:\nArchitect".to_owned(),
+                input_units: 15,
+                output_units: 15,
+                prompt_character_count: 15,
+            },
+            project_id,
+            prompt_id,
+        )
+        .unwrap();
+
+        assert_eq!(composition.character_count, 15);
+        assert_eq!(execution.provider_id, OFFLINE_REFERENCE_PROVIDER);
+        assert_eq!(
+            serde_json::to_value(composition).unwrap()["finalPrompt"],
+            "Role:\nArchitect"
+        );
+        let payload = ExecutePromptPayload {
+            project_id,
+            prompt_id,
+            provider_id: OFFLINE_REFERENCE_PROVIDER,
+            confirm: true,
+        };
+        let value = serde_json::to_value(payload).unwrap();
+        assert_eq!(value["provider_id"], OFFLINE_REFERENCE_PROVIDER);
+        assert!(value.get("providerId").is_none());
+        assert!(
+            validate_execution(
+                WireExecution {
+                    project_id: project_id.to_owned(),
+                    prompt_id: prompt_id.to_owned(),
+                    provider_id: "dummy".to_owned(),
+                    provider_version: OFFLINE_REFERENCE_VERSION.to_owned(),
+                    execution_id: execution_id.to_owned(),
+                    output: "unsafe".to_owned(),
+                    input_units: 1,
+                    output_units: 1,
+                    prompt_character_count: 1,
+                },
+                project_id,
+                prompt_id,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
     fn backend_errors_are_allowlisted_and_python_messages_are_not_exposed() {
+        let execution = br#"{"schema_version":1,"request_id":"one","ok":false,"error":{"code":"execution.failed","message":"secret"}}"#;
+        let error = decode_response::<WireReadiness>(execution, "one").unwrap_err();
+        assert_eq!(error.code, "execution.failed");
+        assert_eq!(error.message, "Offline prompt execution failed safely.");
+        assert!(!error.message.contains("secret"));
         let invalid = br#"{"schema_version":1,"request_id":"one","ok":false,"error":{"code":"ipc.invalid_payload","message":"secret"}}"#;
         let error = decode_response::<WireReadiness>(invalid, "one").unwrap_err();
         assert_eq!(error.code, "library.invalid_input");

@@ -8,6 +8,8 @@ const BLOCK_TYPES = new Set([
   "role", "goal", "context", "audience", "constraints", "requirements", "tone",
   "output_format", "reasoning_style", "examples", "validation_rules", "final_instructions",
 ]);
+
+export const OFFLINE_REFERENCE_PROVIDER = "ups.offline-echo";
 const CAPABILITIES = Object.freeze([
   "application.readiness",
   "library.projects.list",
@@ -19,6 +21,8 @@ const CAPABILITIES = Object.freeze([
   "library.prompts.update",
   "library.prompts.delete",
   "library.prompts.search",
+  "library.prompts.compose",
+  "library.prompts.execute-offline",
 ]);
 const SAFE_ERROR_CODES = new Set([
   "backend.unavailable",
@@ -27,6 +31,7 @@ const SAFE_ERROR_CODES = new Set([
   "storage.unavailable",
   "storage.invalid_database",
   "storage.future_schema",
+  "execution.failed",
 ]);
 const READINESS_KEYS = [
   "applicationVersion", "capabilities", "protocolVersion", "status", "storageSchemaVersion",
@@ -139,6 +144,32 @@ export class BackendClient {
     );
   }
 
+
+  composePrompt(projectId, promptId) {
+    const normalizedProjectId = validateIdentifier(projectId);
+    const normalizedPromptId = validateIdentifier(promptId);
+    return this.#invoke(
+      "library_compose_prompt",
+      { projectId: normalizedProjectId, promptId: normalizedPromptId },
+      (value) => validateComposition(value, normalizedProjectId, normalizedPromptId),
+    );
+  }
+
+  executePromptOffline(projectId, promptId, confirmed) {
+    const normalizedProjectId = validateIdentifier(projectId);
+    const normalizedPromptId = validateIdentifier(promptId);
+    requireConfirmation(confirmed);
+    return this.#invoke(
+      "library_execute_prompt_offline",
+      {
+        projectId: normalizedProjectId,
+        promptId: normalizedPromptId,
+        providerId: OFFLINE_REFERENCE_PROVIDER,
+        confirm: true,
+      },
+      (value) => validateExecution(value, normalizedProjectId, normalizedPromptId),
+    );
+  }
   #promptCollection(command, projectId, payload) {
     const normalizedProjectId = validateIdentifier(projectId);
     return this.#invoke(
@@ -257,11 +288,71 @@ function validateDeletedPrompt(value, promptId) {
 
 function validateProject(value) {
   requireExactObject(value, PROJECT_KEYS);
+
   return Object.freeze({
     projectId: validateIdentifier(value.projectId),
     name: validateText(value.name, 120, false),
     description: validateText(value.description, 1_000, true),
     createdAt: validateTimestamp(value.createdAt),
+  });
+}
+
+export function validateComposition(value, projectId, promptId) {
+  const expectedProjectId = validateIdentifier(projectId);
+  const expectedPromptId = validateIdentifier(promptId);
+  requireExactObject(value, [
+    "characterCount", "enabledBlockCount", "finalPrompt", "projectId", "promptId", "title",
+    "totalBlockCount",
+  ]);
+  const finalPrompt = validateText(value.finalPrompt, 12_500, false);
+  if (
+    value.projectId !== expectedProjectId || value.promptId !== expectedPromptId ||
+    !Number.isSafeInteger(value.enabledBlockCount) || value.enabledBlockCount < 1 ||
+    !Number.isSafeInteger(value.totalBlockCount) || value.totalBlockCount < value.enabledBlockCount ||
+    value.totalBlockCount > 12 || value.characterCount !== Array.from(finalPrompt).length
+  ) {
+    throw unavailable();
+  }
+  return Object.freeze({
+    projectId: value.projectId,
+    promptId: value.promptId,
+    title: validateText(value.title, 120, false),
+    finalPrompt,
+    enabledBlockCount: value.enabledBlockCount,
+    totalBlockCount: value.totalBlockCount,
+    characterCount: value.characterCount,
+  });
+}
+
+export function validateExecution(value, projectId, promptId) {
+  const expectedProjectId = validateIdentifier(projectId);
+  const expectedPromptId = validateIdentifier(promptId);
+  requireExactObject(value, [
+    "executionId", "inputUnits", "output", "outputUnits", "projectId", "promptCharacterCount",
+    "promptId", "providerId", "providerVersion",
+  ]);
+  const output = validateText(value.output, 12_564, false);
+  if (
+    value.projectId !== expectedProjectId || value.promptId !== expectedPromptId ||
+    value.providerId !== OFFLINE_REFERENCE_PROVIDER ||
+    typeof value.providerVersion !== "string" || !VERSION.test(value.providerVersion) ||
+    !Number.isSafeInteger(value.inputUnits) || value.inputUnits < 0 ||
+    !Number.isSafeInteger(value.outputUnits) || value.outputUnits < 0 ||
+    !Number.isSafeInteger(value.promptCharacterCount) || value.promptCharacterCount < 1 ||
+    value.promptCharacterCount > 12_500
+  ) {
+    throw unavailable();
+  }
+  return Object.freeze({
+    projectId: value.projectId,
+    promptId: value.promptId,
+    providerId: value.providerId,
+    providerVersion: value.providerVersion,
+    executionId: validateIdentifier(value.executionId),
+    output,
+    inputUnits: value.inputUnits,
+    outputUnits: value.outputUnits,
+    promptCharacterCount: value.promptCharacterCount,
   });
 }
 
@@ -332,7 +423,7 @@ function validateBlocks(value, requireOrder) {
 
 function requireConfirmation(value) {
   if (value !== true) {
-    throw new BackendClientError("library.invalid_input", "Deletion requires confirmation.");
+    throw new BackendClientError("library.invalid_input", "Operation requires confirmation.");
   }
 }
 

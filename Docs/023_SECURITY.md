@@ -395,8 +395,9 @@ Every generated diff still requires human review.
 
 ## Bounded desktop-to-Python IPC
 
-A-002.2 exposes ten Tauri commands: readiness, project list/create/delete, and
-project-scoped prompt list/create/get/update/delete/search. Each accepts only
+A-003 exposes twelve Tauri commands: readiness, project list/create/delete,
+project-scoped prompt list/create/get/update/delete/search, saved-prompt
+composition, and confirmed offline execution. Each accepts only
 bounded command-specific values. The webview cannot select an executable,
 database path, environment value, Python module, function, sidecar command,
 arbitrary payload, SQL, search index, or filesystem destination.
@@ -413,13 +414,14 @@ JSON, unsupported versions, non-finite values, malformed identifiers, unknown
 payload fields, messages over 16 KiB, uncorrelated responses, and responses
 outside the three-second timeout. Rust revalidates entity shapes, UUIDs,
 timestamps, categories, tags, block types/order/content, text and collection
-bounds, confirmations, deletion results, and project ownership. The frontend's
+bounds, confirmations, deletion results, project ownership, composition counts,
+fixed provider identity/version, execution correlation, and output bounds. The frontend's
 camelCase block input is explicitly converted to the sidecar's snake_case wire
 field. Transport failure or malformed output discards the child so a later
 action may start a fresh process.
 
 SQLite schema version 1 is application-owned through `PRAGMA user_version`.
-A-002.2 requires no migration because categories, tags, ordered blocks, and
+A-003 retains schema 1 because categories, tags, ordered blocks, and
 update timestamps were already owned by schema 1. Prompt access always includes
 the owning project. Prompt deletion removes only that owned record. Project
 deletion removes dependent prompts in one repository transaction and both
@@ -431,17 +433,30 @@ It exposes no arbitrary filter, sort, SQL, path, background index, cross-project
 scope, or network operation.
 
 Startup checks database integrity, required schema shape, and foreign-key
+
+Composition reloads the project-owned prompt and delegates only enabled saved
+blocks to the existing deterministic `PromptBuilder`. The webview cannot submit
+arbitrary execution text. Execution requires the exact host-authored
+`ups.offline-echo` identity and `confirm: true`; Rust and Python reject other
+providers, options, models, endpoints, or credential fields independently.
+Execution recomposes durable state rather than trusting an earlier preview.
+
+Composition, output, and minimal provider version/correlation/usage metadata are
+bounded and ephemeral. They are not written to SQLite or an execution-history
+store. Provider failures become the fixed `execution.failed` presentation error,
+and provider-authored detail does not cross Rust.
 relationships. Foreign keys are enabled on every connection. Future, corrupt,
 unmanaged, incomplete, relationship-invalid, or unavailable databases fail with
 bounded errors and are never deleted, replaced, renamed, truncated, downgraded,
 or automatically repaired.
 
-The router performs no prompt execution, provider request, workflow execution,
-credential access, network operation, arbitrary file access, or subprocess
-launch. Python error detail never crosses Rust; unknown failures collapse to a
-fixed unavailable response. Source, frozen, restart, and installed-layout tests
-verify editing, organization, search, and deletion while records remain under
-per-user app data rather than the installation.
+The router exposes no arbitrary provider request, workflow execution, credential
+access, external endpoint, network operation, arbitrary file access, or
+subprocess launch. Python error detail never crosses Rust; unknown failures
+collapse to a fixed unavailable response. Source, frozen, restart, and
+installed-layout tests verify management, composition, and offline echo
+execution while durable records remain under per-user app data rather than the
+installation.
 
 The Python process remains trusted code with normal process authority. IPC
 validation reduces the webview's authority but is not a sandbox or process

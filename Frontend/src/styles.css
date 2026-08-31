@@ -570,6 +570,78 @@ button.prompt-card.active {
   padding-top: 14px;
 }
 
+.runtime-panel {
+  background: var(--ups-color-surface-muted);
+  border: 1px solid var(--ups-color-border);
+  border-radius: 10px;
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+  padding: 18px;
+}
+
+.runtime-heading,
+.runtime-label,
+.runtime-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.runtime-heading p,
+.runtime-heading h4,
+.runtime-help {
+  margin: 0;
+}
+
+.runtime-heading p {
+  color: var(--ups-color-text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.offline-badge {
+  background: var(--ups-color-primary);
+  border-radius: 999px;
+  color: var(--ups-color-primary-text);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 5px 9px;
+  text-transform: uppercase;
+}
+
+.runtime-help,
+.runtime-label span {
+  color: var(--ups-color-text-muted);
+  font-size: 11px;
+}
+
+.runtime-actions {
+  justify-content: flex-start;
+}
+
+.runtime-output {
+  background: var(--ups-color-surface);
+  border: 1px solid var(--ups-color-border);
+  border-radius: 8px;
+  padding: 13px;
+}
+
+.runtime-output pre {
+  color: var(--ups-color-text);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 12px 0 0;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 @media (max-width: 1180px) {
   .library-toolbar,
   .library-grid {
@@ -586,6 +658,13 @@ button.prompt-card.active {
   .search-form,
   .editor-fields {
     grid-template-columns: 1fr;
+  }
+
+  .runtime-heading,
+  .runtime-label,
+  .runtime-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .editor-fields .wide {

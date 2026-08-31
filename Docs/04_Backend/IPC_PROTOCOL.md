@@ -1,6 +1,6 @@
 # Desktop-to-Python IPC protocol
 
-**Checkpoint:** A-002.2
+**Checkpoint:** A-003
 **Protocol:** 1
 **Storage schema:** 1
 
@@ -8,7 +8,7 @@
 
 ```text
 Vite webview
-    -> ten fixed Tauri commands
+    -> twelve fixed Tauri commands
         -> Rust BackendManager
             -> declared universal-prompt-studio-backend sidecar
                 -> ApplicationIpcRouter
@@ -52,7 +52,7 @@ Request envelope:
 }
 ```
 
-Success and failure envelopes retain the exact A-002.1 schema. Rust allowlists
+Success and failure envelopes retain protocol schema 1. Rust allowlists
 safe error codes and replaces Python-authored messages with fixed presentation
 messages. Unknown errors collapse to `backend.unavailable`.
 
@@ -70,6 +70,8 @@ messages. Unknown errors collapse to `backend.unavailable`.
 | `library_update_prompt` | `library.prompts.update` | IDs, title, category, tags, blocks | Updated prompt |
 | `library_delete_prompt` | `library.prompts.delete` | IDs, `confirm: true` | Deleted prompt ID |
 | `library_search_prompts` | `library.prompts.search` | `project_id`, `query` | Up to 50 matching prompts plus `has_more` |
+| `library_compose_prompt` | `library.prompts.compose` | `project_id`, `prompt_id` | Owned saved-prompt composition |
+| `library_execute_prompt_offline` | `library.prompts.execute-offline` | IDs, `provider_id: ups.offline-echo`, `confirm: true` | Bounded offline result and metadata |
 
 Readiness returns these commands in the table's exact sidecar-command order.
 Application, protocol, and storage versions remain `0.2.0-alpha`, `1`, and `1`.
@@ -86,6 +88,8 @@ Application, protocol, and storage versions remain `0.2.0-alpha`, `1`, and `1`.
 | Blocks | Up to 12 in array order |
 | Block content | 1–2,000 trimmed characters; 12,000 total characters |
 | Search query | 1–120 trimmed characters |
+| Final composed prompt | 1–12,500 characters |
+| Offline execution output | 1–12,564 characters |
 | Collections | First 50 deterministic results plus `has_more` |
 
 Prompt results contain exact `prompt_id`, `project_id`, `title`, nullable
@@ -116,9 +120,34 @@ the webview.
 - There is no arbitrary filter, sort, SQL, path, background index, fuzzy search,
   cross-project search, recycle bin, or automatic recovery.
 
+## Composition and execution semantics
+
+- Compose and execute always reload one prompt through its owning project ID;
+  the webview cannot submit arbitrary prompt text for execution.
+- `PromptBuilder` renders only enabled, non-empty blocks in stored order. Each
+  section uses the domain block-type heading followed by trimmed saved content,
+  with sections separated by one blank line.
+- Composition returns the project/prompt IDs, saved title, final prompt, enabled
+  and total block counts, and Unicode character count. It does not change SQLite.
+- Execution requires the exact provider identity `ups.offline-echo` and
+  `confirm: true`. No other provider, model, parameter, option, endpoint, or
+  credential field is accepted.
+- Execution recomposes current durable state rather than accepting or trusting a
+  prior webview preview. The returned result contains only project/prompt IDs,
+  provider ID/version, a correlated execution UUID, output, input/output units,
+  and the composed prompt character count.
+- Composition, execution output, and execution metadata are ephemeral. They are
+  not written to schema 1, history storage, the installation, or the repository.
+- Provider failures map to the fixed `execution.failed` presentation error;
+  provider-authored detail and Python exceptions do not cross Rust.
+
+There is no arbitrary provider selection, external endpoint, credential access,
+model discovery, streaming, cancellation, retry, workflow execution, background
+execution, history persistence, network access, or caller-selected options.
+
 ## SQLite lifecycle
 
-A-002.2 retains schema version 1 because A-002.1 already persisted project
+A-003 retains schema version 1 because A-002.1 already persisted project
 ownership, categories, tags, ordered blocks, and update timestamps. No database
 shape change or migration is needed, and existing schema-1 user data is opened
 unchanged.
@@ -136,12 +165,12 @@ replacement, rename, truncation, downgrade, or automatic repair.
   system-Python or checkout fallback.
 - Transport, timeout, malformed response, or process failure discards the child;
   invalid input and not-found results keep a healthy process.
-- Source, frozen-sidecar, restart, and installed-layout tests prove edits,
-  organization, search, and deletion while storage remains under per-user app
-  data.
-- The sidecar performs no prompt execution, provider request, credential access,
-  workflow execution, network access, arbitrary filesystem access, or subprocess
-  launch through this protocol.
+- Source, frozen-sidecar, restart, and installed-layout tests prove management,
+  composition, and offline reference execution while durable storage remains
+  under per-user app data.
+- The sidecar exposes only the fixed offline echo provider. It performs no
+  credential access, external provider request, workflow execution, network
+  access, arbitrary filesystem access, or subprocess launch through this protocol.
 
 The sidecar remains trusted application code with the user's process authority;
 this protocol is an authority-reduction boundary, not a sandbox.

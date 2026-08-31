@@ -78,6 +78,8 @@ def test_readiness_uses_one_long_lived_application_container() -> None:
             "library.prompts.update",
             "library.prompts.delete",
             "library.prompts.search",
+            "library.prompts.compose",
+            "library.prompts.execute-offline",
         ],
     }
     assert second.request_id == "second"

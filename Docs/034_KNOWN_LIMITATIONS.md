@@ -9,7 +9,11 @@
   triples still require platform-native locked builds and acceptance evidence.
 - Search is a bounded synchronous scan of the selected local project; there is no
   background index, ranking, fuzzy matching, or cross-project search.
-- Prompt composition and execution controls are deferred to A-003.
+- Prompt composition uses only enabled saved blocks in durable order. There are no
+  variables, attachments, conditional blocks, or unsaved-draft previews.
+- Execution is limited to the bundled `ups.offline-echo` provider with no options;
+  provider selection, endpoints, credentials, models, and network calls are deferred.
+- Execution results and metadata are not persisted after the process exits.
 - Deleted projects and prompts are not recoverable in the application UI.
 - Workflow authoring and execution have no product UI.
 

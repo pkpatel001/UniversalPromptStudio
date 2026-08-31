@@ -50,14 +50,16 @@ The Engineering Toolkit is complete through E-017. The repository contains:
 * Controlled plugin, provider, theme, workflow, and self-generation boundaries
 * Deterministic validation, documentation, generation, build, release, and manifests
 * Automated Python, frontend, and Rust validation
-* A minimal Tauri/Vite frontend shell with controlled theme selection
+* A Tauri/Vite prompt workspace with controlled theme selection
 
-The desktop product remains alpha. A-002.2 provides a usable versioned SQLite
+The desktop product remains alpha. A-003 provides a usable versioned SQLite
 prompt library in Tauri-managed app data, with durable project and prompt
 creation, ordered-block editing, category/tag organization, project-scoped local
 search, and explicit prompt/project deletion across installed application
-restarts. A-003 is the exact next checkpoint: prompt composition and offline
-reference execution.
+restarts. Saved enabled blocks can now be previewed as one deterministic final
+prompt and explicitly executed through the host-authored `ups.offline-echo`
+reference provider. A-004 is the exact next checkpoint: controlled provider
+selection, endpoint configuration, and credential handling.
 
 ## Technology Stack
 

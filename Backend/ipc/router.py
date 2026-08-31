@@ -12,12 +12,22 @@ from Backend.application.services import (
     MAX_BLOCK_CONTENT_LENGTH,
     MAX_BLOCKS,
     MAX_CATEGORY_LENGTH,
+    MAX_COMPOSED_PROMPT_LENGTH,
     MAX_SEARCH_QUERY_LENGTH,
     MAX_TAG_LENGTH,
     MAX_TAGS,
+    OFFLINE_REFERENCE_PROVIDER,
+    PromptComposition,
 )
 from Backend.core.container import ApplicationContainer, create_in_memory_container
-from Backend.domain.models import Project, Prompt, PromptBlock, PromptBlockType
+from Backend.domain.exceptions import AIProviderExecutionError
+from Backend.domain.models import (
+    Project,
+    Prompt,
+    PromptBlock,
+    PromptBlockType,
+    PromptExecutionResult,
+)
 from Backend.infrastructure.repositories.sqlite import (
     CURRENT_SCHEMA_VERSION,
     DatabaseUnavailableError,
@@ -39,6 +49,8 @@ PROMPT_UPDATE_COMMAND = "library.prompts.update"
 PROMPT_DELETE_COMMAND = "library.prompts.delete"
 PROMPT_SEARCH_COMMAND = "library.prompts.search"
 SIDECAR_IDENTITY = "com.universalpromptstudio.backend"
+PROMPT_COMPOSE_COMMAND = "library.prompts.compose"
+PROMPT_EXECUTE_OFFLINE_COMMAND = "library.prompts.execute-offline"
 SUPPORTED_COMMANDS = (
     APPLICATION_READINESS_COMMAND,
     PROJECT_LIST_COMMAND,
@@ -50,8 +62,12 @@ SUPPORTED_COMMANDS = (
     PROMPT_UPDATE_COMMAND,
     PROMPT_DELETE_COMMAND,
     PROMPT_SEARCH_COMMAND,
+    PROMPT_COMPOSE_COMMAND,
+    PROMPT_EXECUTE_OFFLINE_COMMAND,
 )
 MAX_LIBRARY_ITEMS = 50
+
+MAX_EXECUTION_OUTPUT_LENGTH = MAX_COMPOSED_PROMPT_LENGTH + 64
 
 
 class ApplicationIpcRouter:
@@ -112,6 +128,8 @@ class ApplicationIpcRouter:
             PROMPT_GET_COMMAND: self._get_prompt,
             PROMPT_UPDATE_COMMAND: self._update_prompt,
             PROMPT_DELETE_COMMAND: self._delete_prompt,
+            PROMPT_COMPOSE_COMMAND: self._compose_prompt,
+            PROMPT_EXECUTE_OFFLINE_COMMAND: self._execute_prompt_offline,
             PROMPT_SEARCH_COMMAND: self._search_prompts,
         }
         try:
@@ -133,6 +151,12 @@ class ApplicationIpcRouter:
                 request.request_id,
                 IpcErrorCode.STORAGE_UNAVAILABLE,
                 "The prompt library database is unavailable.",
+            )
+        except AIProviderExecutionError:
+            return IpcResponse.failure(
+                request.request_id,
+                IpcErrorCode.EXECUTION_FAILED,
+                "Offline prompt execution failed safely.",
             )
         except Exception:
             return IpcResponse.failure(
@@ -247,6 +271,36 @@ class ApplicationIpcRouter:
             _bounded_collection("prompts", [_prompt_value(prompt) for prompt in prompts]),
         )
 
+    def _compose_prompt(self, request: IpcRequest) -> IpcResponse:
+        project_id, prompt_id = _prompt_identifiers(request.payload)
+        assert self._container is not None
+        composition = self._container.saved_prompt_runtime_service.compose(project_id, prompt_id)
+        return IpcResponse.success(
+            request.request_id,
+            {"composition": _composition_value(composition)},
+        )
+
+    def _execute_prompt_offline(self, request: IpcRequest) -> IpcResponse:
+        _require_fields(
+            request.payload,
+            frozenset({"project_id", "prompt_id", "provider_id", "confirm"}),
+        )
+        project_id = _canonical_identifier(request.payload["project_id"])
+        prompt_id = _canonical_identifier(request.payload["prompt_id"])
+        provider_id = _bounded_string(request.payload["provider_id"], 64)
+        if provider_id != OFFLINE_REFERENCE_PROVIDER:
+            raise ValueError("Provider identity is not supported by this command.")
+        _require_confirmation(request.payload["confirm"])
+        assert self._container is not None
+        composition, result = self._container.saved_prompt_runtime_service.execute_offline(
+            project_id,
+            prompt_id,
+        )
+        return IpcResponse.success(
+            request.request_id,
+            {"execution": _execution_value(composition, result)},
+        )
+
 
 def _require_fields(payload: dict[str, JsonValue], expected: frozenset[str]) -> None:
     if set(payload) != expected:
@@ -287,7 +341,7 @@ def _prompt_identifiers(payload: dict[str, JsonValue]) -> tuple[str, str]:
 
 def _require_confirmation(value: JsonValue) -> None:
     if value is not True:
-        raise ValueError("Deletion requires explicit confirmation.")
+        raise ValueError("Operation requires explicit confirmation.")
 
 
 def _tag_values(value: JsonValue) -> list[str]:
@@ -370,3 +424,64 @@ def _prompt_value(prompt: Prompt) -> dict[str, JsonValue]:
 def _timestamp(value: datetime) -> str:
     normalized = value if value.tzinfo is not None else value.replace(tzinfo=UTC)
     return normalized.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _composition_value(composition: PromptComposition) -> dict[str, JsonValue]:
+    return {
+        "project_id": composition.project_id,
+        "prompt_id": composition.prompt_id,
+        "title": composition.title,
+        "final_prompt": composition.final_prompt,
+        "enabled_block_count": composition.enabled_block_count,
+        "total_block_count": composition.total_block_count,
+        "character_count": composition.character_count,
+    }
+
+
+def _execution_value(
+    composition: PromptComposition,
+    result: PromptExecutionResult,
+) -> dict[str, JsonValue]:
+    expected_metadata = {
+        "provider_id",
+        "provider_version",
+        "request_id",
+        "input_units",
+        "output_units",
+    }
+    if set(result.metadata) != expected_metadata:
+        raise RuntimeError("Offline provider metadata is invalid.")
+    provider_id = _metadata_string(result.metadata, "provider_id", 64)
+    provider_version = _metadata_string(result.metadata, "provider_version", 32)
+    execution_id = _canonical_identifier(result.metadata["request_id"])
+    input_units = _metadata_count(result.metadata, "input_units")
+    output_units = _metadata_count(result.metadata, "output_units")
+    if provider_id != OFFLINE_REFERENCE_PROVIDER or result.provider_name != provider_id:
+        raise RuntimeError("Offline provider identity is invalid.")
+    if not result.output or len(result.output) > MAX_EXECUTION_OUTPUT_LENGTH:
+        raise RuntimeError("Offline provider output is invalid.")
+    return {
+        "project_id": composition.project_id,
+        "prompt_id": composition.prompt_id,
+        "provider_id": provider_id,
+        "provider_version": provider_version,
+        "execution_id": execution_id,
+        "output": result.output,
+        "input_units": input_units,
+        "output_units": output_units,
+        "prompt_character_count": composition.character_count,
+    }
+
+
+def _metadata_string(metadata: dict[str, str | int | float | bool], name: str, maximum: int) -> str:
+    value = metadata[name]
+    if not isinstance(value, str) or not value or len(value) > maximum:
+        raise RuntimeError("Offline provider metadata is invalid.")
+    return value
+
+
+def _metadata_count(metadata: dict[str, str | int | float | bool], name: str) -> int:
+    value = metadata[name]
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise RuntimeError("Offline provider metadata is invalid.")
+    return value

@@ -37,17 +37,21 @@ application service continues to depend only on `Backend.interfaces.AIProvider`;
 the composition root owns the concrete SDK registry, execution service, offline
 reference implementation, and adapter wiring.
 
-A-002.2 connects the desktop prompt library to this composition root through
+A-003 connects the desktop prompt library to this composition root through
 one Tauri-owned, target-triple frozen Python sidecar and strict JSON-lines
 protocol. Rust resolves the application data directory and Python owns a
 versioned SQLite database there. Development and release builds use the same
 declared executable. Rust verifies identity, application/protocol/storage
 versions, capabilities, correlation, entity shapes, collection bounds, and
-project ownership before returning project or prompt data to the webview. The
+project ownership before returning project, composition, or execution data. The
 schema-1 model already owned categories, tags, and ordered blocks, so A-002.2
 adds no schema migration. Application services own validated edits,
 deterministic project-scoped search, prompt deletion, and transactional SQLite
-project deletion with dependent prompts.
+project deletion with dependent prompts. `SavedPromptRuntimeService` reloads a
+project-owned prompt, delegates deterministic enabled-block rendering to the
+existing `PromptBuilder`, and invokes the existing execution service only with
+the host-authored `ups.offline-echo` identity. Composition and execution remain
+ephemeral; only the source library state is durable.
 
 ## Engineering Toolkit
 

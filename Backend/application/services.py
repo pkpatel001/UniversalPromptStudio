@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from Backend.application.prompt_builder import PromptBuilder
@@ -31,6 +32,8 @@ MAX_BLOCKS = 12
 MAX_BLOCK_CONTENT_LENGTH = 2_000
 MAX_TOTAL_BLOCK_CONTENT_LENGTH = 12_000
 MAX_SEARCH_QUERY_LENGTH = 120
+MAX_COMPOSED_PROMPT_LENGTH = 12_500
+OFFLINE_REFERENCE_PROVIDER = "ups.offline-echo"
 
 
 class ProjectService:
@@ -240,6 +243,73 @@ def _prompt_search_text(prompt: Prompt) -> str:
     values = [prompt.title, prompt.category or "", *sorted(prompt.tags, key=str.casefold)]
     values.extend(block.content for block in sorted(prompt.blocks, key=lambda item: item.order))
     return "\n".join(values).casefold()
+
+
+@dataclass(frozen=True, slots=True)
+class PromptComposition:
+    """One deterministic rendering of a durable project-owned prompt."""
+
+    project_id: str
+    prompt_id: str
+    title: str
+    final_prompt: str
+    enabled_block_count: int
+    total_block_count: int
+
+    @property
+    def character_count(self) -> int:
+        return len(self.final_prompt)
+
+
+class SavedPromptRuntimeService:
+    """Compose and execute only durable saved prompts at the A-003 boundary."""
+
+    def __init__(
+        self,
+        prompt_service: PromptService,
+        prompt_execution_service: PromptExecutionService,
+    ) -> None:
+        self._prompt_service = prompt_service
+        self._prompt_execution_service = prompt_execution_service
+
+    def compose(self, project_id: str, prompt_id: str) -> PromptComposition:
+        """Compose enabled blocks from one saved prompt in durable order."""
+
+        prompt = self._prompt_service.get_project_prompt(project_id, prompt_id)
+        final_prompt = self._prompt_service.render_prompt(prompt)
+        if not final_prompt:
+            raise ValueError("Prompt composition requires at least one enabled block.")
+        if len(final_prompt) > MAX_COMPOSED_PROMPT_LENGTH:
+            raise ValueError("Composed prompt exceeds the supported execution bound.")
+        enabled_block_count = sum(
+            1 for block in prompt.blocks if block.enabled and block.content.strip()
+        )
+        return PromptComposition(
+            project_id=project_id,
+            prompt_id=prompt_id,
+            title=prompt.title,
+            final_prompt=final_prompt,
+            enabled_block_count=enabled_block_count,
+            total_block_count=len(prompt.blocks),
+        )
+
+    def execute_offline(
+        self,
+        project_id: str,
+        prompt_id: str,
+    ) -> tuple[PromptComposition, PromptExecutionResult]:
+        """Recompose durable state and execute through the fixed offline provider."""
+
+        composition = self.compose(project_id, prompt_id)
+        result = self._prompt_execution_service.execute(
+            PromptExecutionRequest(
+                prompt=composition.final_prompt,
+                provider_name=OFFLINE_REFERENCE_PROVIDER,
+            )
+        )
+        if result.provider_name != OFFLINE_REFERENCE_PROVIDER:
+            raise RuntimeError("Offline provider returned an unexpected identity.")
+        return composition, result
 
 
 class PromptExecutionService:

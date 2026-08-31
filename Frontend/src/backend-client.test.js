@@ -4,8 +4,11 @@ import test from "node:test";
 import {
   BackendClient,
   BackendClientError,
+  OFFLINE_REFERENCE_PROVIDER,
+  validateComposition,
   validateCreatedProject,
   validateCreatedPrompt,
+  validateExecution,
   validateProjectList,
   validatePromptList,
   validateReadiness,
@@ -25,6 +28,8 @@ const capabilities = [
   "library.prompts.update",
   "library.prompts.delete",
   "library.prompts.search",
+  "library.prompts.compose",
+  "library.prompts.execute-offline",
 ];
 const ready = Object.freeze({
   status: "ready",
@@ -49,8 +54,30 @@ const prompt = Object.freeze({
   createdAt,
   updatedAt: createdAt,
 });
+const executionId = "9a4da4c4-a794-48a1-98f2-99d0bf3f7902";
+const finalPrompt = "Role:\nArchitect";
+const composition = Object.freeze({
+  projectId,
+  promptId,
+  title: "Architecture",
+  finalPrompt,
+  enabledBlockCount: 1,
+  totalBlockCount: 1,
+  characterCount: finalPrompt.length,
+});
+const execution = Object.freeze({
+  projectId,
+  promptId,
+  providerId: OFFLINE_REFERENCE_PROVIDER,
+  providerVersion: "1.0.0",
+  executionId,
+  output: `[offline provider response]\n${finalPrompt}`,
+  inputUnits: finalPrompt.length,
+  outputUnits: finalPrompt.length,
+  promptCharacterCount: finalPrompt.length,
+});
 
-test("client invokes only the ten fixed library commands", async () => {
+test("client invokes only the twelve fixed library and runtime commands", async () => {
   const calls = [];
   const responses = [
     ready,
@@ -63,6 +90,8 @@ test("client invokes only the ten fixed library commands", async () => {
     { prompt },
     { deletedPromptId: promptId },
     { prompts: [prompt], hasMore: false },
+    composition,
+    execution,
   ];
   let request = 0;
   const client = new BackendClient(async (...args) => {
@@ -85,6 +114,8 @@ test("client invokes only the ten fixed library commands", async () => {
   });
   await client.deletePrompt(projectId, promptId, true);
   await client.searchPrompts(projectId, " architect ");
+  await client.composePrompt(projectId, promptId);
+  await client.executePromptOffline(projectId, promptId, true);
 
   assert.deepEqual(calls, [
     ["backend_readiness", { requestId: "request-1" }],
@@ -113,6 +144,13 @@ test("client invokes only the ten fixed library commands", async () => {
     ["library_search_prompts", {
       requestId: "request-10", projectId, query: "architect",
     }],
+    ["library_compose_prompt", {
+      requestId: "request-11", projectId, promptId,
+    }],
+    ["library_execute_prompt_offline", {
+      requestId: "request-12", projectId, promptId,
+      providerId: OFFLINE_REFERENCE_PROVIDER, confirm: true,
+    }],
   ]);
 });
 
@@ -133,6 +171,10 @@ test("client rejects invalid inputs before invoking Tauri", async () => {
     }),
     BackendClientError,
   );
+  assert.throws(
+    () => validClient.executePromptOffline(projectId, promptId, false),
+    BackendClientError,
+  );
   assert.equal(called, false);
 });
 
@@ -144,6 +186,30 @@ test("readiness requires exact storage version and capabilities", () => {
     { ...ready, capabilities: capabilities.slice(0, 1) },
   ]) {
     assert.throws(() => validateReadiness(value), BackendClientError);
+  }
+});
+
+test("composition and execution results are exact, bounded, owned, and frozen", () => {
+  assert.deepEqual(validateComposition(composition, projectId, promptId), composition);
+  assert.deepEqual(validateExecution(execution, projectId, promptId), execution);
+  assert.ok(Object.isFrozen(validateComposition(composition, projectId, promptId)));
+  assert.ok(Object.isFrozen(validateExecution(execution, projectId, promptId)));
+
+  for (const value of [
+    { ...composition, extra: true },
+    { ...composition, characterCount: 1 },
+    { ...composition, enabledBlockCount: 0 },
+    { ...composition, projectId: executionId },
+  ]) {
+    assert.throws(() => validateComposition(value, projectId, promptId), BackendClientError);
+  }
+  for (const value of [
+    { ...execution, providerId: "dummy" },
+    { ...execution, executionId: "bad" },
+    { ...execution, promptCharacterCount: 0 },
+    { ...execution, output: "x".repeat(12_565) },
+  ]) {
+    assert.throws(() => validateExecution(value, projectId, promptId), BackendClientError);
   }
 });
 
