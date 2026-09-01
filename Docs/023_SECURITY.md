@@ -39,9 +39,9 @@ verification, revocation, subprocess boundary, or OS sandbox.
 - process or OS isolation for untrusted plugins;
 - enforceable plugin permissions;
 - package signatures, publisher identity, provenance, and revocation;
-- encryption;
-- secret and credential storage; and
-- future cloud-provider security.
+- cross-platform credential stores and additional provider authentication;
+- protection from malicious code already running as the current user; and
+- broader cloud-provider security, trust, and policy controls.
 
 ## AI-provider metadata
 
@@ -50,10 +50,11 @@ rejects unknown and secret-like fields and has no endpoint, header, credential,
 environment-variable, or machine-path fields. Authentication values describe a
 future mechanism but never locate or grant a credential.
 
-Provider inspection imports no code, performs no network request, and accesses
-no credentials. Runtime provider authentication, secure credential resolution,
-transport policy, TLS requirements, logging/redaction, and remote-service trust
-remain deferred.
+At that metadata-only checkpoint, provider inspection imported no code,
+performed no network request, and accessed no credentials. A-004 now supplies
+the separately host-authored OpenAI Responses policy and Windows credential
+handling described below; portable manifests still do not carry or grant those
+capabilities.
 
 E-014.3 scaffold generation uses the controlled E-009/E-008 pipeline and writes
 only below one direct child of `Providers/`. The generated entry point is
@@ -395,68 +396,89 @@ Every generated diff still requires human review.
 
 ## Bounded desktop-to-Python IPC
 
-A-003 exposes twelve Tauri commands: readiness, project list/create/delete,
+A-004 exposes sixteen Tauri commands: readiness, project list/create/delete,
 project-scoped prompt list/create/get/update/delete/search, saved-prompt
-composition, and confirmed offline execution. Each accepts only
-bounded command-specific values. The webview cannot select an executable,
-database path, environment value, Python module, function, sidecar command,
-arbitrary payload, SQL, search index, or filesystem destination.
+composition, two execution commands, provider catalog/settings save, and
+credential clear. Each accepts only bounded command-specific values. The
+webview cannot select an executable, database path, environment value, Python
+module, function, sidecar command, arbitrary payload, SQL, search index,
+filesystem destination, provider implementation, header, or credential
+reference.
 
 Both development and release hosts launch only the target-triple sidecar declared
 by Tauri `externalBin`. The webview retains only `core:default`; no shell-plugin
 or filesystem permission is exposed. Rust clears the child environment,
 restores only the three variables required by the Windows frozen runtime, and
 adds the trusted `UPS_APP_DATA_DIR` value resolved through Tauri. Python appends
-only the fixed `prompt-library.sqlite3` filename.
+only fixed application-owned database, settings, and credential locations.
 
 The JSON-lines protocol rejects unknown or duplicate fields, malformed UTF-8 or
 JSON, unsupported versions, non-finite values, malformed identifiers, unknown
 payload fields, messages over 16 KiB, uncorrelated responses, and responses
-outside the three-second timeout. Rust revalidates entity shapes, UUIDs,
+outside the command timeout. Local commands retain three seconds; the single
+configured HTTPS execution permits 35 seconds around a 30-second network
+timeout. Rust revalidates entity shapes, UUIDs,
 timestamps, categories, tags, block types/order/content, text and collection
 bounds, confirmations, deletion results, project ownership, composition counts,
-fixed provider identity/version, execution correlation, and output bounds. The frontend's
-camelCase block input is explicitly converted to the sidecar's snake_case wire
-field. Transport failure or malformed output discards the child so a later
-action may start a fresh process.
+the exact two-provider catalog, provider identity/version, endpoint, credential
+reference/state, model/options, execution correlation, and output bounds. The
+frontend validates the same public shapes independently. Transport failure or
+malformed output discards the child so a later action may start a fresh process.
 
 SQLite schema version 1 is application-owned through `PRAGMA user_version`.
-A-003 retains schema 1 because categories, tags, ordered blocks, and
-update timestamps were already owned by schema 1. Prompt access always includes
-the owning project. Prompt deletion removes only that owned record. Project
-deletion removes dependent prompts in one repository transaction and both
-deletion commands require exact `confirm: true` payloads.
+A-004 retains schema 1. Non-secret provider settings instead use one bounded,
+exact-shape schema-1 JSON document atomically replaced below application data.
+Prompt access always includes the owning project. Prompt deletion removes only
+that owned record. Project deletion removes dependent prompts in one repository
+transaction and both deletion commands require exact `confirm: true` payloads.
 
 Local search case-folds one bounded query and performs a deterministic substring
 scan across title, category, tags, and block content within the selected project.
 It exposes no arbitrary filter, sort, SQL, path, background index, cross-project
 scope, or network operation.
 
-Startup checks database integrity, required schema shape, and foreign-key
-
 Composition reloads the project-owned prompt and delegates only enabled saved
 blocks to the existing deterministic `PromptBuilder`. The webview cannot submit
-arbitrary execution text. Execution requires the exact host-authored
-`ups.offline-echo` identity and `confirm: true`; Rust and Python reject other
-providers, options, models, endpoints, or credential fields independently.
-Execution recomposes durable state rather than trusting an earlier preview.
+arbitrary execution text. Offline execution remains fixed to
+`ups.offline-echo`. Configured execution is fixed to `ups.openai-responses`.
+Both require `confirm: true` and recompose durable state rather than trusting an
+earlier preview.
 
-Composition, output, and minimal provider version/correlation/usage metadata are
-bounded and ephemeral. They are not written to SQLite or an execution-history
-store. Provider failures become the fixed `execution.failed` presentation error,
-and provider-authored detail does not cross Rust.
+The OpenAI application schema permits only the exact Responses endpoint, one
+bounded model identifier, temperature from 0 through 2, and maximum output
+tokens from 1 through 4096. There is no arbitrary provider, URL, header, option
+name, dynamic import, or model discovery. The host-created provider performs
+one HTTPS POST, disables server-side storage in its request, and performs no
+automatic retry, streaming, or background execution.
+
+The fixed credential reference resolves only inside Python. API-key ingress is
+accepted by the explicit settings-save command and the raw value is never
+returned. On Windows it is encrypted with current-user DPAPI and written as an
+application-owned bounded blob. It is excluded from SQLite, settings JSON,
+localStorage, logs, errors, catalog/status responses, and execution results.
+Settings-save rollback restores the previous credential if the non-secret write
+fails. Clearing the blob requires a separate exact confirmation. DPAPI does not
+protect against malicious code already running as the same Windows user.
+
+Composition, output, and minimal provider version/correlation/usage metadata
+are bounded and ephemeral. They are not written to SQLite or an
+execution-history store. Failures become fixed presentation-safe error codes,
+including `provider.unavailable` for configured execution; provider-authored or
+transport detail does not cross Rust.
+
+Startup checks database integrity, required schema shape, and foreign-key
 relationships. Foreign keys are enabled on every connection. Future, corrupt,
 unmanaged, incomplete, relationship-invalid, or unavailable databases fail with
 bounded errors and are never deleted, replaced, renamed, truncated, downgraded,
 or automatically repaired.
 
-The router exposes no arbitrary provider request, workflow execution, credential
-access, external endpoint, network operation, arbitrary file access, or
-subprocess launch. Python error detail never crosses Rust; unknown failures
-collapse to a fixed unavailable response. Source, frozen, restart, and
-installed-layout tests verify management, composition, and offline echo
-execution while durable records remain under per-user app data rather than the
-installation.
+The router exposes no workflow execution, arbitrary provider request, endpoint,
+network operation, file access, or subprocess launch. Python error detail never
+crosses Rust; unknown failures collapse to a fixed unavailable response. Source,
+frozen, restart, and installed-layout tests verify management, composition,
+provider settings, DPAPI ciphertext and redaction, credential clearing, and
+offline execution while durable state remains under per-user app data rather
+than the installation.
 
 The Python process remains trusted code with normal process authority. IPC
 validation reduces the webview's authority but is not a sandbox or process
