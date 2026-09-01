@@ -51,9 +51,14 @@ npm run tauri dev
 The Rust host starts the declared target-triple
 `universal-prompt-studio-backend` sidecar automatically. Create a project and
 prompt, add category/tags and ordered blocks, save, preview the final assembled
-prompt, and explicitly run the offline echo provider. Disable one block and
-confirm it is absent from the preview. Close the app, reopen it, and confirm the
-edited record remains while the prior execution result does not. Exercise prompt
+prompt, and explicitly run the offline echo provider. Select OpenAI Responses to
+inspect its fixed endpoint, bounded model/temperature/output settings, and
+credential state. Saving an API key sends it once to the host; it is never
+displayed again. Do not use a production key during development. Disable one
+block and confirm it is absent from the preview. Close the app, reopen it, and
+confirm the edited record and provider availability remain while the prior
+execution result does not. Clear the test key through its confirmed action and
+confirm the provider becomes unavailable. Exercise prompt
 and project deletion only with their explicit confirmations. Rust resolves the
 Tauri app-data directory and validates identity, application/protocol/storage
 versions, capabilities, correlation, result shapes, bounds, and project
@@ -79,6 +84,9 @@ invoke the same locked build script automatically.
 - `Backend/core/container.py` — application composition root.
 - `Backend/infrastructure/repositories/sqlite.py` — schema and persistence lifecycle.
 - `Backend/ipc/` — typed application-owned command router.
+- `Backend/application/provider_settings.py` — non-secret provider schema and service.
+- `Backend/infrastructure/providers/windows_secrets.py` — current-user DPAPI boundary.
+- `Backend/infrastructure/providers/openai_responses.py` — fixed remote provider.
 - `Frontend/src/backend-client.js` — strict webview library client.
 - `Frontend/src-tauri/src/backend.rs` — app-data, process, and correlation boundary.
 - `Docs/04_Backend/IPC_PROTOCOL.md` — IPC and trust boundary.

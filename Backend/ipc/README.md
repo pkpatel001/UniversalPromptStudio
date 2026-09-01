@@ -1,9 +1,10 @@
 # Application IPC
 
 `Backend.ipc` is the application-owned JSON-lines boundary frozen into the
-Tauri sidecar. A-003 creates one SQLite `ApplicationContainer` in the fixed
-app-data directory supplied by Rust. It serves twelve closed readiness, library,
-composition, and offline-execution commands until stdin reaches EOF or Rust terminates it.
+Tauri sidecar. A-004 creates one application container in the fixed app-data
+directory supplied by Rust. It serves sixteen closed readiness, library,
+composition, provider-settings, credential, and execution commands until stdin
+reaches EOF or Rust terminates it.
 
 Temporary development probe:
 
@@ -19,9 +20,11 @@ Production does not accept this directory from the webview: Rust resolves
 Tauri's application data directory after clearing the child environment. The
 server writes protocol responses only to stdout. It performs bounded SQLite
 project/prompt management, deterministic saved-block composition, and confirmed
-execution through the fixed host-authored `ups.offline-echo` provider. It exposes
-no arbitrary provider, option, credential, endpoint, workflow, network access,
-arbitrary file access, or subprocess launch.
+execution through `ups.offline-echo` or the host-authored OpenAI Responses
+integration. Non-secret OpenAI settings are atomic app-data JSON; the API key is
+a current-user DPAPI blob and is never returned. The endpoint, credential
+reference, and option schema are fixed. The boundary exposes no arbitrary
+provider, endpoint, option, header, workflow, file access, or subprocess launch.
 
 Future, invalid, and unavailable databases return safe errors and remain
 unchanged.

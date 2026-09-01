@@ -642,6 +642,46 @@ button.prompt-card.active {
   word-break: break-word;
 }
 
+.provider-picker {
+  align-items: end;
+  background: var(--ups-color-surface);
+  border: 1px solid var(--ups-color-border);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 0.6fr) 1fr;
+  padding: 13px;
+}
+
+.provider-picker span {
+  color: var(--ups-color-text-muted);
+  font-size: 11px;
+  padding-bottom: 10px;
+}
+
+.provider-settings {
+  background: var(--ups-color-surface);
+  border: 1px solid var(--ups-color-border);
+  border-radius: 8px;
+  display: grid;
+  gap: 13px;
+  padding: 13px;
+}
+
+.provider-settings[hidden] {
+  display: none;
+}
+
+.provider-fields {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.provider-fields .wide {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 1180px) {
   .library-toolbar,
   .library-grid {
@@ -656,7 +696,9 @@ button.prompt-card.active {
 
 @media (max-width: 620px) {
   .search-form,
-  .editor-fields {
+  .editor-fields,
+  .provider-fields,
+  .provider-picker {
     grid-template-columns: 1fr;
   }
 

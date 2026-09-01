@@ -83,9 +83,7 @@ def test_adapter_rejects_wrong_target_and_unsafe_or_colliding_parameters() -> No
     with pytest.raises(ValueError, match="not 'ups.offline-echo'"):
         adapter.execute(PromptExecutionRequest("Hello", "wrong.provider"))
     with pytest.raises(ProviderError, match="credential material"):
-        adapter.execute(
-            PromptExecutionRequest("Hello", adapter.name, {"api_key": "do-not-pass"})
-        )
+        adapter.execute(PromptExecutionRequest("Hello", adapter.name, {"api_key": "do-not-pass"}))
     with pytest.raises(ProviderError, match="must be unique"):
         adapter.execute(
             PromptExecutionRequest(
@@ -96,18 +94,16 @@ def test_adapter_rejects_wrong_target_and_unsafe_or_colliding_parameters() -> No
         )
 
 
-def test_container_exposes_offline_runtime_without_replacing_dummy_provider() -> None:
+def test_container_exposes_host_authorized_runtimes_without_replacing_dummy_provider() -> None:
     container = create_in_memory_container()
 
-    assert container.ai_providers.names() == ("dummy", "ups.offline-echo")
+    assert container.ai_providers.names() == ("dummy", "ups.offline-echo", "ups.openai-responses")
     assert container.provider_runtime_registry.resolve("ups.offline-echo").version == "1.0.0"
 
     result = container.prompt_execution_service.execute(
         PromptExecutionRequest("Integrated", "ups.offline-echo")
     )
-    legacy = container.prompt_execution_service.execute(
-        PromptExecutionRequest("Legacy", "dummy")
-    )
+    legacy = container.prompt_execution_service.execute(PromptExecutionRequest("Legacy", "dummy"))
 
     assert result.output == "[offline provider response]\nIntegrated"
     assert result.metadata["provider_version"] == ProviderVersion("1.0.0").value

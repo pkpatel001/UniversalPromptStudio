@@ -26,6 +26,7 @@ class IpcErrorCode(StrEnum):
     INVALID_DATABASE = "storage.invalid_database"
     FUTURE_SCHEMA = "storage.future_schema"
     EXECUTION_FAILED = "execution.failed"
+    PROVIDER_UNAVAILABLE = "provider.unavailable"
 
 
 @dataclass(frozen=True, slots=True)

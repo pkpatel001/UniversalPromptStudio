@@ -52,14 +52,17 @@ The Engineering Toolkit is complete through E-017. The repository contains:
 * Automated Python, frontend, and Rust validation
 * A Tauri/Vite prompt workspace with controlled theme selection
 
-The desktop product remains alpha. A-003 provides a usable versioned SQLite
+The desktop product remains alpha. A-004 provides a usable versioned SQLite
 prompt library in Tauri-managed app data, with durable project and prompt
 creation, ordered-block editing, category/tag organization, project-scoped local
 search, and explicit prompt/project deletion across installed application
 restarts. Saved enabled blocks can now be previewed as one deterministic final
-prompt and explicitly executed through the host-authored `ups.offline-echo`
-reference provider. A-004 is the exact next checkpoint: controlled provider
-selection, endpoint configuration, and credential handling.
+prompt and explicitly executed through either the host-authored
+`ups.offline-echo` reference path or the bounded `ups.openai-responses` path.
+OpenAI settings are exact-shape, its endpoint is fixed, and its API key is
+protected for the current Windows user with DPAPI rather than stored in SQLite
+or web storage. A-005 is the exact next checkpoint: workflow authoring,
+validation, and bounded sequential execution UI.
 
 ## Technology Stack
 

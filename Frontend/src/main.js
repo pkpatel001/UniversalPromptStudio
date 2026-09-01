@@ -1,5 +1,10 @@
 import "./styles.css";
-import { BackendClient } from "./backend-client.js";
+import {
+  BackendClient,
+  OFFLINE_REFERENCE_PROVIDER,
+  OPENAI_RESPONSES_ENDPOINT,
+  OPENAI_RESPONSES_PROVIDER,
+} from "./backend-client.js";
 import { themeSelectionKey, THEME_CATALOG } from "./theme-catalog.js";
 import { ThemeApplicationController } from "./theme-controller.js";
 import { ThemePreferenceStore } from "./theme-preference.js";
@@ -78,12 +83,30 @@ document.querySelector("#app").innerHTML = `
             <section class="runtime-panel" aria-labelledby="runtime-heading">
               <div class="runtime-heading">
                 <div><p>Saved composition</p><h4 id="runtime-heading">Preview and run</h4></div>
-                <span class="offline-badge">Offline only</span>
+                <span class="offline-badge">Controlled providers</span>
               </div>
-              <p class="runtime-help">Composition uses the enabled blocks already saved above. Execution is fixed to the host-authored <code>ups.offline-echo</code> reference provider.</p>
+              <p class="runtime-help">Composition always uses saved blocks. Choose the offline reference path or explicitly configure the host-authorized OpenAI Responses path.</p>
+              <div class="provider-picker">
+                <label>Run with<select id="provider-select" disabled><option>Loading providers…</option></select></label>
+                <span id="provider-availability">Checking availability…</span>
+              </div>
+              <section id="provider-settings" class="provider-settings" hidden aria-labelledby="provider-settings-heading">
+                <div class="runtime-label"><strong id="provider-settings-heading">OpenAI Responses settings</strong><span>API key is encrypted for your Windows account and never displayed again.</span></div>
+                <div class="provider-fields">
+                  <label class="wide">Authorized endpoint<input id="provider-endpoint" value="${OPENAI_RESPONSES_ENDPOINT}" readonly></label>
+                  <label>Model<input id="provider-model" maxlength="80" autocomplete="off"></label>
+                  <label>Temperature<input id="provider-temperature" type="number" min="0" max="2" step="0.1"></label>
+                  <label>Maximum output tokens<input id="provider-max-tokens" type="number" min="1" max="4096" step="1"></label>
+                  <label>API key <span>leave blank to keep saved key</span><input id="provider-credential" type="password" minlength="8" maxlength="512" autocomplete="new-password"></label>
+                </div>
+                <div class="runtime-actions">
+                  <button id="save-provider" class="secondary" type="button">Save provider settings</button>
+                  <button id="clear-provider" class="danger subtle" type="button">Clear saved key</button>
+                </div>
+              </section>
               <div class="runtime-actions">
                 <button id="compose-prompt" class="secondary" type="button">Compose saved prompt</button>
-                <button id="execute-prompt" class="primary" type="button" disabled>Run offline echo</button>
+                <button id="execute-prompt" class="primary" type="button" disabled>Run selected provider</button>
               </div>
               <div class="runtime-output">
                 <div class="runtime-label"><strong>Final assembled prompt</strong><span id="composition-metadata">Not composed yet</span></div>
@@ -133,12 +156,24 @@ const compositionMetadata = byId("composition-metadata");
 const executionResult = byId("execution-result");
 const executionOutput = byId("execution-output");
 const executionMetadata = byId("execution-metadata");
+const providerSelect = byId("provider-select");
+const providerAvailability = byId("provider-availability");
+const providerSettings = byId("provider-settings");
+const providerEndpoint = byId("provider-endpoint");
+const providerModel = byId("provider-model");
+const providerTemperature = byId("provider-temperature");
+const providerMaxTokens = byId("provider-max-tokens");
+const providerCredential = byId("provider-credential");
+const saveProvider = byId("save-provider");
+const clearProvider = byId("clear-provider");
 let projects = [];
 let prompts = [];
+let providers = [];
 let selectedProjectId = null;
 let selectedPrompt = null;
 let editorBlocks = [];
 let activeQuery = "";
+let compositionReady = false;
 
 function setLibraryStatus(state, message) {
   libraryStatus.dataset.state = state;
@@ -287,6 +322,49 @@ function resetRuntime(message = "Compose the saved prompt to preview its assembl
   executionOutput.textContent = "";
   executionMetadata.textContent = "";
   executePrompt.disabled = true;
+  compositionReady = false;
+}
+
+function selectedProvider() {
+  return providers.find((provider) => provider.providerId === providerSelect.value) ?? null;
+}
+
+function renderProviders() {
+  const previous = providerSelect.value || OFFLINE_REFERENCE_PROVIDER;
+  providerSelect.replaceChildren();
+  for (const provider of providers) {
+    const option = document.createElement("option");
+    option.value = provider.providerId;
+    option.textContent = provider.name;
+    option.selected = provider.providerId === previous;
+    providerSelect.append(option);
+  }
+  providerSelect.disabled = providers.length === 0;
+  if (!providers.some((provider) => provider.providerId === providerSelect.value)) {
+    providerSelect.value = OFFLINE_REFERENCE_PROVIDER;
+  }
+  const provider = selectedProvider();
+  providerSettings.hidden = provider?.providerId !== OPENAI_RESPONSES_PROVIDER;
+  if (provider?.providerId === OPENAI_RESPONSES_PROVIDER) {
+    providerEndpoint.value = provider.endpoint;
+    providerModel.value = provider.model;
+    providerTemperature.value = String(provider.temperature);
+    providerMaxTokens.value = String(provider.maxOutputTokens);
+    providerAvailability.textContent = provider.available
+      ? "Ready · encrypted key stored" : "Settings available · API key required";
+    clearProvider.disabled = provider.credentialState !== "stored";
+  } else {
+    providerAvailability.textContent = provider ? "Ready · no credential or network required" : "Unavailable";
+  }
+  executePrompt.textContent = provider?.providerId === OPENAI_RESPONSES_PROVIDER
+    ? "Run OpenAI Responses" : "Run offline echo";
+  executePrompt.disabled = !compositionReady || !provider?.available;
+}
+
+async function loadProviders() {
+  const result = await backendClient.listProviders();
+  providers = [...result.providers];
+  renderProviders();
 }
 
 function markRuntimeStale() {
@@ -344,6 +422,7 @@ async function initializeLibrary(preferredProjectId = null) {
   setLibraryStatus("pending", "Opening your local prompt library…");
   try {
     await backendClient.checkReadiness();
+    await loadProviders();
     const result = await backendClient.listProjects();
     projects = [...result.projects];
     selectedProjectId = projects.some((project) => project.projectId === preferredProjectId) ? preferredProjectId : projects[0]?.projectId ?? null;
@@ -436,7 +515,9 @@ blockList.addEventListener("click", (event) => {
   markRuntimeStale();
 });
 
-editorForm.addEventListener("input", markRuntimeStale);
+editorForm.addEventListener("input", (event) => {
+  if (!event.target.closest("#provider-settings")) markRuntimeStale();
+});
 
 editorForm.addEventListener("submit", async (event) => {
   event.preventDefault(); if (!selectedProjectId || !selectedPrompt) return;
@@ -473,7 +554,8 @@ composePrompt.addEventListener("click", async () => {
     compositionPreview.textContent = composition.finalPrompt;
     compositionMetadata.textContent = `${composition.enabledBlockCount} of ${composition.totalBlockCount} blocks · ${composition.characterCount} characters`;
     executionResult.hidden = true;
-    executePrompt.disabled = false;
+    compositionReady = true;
+    renderProviders();
     setLibraryStatus("ready", "Saved prompt composed locally.");
   } catch (error) {
     resetRuntime("The saved prompt could not be composed.");
@@ -483,28 +565,76 @@ composePrompt.addEventListener("click", async () => {
   }
 });
 
+providerSelect.addEventListener("change", renderProviders);
+
+saveProvider.addEventListener("click", async () => {
+  saveProvider.disabled = true;
+  setLibraryStatus("pending", "Saving provider settings and protecting the credential…");
+  try {
+    const result = await backendClient.saveProviderSettings({
+      providerId: OPENAI_RESPONSES_PROVIDER,
+      endpoint: providerEndpoint.value,
+      model: providerModel.value,
+      temperature: Number(providerTemperature.value),
+      maxOutputTokens: Number(providerMaxTokens.value),
+      credential: providerCredential.value || null,
+    });
+    providerCredential.value = "";
+    providers = providers.map((provider) =>
+      provider.providerId === result.provider.providerId ? result.provider : provider
+    );
+    renderProviders();
+    setLibraryStatus("ready", "Provider settings saved. The API key is never returned to this screen.");
+  } catch (error) {
+    providerCredential.value = "";
+    setLibraryStatus("error", error?.message ?? "Provider settings could not be saved safely.");
+  } finally {
+    saveProvider.disabled = false;
+  }
+});
+
+clearProvider.addEventListener("click", async () => {
+  if (!window.confirm("Clear the saved OpenAI API key from protected Windows storage?")) return;
+  clearProvider.disabled = true;
+  try {
+    const result = await backendClient.clearProviderCredential(true);
+    providers = providers.map((provider) =>
+      provider.providerId === result.provider.providerId ? result.provider : provider
+    );
+    renderProviders();
+    setLibraryStatus("ready", "The saved provider credential was cleared.");
+  } catch (error) {
+    setLibraryStatus("error", error?.message ?? "The saved credential could not be cleared.");
+  }
+});
+
 executePrompt.addEventListener("click", async () => {
+  const provider = selectedProvider();
   if (
-    !selectedProjectId || !selectedPrompt ||
-    !window.confirm("Run this saved composition through the offline echo reference provider?")
+    !selectedProjectId || !selectedPrompt || !provider || !provider.available ||
+    !window.confirm(`Run this saved composition through ${provider.name}?`)
   ) return;
   composePrompt.disabled = true;
   executePrompt.disabled = true;
-  setLibraryStatus("pending", "Running the saved prompt through offline echo…");
+  setLibraryStatus("pending", `Running the saved prompt through ${provider.name}…`);
   try {
-    const execution = await backendClient.executePromptOffline(
-      selectedProjectId,
-      selectedPrompt.promptId,
-      true,
-    );
+    const execution = provider.providerId === OFFLINE_REFERENCE_PROVIDER
+      ? await backendClient.executePromptOffline(selectedProjectId, selectedPrompt.promptId, true)
+      : await backendClient.executePromptConfigured(
+        selectedProjectId, selectedPrompt.promptId, provider.providerId, true,
+      );
     executionOutput.textContent = execution.output;
-    executionMetadata.textContent = `${execution.providerId} ${execution.providerVersion} · ${execution.inputUnits} input / ${execution.outputUnits} output units`;
+    executionMetadata.textContent = [
+      `${execution.providerId} ${execution.providerVersion}`,
+      execution.model ? `model ${execution.model}` : null,
+      `${execution.inputUnits} input / ${execution.outputUnits} output units`,
+    ].filter(Boolean).join(" · ");
     executionResult.hidden = false;
-    executePrompt.disabled = false;
-    setLibraryStatus("ready", "Offline reference execution completed.");
+    renderProviders();
+    setLibraryStatus("ready", "Provider execution completed.");
   } catch (error) {
     executionResult.hidden = true;
-    setLibraryStatus("error", error?.message ?? "Offline execution failed safely.");
+    setLibraryStatus("error", error?.message ?? "Provider execution failed safely.");
   } finally {
     composePrompt.disabled = false;
   }

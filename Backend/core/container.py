@@ -7,6 +7,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from Backend.application.prompt_builder import PromptBuilder
+from Backend.application.provider_settings import (
+    PROVIDER_SETTINGS_FILE_NAME,
+    InMemoryProviderSettingsRepository,
+    InMemorySecretStore,
+    JsonProviderSettingsRepository,
+    ProviderConfigurationService,
+)
 from Backend.application.services import (
     ProjectService,
     PromptExecutionService,
@@ -23,7 +30,12 @@ from Backend.implementations.dummy import (
     InMemoryHistoryProvider,
     NoOpPromptOptimizer,
 )
-from Backend.infrastructure.providers import ProviderRuntimeAIAdapter
+from Backend.infrastructure.providers import (
+    OpenAIResponsesProvider,
+    ProviderRuntimeAIAdapter,
+    WindowsDpapiSecretStore,
+    openai_responses_provider_record,
+)
 from Backend.infrastructure.repositories.in_memory import (
     InMemoryProjectRepository,
     InMemoryPromptRepository,
@@ -71,6 +83,7 @@ class ApplicationContainer:
     prompt_service: PromptService
     prompt_execution_service: PromptExecutionService
     saved_prompt_runtime_service: SavedPromptRuntimeService
+    provider_configuration_service: ProviderConfigurationService
     search_service: SearchService
 
 
@@ -81,6 +94,8 @@ def create_in_memory_container() -> ApplicationContainer:
     return _create_container(
         project_repository=InMemoryProjectRepository(prompt_repository),
         prompt_repository=prompt_repository,
+        provider_settings_repository=InMemoryProviderSettingsRepository(),
+        secret_store=InMemorySecretStore(),
     )
 
 
@@ -104,12 +119,19 @@ def create_sqlite_container(database_path: Path) -> ApplicationContainer:
     return _create_container(
         project_repository=SQLiteProjectRepository(storage_provider),
         prompt_repository=SQLitePromptRepository(storage_provider),
+        provider_settings_repository=JsonProviderSettingsRepository(
+            database_path.parent / PROVIDER_SETTINGS_FILE_NAME
+        ),
+        secret_store=WindowsDpapiSecretStore(database_path.parent / "credentials"),
     )
 
 
 def _create_container(
     project_repository: ProjectRepository,
     prompt_repository: PromptRepository,
+    provider_settings_repository: InMemoryProviderSettingsRepository
+    | JsonProviderSettingsRepository,
+    secret_store: InMemorySecretStore | WindowsDpapiSecretStore,
 ) -> ApplicationContainer:
     """Wire core application dependencies."""
 
@@ -122,12 +144,27 @@ def _create_container(
         offline_echo_provider_record(),
         offline_provider,
     )
+    provider_configuration_service = ProviderConfigurationService(
+        provider_settings_repository, secret_store
+    )
+    openai_provider = OpenAIResponsesProvider(provider_configuration_service)
+    provider_runtime_registry.register(
+        openai_responses_provider_record(),
+        openai_provider,
+    )
+    provider_execution = ProviderExecutionService(provider_runtime_registry)
     offline_adapter = ProviderRuntimeAIAdapter(
-        ProviderExecutionService(provider_runtime_registry),
+        provider_execution,
         offline_provider.provider_id.value,
         offline_provider.version.value,
     )
     ai_providers.register(offline_adapter.name, offline_adapter)
+    openai_adapter = ProviderRuntimeAIAdapter(
+        provider_execution,
+        openai_provider.provider_id.value,
+        openai_provider.version.value,
+    )
+    ai_providers.register(openai_adapter.name, openai_adapter)
     workflow_operation_registry = WorkflowOperationRegistry()
     register_offline_workflow_handlers(workflow_operation_registry)
     offline_workflow_plan = offline_text_workflow_plan(workflow_operation_registry)
@@ -150,7 +187,6 @@ def _create_container(
         event_bus=event_bus,
     )
 
-
     return ApplicationContainer(
         event_bus=event_bus,
         ai_providers=ai_providers,
@@ -164,7 +200,8 @@ def _create_container(
         prompt_service=prompt_service,
         prompt_execution_service=prompt_execution_service,
         saved_prompt_runtime_service=SavedPromptRuntimeService(
-            prompt_service, prompt_execution_service
+            prompt_service, prompt_execution_service, provider_configuration_service
         ),
+        provider_configuration_service=provider_configuration_service,
         search_service=SearchService(search_provider),
     )

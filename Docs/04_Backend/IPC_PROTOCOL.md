@@ -1,6 +1,6 @@
 # Desktop-to-Python IPC protocol
 
-**Checkpoint:** A-003
+**Checkpoint:** A-004
 **Protocol:** 1
 **Storage schema:** 1
 
@@ -8,7 +8,7 @@
 
 ```text
 Vite webview
-    -> twelve fixed Tauri commands
+    -> sixteen fixed Tauri commands
         -> Rust BackendManager
             -> declared universal-prompt-studio-backend sidecar
                 -> ApplicationIpcRouter
@@ -72,6 +72,10 @@ messages. Unknown errors collapse to `backend.unavailable`.
 | `library_search_prompts` | `library.prompts.search` | `project_id`, `query` | Up to 50 matching prompts plus `has_more` |
 | `library_compose_prompt` | `library.prompts.compose` | `project_id`, `prompt_id` | Owned saved-prompt composition |
 | `library_execute_prompt_offline` | `library.prompts.execute-offline` | IDs, `provider_id: ups.offline-echo`, `confirm: true` | Bounded offline result and metadata |
+| `provider_catalog` | `providers.catalog` | Empty | Exact two-provider catalog and safe availability state |
+| `provider_save_settings` | `providers.settings.save` | Fixed provider/endpoint, model, temperature, output tokens, optional API key | Non-secret provider state only |
+| `provider_clear_credential` | `providers.credentials.clear` | Fixed provider, `confirm: true` | Provider state with `missing` credential |
+| `library_execute_prompt_configured` | `library.prompts.execute-configured` | IDs, `provider_id: ups.openai-responses`, `confirm: true` | Bounded configured result and metadata |
 
 Readiness returns these commands in the table's exact sidecar-command order.
 Application, protocol, and storage versions remain `0.2.0-alpha`, `1`, and `1`.
@@ -90,6 +94,13 @@ Application, protocol, and storage versions remain `0.2.0-alpha`, `1`, and `1`.
 | Search query | 1–120 trimmed characters |
 | Final composed prompt | 1–12,500 characters |
 | Offline execution output | 1–12,564 characters |
+| Provider catalog | Exactly two host-owned entries in fixed order |
+| Provider endpoint | Exactly `https://api.openai.com/v1/responses` |
+| Provider model | 1–80 characters in the host-owned identifier grammar |
+| Temperature | Finite number from 0 through 2 |
+| Maximum output tokens | Integer from 1 through 4,096 |
+| Credential ingress | 8–512 non-control characters; never returned |
+| Configured execution output | 1–12,500 characters |
 | Collections | First 50 deterministic results plus `has_more` |
 
 Prompt results contain exact `prompt_id`, `project_id`, `title`, nullable
@@ -129,28 +140,41 @@ the webview.
   with sections separated by one blank line.
 - Composition returns the project/prompt IDs, saved title, final prompt, enabled
   and total block counts, and Unicode character count. It does not change SQLite.
-- Execution requires the exact provider identity `ups.offline-echo` and
-  `confirm: true`. No other provider, model, parameter, option, endpoint, or
-  credential field is accepted.
+- Offline execution still requires exact `ups.offline-echo` and `confirm: true`.
+- The provider catalog returns only offline echo and `ups.openai-responses`,
+  including fixed descriptive metadata, bounded non-secret settings, one opaque
+  credential reference, and `missing`, `stored`, or `not-required` state.
+- Provider-settings save accepts only `ups.openai-responses`, the fixed endpoint,
+  the closed model/temperature/output-token fields, and an optional API key. The
+  response never contains the API key. A null credential retains an existing key.
+- Credential clearing requires exact provider identity and `confirm: true`.
+- Configured execution requires exact `ups.openai-responses` and `confirm: true`.
+  The webview cannot send endpoint, model, options, credential, or final prompt
+  through the execution command.
 - Execution recomposes current durable state rather than accepting or trusting a
   prior webview preview. The returned result contains only project/prompt IDs,
   provider ID/version, a correlated execution UUID, output, input/output units,
-  and the composed prompt character count.
+  composed prompt character count, and—only for configured execution—the
+  validated response model.
 - Composition, execution output, and execution metadata are ephemeral. They are
   not written to schema 1, history storage, the installation, or the repository.
 - Provider failures map to the fixed `execution.failed` presentation error;
   provider-authored detail and Python exceptions do not cross Rust.
 
-There is no arbitrary provider selection, external endpoint, credential access,
-model discovery, streaming, cancellation, retry, workflow execution, background
-execution, history persistence, network access, or caller-selected options.
+There is no arbitrary provider selection, endpoint, header, credential reference,
+option name, model discovery, dynamic provider loading, streaming, cancellation,
+retry, workflow execution, background execution, or history persistence.
 
 ## SQLite lifecycle
 
-A-003 retains schema version 1 because A-002.1 already persisted project
+A-004 retains schema version 1 because provider settings are not prompt-library
+records. A-002.1 already persisted project
 ownership, categories, tags, ordered blocks, and update timestamps. No database
 shape change or migration is needed, and existing schema-1 user data is opened
 unchanged.
+
+Non-secret provider settings use bounded atomic schema-1 JSON below app data.
+The fixed credential reference resolves to a current-user Windows DPAPI blob.
 
 Fresh databases still follow the owned migration from version 0 to 1. Every
 connection enables foreign keys, modern transaction control, trusted-schema
@@ -166,11 +190,13 @@ replacement, rename, truncation, downgrade, or automatic repair.
 - Transport, timeout, malformed response, or process failure discards the child;
   invalid input and not-found results keep a healthy process.
 - Source, frozen-sidecar, restart, and installed-layout tests prove management,
-  composition, and offline reference execution while durable storage remains
-  under per-user app data.
-- The sidecar exposes only the fixed offline echo provider. It performs no
-  credential access, external provider request, workflow execution, network
-  access, arbitrary filesystem access, or subprocess launch through this protocol.
+  composition, both provider states, DPAPI ciphertext/redaction, and offline
+  execution while durable storage remains under per-user app data.
+- The sidecar exposes only two host-created providers. The OpenAI provider makes
+  one explicitly initiated HTTPS POST to the fixed endpoint, resolves only its
+  fixed DPAPI credential reference, performs no automatic retry, and returns no
+  raw transport error. The protocol exposes no arbitrary network operation,
+  workflow execution, arbitrary filesystem access, or subprocess launch.
 
 The sidecar remains trusted application code with the user's process authority;
 this protocol is an authority-reduction boundary, not a sandbox.

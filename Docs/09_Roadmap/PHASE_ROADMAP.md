@@ -23,10 +23,11 @@ and deferred scope.
 | A-006 | Extensibility UI | Supported theme, plugin, and provider lifecycle surfaces |
 | A-007 | Product hardening | Import/export, settings, diagnostics, onboarding, accessibility, localization, backup, and distribution polish |
 
-A-003 completes the first controlled prompt runtime: deterministic saved-block
-composition, a distinct final-prompt preview, and explicitly confirmed execution
-through only the host-authored offline echo provider. The immediate checkpoint is
-**A-004 — Controlled provider selection, endpoint configuration, and credential handling**.
+A-004 completes the first controlled external-provider path: a two-provider
+host catalog, fixed OpenAI Responses endpoint and option schema, current-user
+Windows DPAPI credential protection, explicit selection, and confirmed bounded
+execution while preserving offline echo. The immediate checkpoint is
+**A-005 — Workflow authoring, validation, and bounded sequential execution UI**.
 Scope and acceptance guidance are in `APPLICATION_DEVELOPMENT_HANDOFF.md`.
 
 ## Planning rule

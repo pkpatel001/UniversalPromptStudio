@@ -8,6 +8,17 @@ from uuid import UUID
 
 from sqlalchemy.exc import SQLAlchemyError
 
+from Backend.application.provider_settings import (
+    MAX_CREDENTIAL_LENGTH,
+    MAX_MODEL_LENGTH,
+    MAX_OUTPUT_TOKENS,
+    OPENAI_CREDENTIAL_REFERENCE,
+    OPENAI_RESPONSES_ENDPOINT,
+    OPENAI_RESPONSES_PROVIDER,
+    OPENAI_RESPONSES_VERSION,
+    ProviderStatus,
+    ProviderUnavailableError,
+)
 from Backend.application.services import (
     MAX_BLOCK_CONTENT_LENGTH,
     MAX_BLOCKS,
@@ -51,6 +62,10 @@ PROMPT_SEARCH_COMMAND = "library.prompts.search"
 SIDECAR_IDENTITY = "com.universalpromptstudio.backend"
 PROMPT_COMPOSE_COMMAND = "library.prompts.compose"
 PROMPT_EXECUTE_OFFLINE_COMMAND = "library.prompts.execute-offline"
+PROVIDER_CATALOG_COMMAND = "providers.catalog"
+PROVIDER_SETTINGS_SAVE_COMMAND = "providers.settings.save"
+PROVIDER_CREDENTIAL_CLEAR_COMMAND = "providers.credentials.clear"
+PROMPT_EXECUTE_CONFIGURED_COMMAND = "library.prompts.execute-configured"
 SUPPORTED_COMMANDS = (
     APPLICATION_READINESS_COMMAND,
     PROJECT_LIST_COMMAND,
@@ -64,10 +79,15 @@ SUPPORTED_COMMANDS = (
     PROMPT_SEARCH_COMMAND,
     PROMPT_COMPOSE_COMMAND,
     PROMPT_EXECUTE_OFFLINE_COMMAND,
+    PROVIDER_CATALOG_COMMAND,
+    PROVIDER_SETTINGS_SAVE_COMMAND,
+    PROVIDER_CREDENTIAL_CLEAR_COMMAND,
+    PROMPT_EXECUTE_CONFIGURED_COMMAND,
 )
 MAX_LIBRARY_ITEMS = 50
 
 MAX_EXECUTION_OUTPUT_LENGTH = MAX_COMPOSED_PROMPT_LENGTH + 64
+MAX_CONFIGURED_EXECUTION_OUTPUT_LENGTH = 12_500
 
 
 class ApplicationIpcRouter:
@@ -131,6 +151,10 @@ class ApplicationIpcRouter:
             PROMPT_COMPOSE_COMMAND: self._compose_prompt,
             PROMPT_EXECUTE_OFFLINE_COMMAND: self._execute_prompt_offline,
             PROMPT_SEARCH_COMMAND: self._search_prompts,
+            PROVIDER_CATALOG_COMMAND: self._provider_catalog,
+            PROVIDER_SETTINGS_SAVE_COMMAND: self._save_provider_settings,
+            PROVIDER_CREDENTIAL_CLEAR_COMMAND: self._clear_provider_credential,
+            PROMPT_EXECUTE_CONFIGURED_COMMAND: self._execute_prompt_configured,
         }
         try:
             return handlers[request.command](request)
@@ -156,7 +180,13 @@ class ApplicationIpcRouter:
             return IpcResponse.failure(
                 request.request_id,
                 IpcErrorCode.EXECUTION_FAILED,
-                "Offline prompt execution failed safely.",
+                "Provider execution failed safely.",
+            )
+        except ProviderUnavailableError:
+            return IpcResponse.failure(
+                request.request_id,
+                IpcErrorCode.PROVIDER_UNAVAILABLE,
+                "The configured provider is unavailable.",
             )
         except Exception:
             return IpcResponse.failure(
@@ -301,6 +331,80 @@ class ApplicationIpcRouter:
             {"execution": _execution_value(composition, result)},
         )
 
+    def _provider_catalog(self, request: IpcRequest) -> IpcResponse:
+        _require_fields(request.payload, frozenset())
+        assert self._container is not None
+        providers: list[JsonValue] = [
+            _provider_status_value(provider)
+            for provider in self._container.provider_configuration_service.catalog()
+        ]
+        return IpcResponse.success(request.request_id, {"providers": providers})
+
+    def _save_provider_settings(self, request: IpcRequest) -> IpcResponse:
+        _require_fields(
+            request.payload,
+            frozenset(
+                {
+                    "provider_id",
+                    "endpoint",
+                    "model",
+                    "temperature",
+                    "max_output_tokens",
+                    "credential",
+                }
+            ),
+        )
+        provider_id = _bounded_string(request.payload["provider_id"], 64)
+        endpoint = _bounded_string(request.payload["endpoint"], 200)
+        model = _bounded_string(request.payload["model"], MAX_MODEL_LENGTH)
+        temperature = _bounded_number(request.payload["temperature"], 0.0, 2.0)
+        max_output_tokens = _bounded_integer(
+            request.payload["max_output_tokens"], 1, MAX_OUTPUT_TOKENS
+        )
+        credential_value = request.payload["credential"]
+        credential = (
+            None
+            if credential_value is None
+            else _bounded_string(credential_value, MAX_CREDENTIAL_LENGTH)
+        )
+        assert self._container is not None
+        provider = self._container.provider_configuration_service.save(
+            provider_id, endpoint, model, temperature, max_output_tokens, credential
+        )
+        return IpcResponse.success(
+            request.request_id, {"provider": _provider_status_value(provider)}
+        )
+
+    def _clear_provider_credential(self, request: IpcRequest) -> IpcResponse:
+        _require_fields(request.payload, frozenset({"provider_id", "confirm"}))
+        provider_id = _bounded_string(request.payload["provider_id"], 64)
+        _require_confirmation(request.payload["confirm"])
+        assert self._container is not None
+        provider = self._container.provider_configuration_service.clear_credential(provider_id)
+        return IpcResponse.success(
+            request.request_id, {"provider": _provider_status_value(provider)}
+        )
+
+    def _execute_prompt_configured(self, request: IpcRequest) -> IpcResponse:
+        _require_fields(
+            request.payload,
+            frozenset({"project_id", "prompt_id", "provider_id", "confirm"}),
+        )
+        project_id = _canonical_identifier(request.payload["project_id"])
+        prompt_id = _canonical_identifier(request.payload["prompt_id"])
+        provider_id = _bounded_string(request.payload["provider_id"], 64)
+        if provider_id != OPENAI_RESPONSES_PROVIDER:
+            raise ValueError("Provider identity is not supported by this command.")
+        _require_confirmation(request.payload["confirm"])
+        assert self._container is not None
+        composition, result = self._container.saved_prompt_runtime_service.execute_configured(
+            project_id, prompt_id, provider_id
+        )
+        return IpcResponse.success(
+            request.request_id,
+            {"execution": _configured_execution_value(composition, result)},
+        )
+
 
 def _require_fields(payload: dict[str, JsonValue], expected: frozenset[str]) -> None:
     if set(payload) != expected:
@@ -320,6 +424,21 @@ def _optional_bounded_string(value: JsonValue, maximum: int) -> str | None:
     if value is None:
         return None
     return _bounded_string(value, maximum, allow_empty=True) or None
+
+
+def _bounded_number(value: JsonValue, minimum: float, maximum: float) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError("Payload value must be a number.")
+    normalized = float(value)
+    if not minimum <= normalized <= maximum:
+        raise ValueError("Payload number is outside its supported bounds.")
+    return normalized
+
+
+def _bounded_integer(value: JsonValue, minimum: int, maximum: int) -> int:
+    if type(value) is not int or not minimum <= value <= maximum:
+        raise ValueError("Payload integer is outside its supported bounds.")
+    return value
 
 
 def _canonical_identifier(value: JsonValue) -> str:
@@ -438,6 +557,31 @@ def _composition_value(composition: PromptComposition) -> dict[str, JsonValue]:
     }
 
 
+def _provider_status_value(provider: ProviderStatus) -> dict[str, JsonValue]:
+    if provider.provider_id == OPENAI_RESPONSES_PROVIDER:
+        if (
+            provider.version != OPENAI_RESPONSES_VERSION
+            or provider.endpoint != OPENAI_RESPONSES_ENDPOINT
+            or provider.credential_reference != OPENAI_CREDENTIAL_REFERENCE
+        ):
+            raise RuntimeError("Configured provider metadata is invalid.")
+    return {
+        "provider_id": provider.provider_id,
+        "name": provider.name,
+        "version": provider.version,
+        "transport": provider.transport,
+        "authentication": provider.authentication,
+        "configurable": provider.configurable,
+        "available": provider.available,
+        "credential_state": provider.credential_state,
+        "credential_reference": provider.credential_reference,
+        "endpoint": provider.endpoint,
+        "model": provider.model,
+        "temperature": provider.temperature,
+        "max_output_tokens": provider.max_output_tokens,
+    }
+
+
 def _execution_value(
     composition: PromptComposition,
     result: PromptExecutionResult,
@@ -470,6 +614,48 @@ def _execution_value(
         "input_units": input_units,
         "output_units": output_units,
         "prompt_character_count": composition.character_count,
+    }
+
+
+def _configured_execution_value(
+    composition: PromptComposition,
+    result: PromptExecutionResult,
+) -> dict[str, JsonValue]:
+    expected_metadata = {
+        "provider_id",
+        "provider_version",
+        "request_id",
+        "input_units",
+        "output_units",
+        "model",
+    }
+    if set(result.metadata) != expected_metadata:
+        raise RuntimeError("Configured provider metadata is invalid.")
+    provider_id = _metadata_string(result.metadata, "provider_id", 64)
+    provider_version = _metadata_string(result.metadata, "provider_version", 32)
+    execution_id = _canonical_identifier(result.metadata["request_id"])
+    model = _metadata_string(result.metadata, "model", MAX_MODEL_LENGTH)
+    input_units = _metadata_count(result.metadata, "input_units")
+    output_units = _metadata_count(result.metadata, "output_units")
+    if (
+        provider_id != OPENAI_RESPONSES_PROVIDER
+        or provider_version != OPENAI_RESPONSES_VERSION
+        or result.provider_name != provider_id
+    ):
+        raise RuntimeError("Configured provider identity is invalid.")
+    if not result.output or len(result.output) > MAX_CONFIGURED_EXECUTION_OUTPUT_LENGTH:
+        raise RuntimeError("Configured provider output is invalid.")
+    return {
+        "project_id": composition.project_id,
+        "prompt_id": composition.prompt_id,
+        "provider_id": provider_id,
+        "provider_version": provider_version,
+        "execution_id": execution_id,
+        "output": result.output,
+        "input_units": input_units,
+        "output_units": output_units,
+        "prompt_character_count": composition.character_count,
+        "model": model,
     }
 
 

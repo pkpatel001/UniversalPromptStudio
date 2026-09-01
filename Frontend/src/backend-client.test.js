@@ -5,12 +5,16 @@ import {
   BackendClient,
   BackendClientError,
   OFFLINE_REFERENCE_PROVIDER,
+  OPENAI_RESPONSES_ENDPOINT,
+  OPENAI_RESPONSES_PROVIDER,
   validateComposition,
+  validateConfiguredExecution,
   validateCreatedProject,
   validateCreatedPrompt,
   validateExecution,
   validateProjectList,
   validatePromptList,
+  validateProviderCatalog,
   validateReadiness,
 } from "./backend-client.js";
 
@@ -30,6 +34,10 @@ const capabilities = [
   "library.prompts.search",
   "library.prompts.compose",
   "library.prompts.execute-offline",
+  "providers.catalog",
+  "providers.settings.save",
+  "providers.credentials.clear",
+  "library.prompts.execute-configured",
 ];
 const ready = Object.freeze({
   status: "ready",
@@ -76,8 +84,27 @@ const execution = Object.freeze({
   outputUnits: finalPrompt.length,
   promptCharacterCount: finalPrompt.length,
 });
+const offlineProvider = Object.freeze({
+  providerId: OFFLINE_REFERENCE_PROVIDER, name: "UPS Offline Echo", version: "1.0.0",
+  transport: "local", authentication: "none", configurable: false, available: true,
+  credentialState: "not-required", credentialReference: null, endpoint: null, model: null,
+  temperature: null, maxOutputTokens: null,
+});
+const configuredProvider = Object.freeze({
+  providerId: OPENAI_RESPONSES_PROVIDER, name: "OpenAI Responses", version: "1.0.0",
+  transport: "https", authentication: "api-key", configurable: true, available: true,
+  credentialState: "stored", credentialReference: "provider:ups.openai-responses:default",
+  endpoint: OPENAI_RESPONSES_ENDPOINT, model: "gpt-5-mini", temperature: 1,
+  maxOutputTokens: 1024,
+});
+const providerCatalog = Object.freeze({ providers: [offlineProvider, configuredProvider] });
+const configuredExecution = Object.freeze({
+  projectId, promptId, providerId: OPENAI_RESPONSES_PROVIDER, providerVersion: "1.0.0",
+  executionId, output: "Configured result", inputUnits: 10, outputUnits: 2,
+  promptCharacterCount: finalPrompt.length, model: "gpt-5-mini",
+});
 
-test("client invokes only the twelve fixed library and runtime commands", async () => {
+test("client invokes only the sixteen fixed library and runtime commands", async () => {
   const calls = [];
   const responses = [
     ready,
@@ -92,6 +119,10 @@ test("client invokes only the twelve fixed library and runtime commands", async 
     { prompts: [prompt], hasMore: false },
     composition,
     execution,
+    providerCatalog,
+    { provider: configuredProvider },
+    { provider: { ...configuredProvider, available: false, credentialState: "missing" } },
+    configuredExecution,
   ];
   let request = 0;
   const client = new BackendClient(async (...args) => {
@@ -116,6 +147,17 @@ test("client invokes only the twelve fixed library and runtime commands", async 
   await client.searchPrompts(projectId, " architect ");
   await client.composePrompt(projectId, promptId);
   await client.executePromptOffline(projectId, promptId, true);
+  await client.listProviders();
+  await client.saveProviderSettings({
+    providerId: OPENAI_RESPONSES_PROVIDER,
+    endpoint: OPENAI_RESPONSES_ENDPOINT,
+    model: "gpt-5-mini",
+    temperature: 1,
+    maxOutputTokens: 1024,
+    credential: "sk-test-never-store-in-web-storage",
+  });
+  await client.clearProviderCredential(true);
+  await client.executePromptConfigured(projectId, promptId, OPENAI_RESPONSES_PROVIDER, true);
 
   assert.deepEqual(calls, [
     ["backend_readiness", { requestId: "request-1" }],
@@ -150,6 +192,23 @@ test("client invokes only the twelve fixed library and runtime commands", async 
     ["library_execute_prompt_offline", {
       requestId: "request-12", projectId, promptId,
       providerId: OFFLINE_REFERENCE_PROVIDER, confirm: true,
+    }],
+    ["provider_catalog", { requestId: "request-13" }],
+    ["provider_save_settings", {
+      requestId: "request-14",
+      providerId: OPENAI_RESPONSES_PROVIDER,
+      endpoint: OPENAI_RESPONSES_ENDPOINT,
+      model: "gpt-5-mini",
+      temperature: 1,
+      maxOutputTokens: 1024,
+      credential: "sk-test-never-store-in-web-storage",
+    }],
+    ["provider_clear_credential", {
+      requestId: "request-15", providerId: OPENAI_RESPONSES_PROVIDER, confirm: true,
+    }],
+    ["library_execute_prompt_configured", {
+      requestId: "request-16", projectId, promptId,
+      providerId: OPENAI_RESPONSES_PROVIDER, confirm: true,
     }],
   ]);
 });
@@ -210,6 +269,32 @@ test("composition and execution results are exact, bounded, owned, and frozen", 
     { ...execution, output: "x".repeat(12_565) },
   ]) {
     assert.throws(() => validateExecution(value, projectId, promptId), BackendClientError);
+  }
+});
+
+test("provider catalog and configured execution are exact, safe, and frozen", () => {
+  const catalog = validateProviderCatalog(providerCatalog);
+  const result = validateConfiguredExecution(configuredExecution, projectId, promptId);
+  assert.deepEqual(catalog.providers, [offlineProvider, configuredProvider]);
+  assert.deepEqual(result, configuredExecution);
+  assert.ok(Object.isFrozen(catalog));
+  assert.ok(Object.isFrozen(catalog.providers[1]));
+  assert.ok(Object.isFrozen(result));
+  for (const value of [
+    { providers: [configuredProvider, offlineProvider] },
+    { providers: [offlineProvider, { ...configuredProvider, endpoint: "https://evil.example" }] },
+    { providers: [offlineProvider, { ...configuredProvider, credentialReference: "secret" }] },
+    { providers: [offlineProvider, { ...configuredProvider, extra: true }] },
+  ]) assert.throws(() => validateProviderCatalog(value), BackendClientError);
+  for (const value of [
+    { ...configuredExecution, providerId: "arbitrary.provider" },
+    { ...configuredExecution, model: "bad model" },
+    { ...configuredExecution, output: "x".repeat(12_501) },
+    { ...configuredExecution, extra: true },
+  ]) {
+    assert.throws(
+      () => validateConfiguredExecution(value, projectId, promptId), BackendClientError,
+    );
   }
 });
 

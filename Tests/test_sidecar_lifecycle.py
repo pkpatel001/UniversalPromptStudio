@@ -1,4 +1,4 @@
-"""Real frozen-sidecar lifecycle acceptance tests through A-002.2."""
+"""Real frozen-sidecar lifecycle acceptance tests through A-004."""
 
 from __future__ import annotations
 
@@ -25,6 +25,9 @@ from Backend.ipc import (
     PROMPT_LIST_COMMAND,
     PROMPT_SEARCH_COMMAND,
     PROMPT_UPDATE_COMMAND,
+    PROVIDER_CATALOG_COMMAND,
+    PROVIDER_CREDENTIAL_CLEAR_COMMAND,
+    PROVIDER_SETTINGS_SAVE_COMMAND,
     SIDECAR_IDENTITY,
 )
 from Engineering.core.version import VERSION
@@ -44,6 +47,10 @@ CAPABILITIES = [
     "library.prompts.search",
     "library.prompts.compose",
     "library.prompts.execute-offline",
+    "providers.catalog",
+    "providers.settings.save",
+    "providers.credentials.clear",
+    "library.prompts.execute-configured",
 ]
 
 
@@ -244,15 +251,38 @@ def test_installed_sidecar_persists_library_only_in_app_data(
             ],
         },
     )
+    secret = "sk-installed-a004-never-plaintext"
+    saved_provider = _command(
+        first,
+        "save-provider",
+        PROVIDER_SETTINGS_SAVE_COMMAND,
+        {
+            "provider_id": "ups.openai-responses",
+            "endpoint": "https://api.openai.com/v1/responses",
+            "model": "gpt-5-mini",
+            "temperature": 1.0,
+            "max_output_tokens": 512,
+            "credential": secret,
+        },
+    )
     _stop(first)
-
     second = _start(installed, app_data)
+    credential_files = list((app_data / "credentials").glob("*.dpapi"))
+    assert len(credential_files) == 1
+    encrypted_credential = credential_files[0].read_bytes()
     projects = _command(second, "list-projects", PROJECT_LIST_COMMAND, {})
     prompts = _command(
         second,
         "list-prompts",
         PROMPT_LIST_COMMAND,
         {"project_id": project_id},
+    )
+    provider_catalog = _command(second, "provider-catalog", PROVIDER_CATALOG_COMMAND, {})
+    cleared_provider = _command(
+        second,
+        "clear-provider",
+        PROVIDER_CREDENTIAL_CLEAR_COMMAND,
+        {"provider_id": "ups.openai-responses", "confirm": True},
     )
     fetched = _command(
         second,
@@ -337,5 +367,15 @@ def test_installed_sidecar_persists_library_only_in_app_data(
         "deleted_prompt_count": 1,
     }
     assert remaining_projects["result"] == {"projects": [], "has_more": False}
+    assert saved_provider["result"]["provider"]["credential_state"] == "stored"  # type: ignore[index]
+    remote = provider_catalog["result"]["providers"][1]  # type: ignore[index]
+    assert remote["provider_id"] == "ups.openai-responses"  # type: ignore[index]
+    assert remote["available"] is True  # type: ignore[index]
+    assert remote["credential_state"] == "stored"  # type: ignore[index]
+    assert secret not in repr((saved_provider, provider_catalog, cleared_provider))
+    assert secret.encode() not in encrypted_credential
+    assert cleared_provider["result"]["provider"]["credential_state"] == "missing"  # type: ignore[index]
+    assert secret.encode() not in (app_data / "provider-settings.json").read_bytes()
+    assert list((app_data / "credentials").glob("*.dpapi")) == []
     assert (app_data / DATABASE_FILE_NAME).is_file()
     assert list(installed.parent.rglob("*.sqlite3")) == []

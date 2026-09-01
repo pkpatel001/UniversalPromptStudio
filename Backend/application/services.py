@@ -7,6 +7,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from Backend.application.prompt_builder import PromptBuilder
+from Backend.application.provider_settings import (
+    OPENAI_RESPONSES_PROVIDER,
+    ProviderConfigurationService,
+)
 from Backend.core.events import DomainEvent, EventBus, EventNames
 from Backend.core.registry import ProviderRegistry
 from Backend.domain.models import (
@@ -268,9 +272,11 @@ class SavedPromptRuntimeService:
         self,
         prompt_service: PromptService,
         prompt_execution_service: PromptExecutionService,
+        provider_configuration_service: ProviderConfigurationService | None = None,
     ) -> None:
         self._prompt_service = prompt_service
         self._prompt_execution_service = prompt_execution_service
+        self._provider_configuration_service = provider_configuration_service
 
     def compose(self, project_id: str, prompt_id: str) -> PromptComposition:
         """Compose enabled blocks from one saved prompt in durable order."""
@@ -309,6 +315,35 @@ class SavedPromptRuntimeService:
         )
         if result.provider_name != OFFLINE_REFERENCE_PROVIDER:
             raise RuntimeError("Offline provider returned an unexpected identity.")
+        return composition, result
+
+    def execute_configured(
+        self,
+        project_id: str,
+        prompt_id: str,
+        provider_id: str,
+    ) -> tuple[PromptComposition, PromptExecutionResult]:
+        """Recompose durable state and invoke one configured host provider."""
+
+        if self._provider_configuration_service is None:
+            raise LookupError("Configured provider service is unavailable.")
+        settings = self._provider_configuration_service.require_execution_settings(provider_id)
+        if settings.provider_id != OPENAI_RESPONSES_PROVIDER:
+            raise ValueError("Provider identity is not host-authorized.")
+        composition = self.compose(project_id, prompt_id)
+        result = self._prompt_execution_service.execute(
+            PromptExecutionRequest(
+                prompt=composition.final_prompt,
+                provider_name=settings.provider_id,
+                parameters={
+                    "model": settings.model,
+                    "temperature": float(settings.temperature),
+                    "max_output_tokens": settings.max_output_tokens,
+                },
+            )
+        )
+        if result.provider_name != settings.provider_id:
+            raise RuntimeError("Configured provider returned an unexpected identity.")
         return composition, result
 
 

@@ -80,6 +80,10 @@ def test_readiness_uses_one_long_lived_application_container() -> None:
             "library.prompts.search",
             "library.prompts.compose",
             "library.prompts.execute-offline",
+            "providers.catalog",
+            "providers.settings.save",
+            "providers.credentials.clear",
+            "library.prompts.execute-configured",
         ],
     }
     assert second.request_id == "second"

@@ -2,7 +2,7 @@
 
 ## Product integration
 
-- A-002.2 provides project-owned prompt editing, ordered blocks, categories,
+- A-004 provides project-owned prompt editing, ordered blocks, categories,
   tags, deterministic project-scoped search, and explicit prompt/project
   deletion under Tauri's per-user app-data directory.
 - The product bundles and verifies the Windows x86_64 Python sidecar. Other target
@@ -11,8 +11,11 @@
   background index, ranking, fuzzy matching, or cross-project search.
 - Prompt composition uses only enabled saved blocks in durable order. There are no
   variables, attachments, conditional blocks, or unsaved-draft previews.
-- Execution is limited to the bundled `ups.offline-echo` provider with no options;
-  provider selection, endpoints, credentials, models, and network calls are deferred.
+- Execution supports only `ups.offline-echo` and `ups.openai-responses`. The
+  OpenAI endpoint and option names are fixed; there is no model discovery,
+  arbitrary compatible endpoint, custom header, OAuth, or other provider.
+- Credential protection is Windows-only and uses current-user DPAPI. It does not
+  protect against malicious code already running as that user.
 - Execution results and metadata are not persisted after the process exits.
 - Deleted projects and prompts are not recoverable in the application UI.
 - Workflow authoring and execution have no product UI.
@@ -26,7 +29,7 @@
 - Exact SHA-256 approval proves byte identity, not publisher identity or safety.
 - Cryptographic signatures, persisted trust, remote revocation, automatic
   updates, and marketplaces are deferred.
-- External AI endpoints, credential resolution, model discovery, streaming,
+- Additional AI endpoints, authentication schemes, model discovery, streaming,
   cancellation, retries, and health checks are deferred.
 
 ## Themes and workflows

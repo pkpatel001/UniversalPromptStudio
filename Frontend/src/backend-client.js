@@ -10,6 +10,9 @@ const BLOCK_TYPES = new Set([
 ]);
 
 export const OFFLINE_REFERENCE_PROVIDER = "ups.offline-echo";
+export const OPENAI_RESPONSES_PROVIDER = "ups.openai-responses";
+export const OPENAI_RESPONSES_ENDPOINT = "https://api.openai.com/v1/responses";
+const OPENAI_CREDENTIAL_REFERENCE = "provider:ups.openai-responses:default";
 const CAPABILITIES = Object.freeze([
   "application.readiness",
   "library.projects.list",
@@ -23,6 +26,10 @@ const CAPABILITIES = Object.freeze([
   "library.prompts.search",
   "library.prompts.compose",
   "library.prompts.execute-offline",
+  "providers.catalog",
+  "providers.settings.save",
+  "providers.credentials.clear",
+  "library.prompts.execute-configured",
 ]);
 const SAFE_ERROR_CODES = new Set([
   "backend.unavailable",
@@ -32,6 +39,7 @@ const SAFE_ERROR_CODES = new Set([
   "storage.invalid_database",
   "storage.future_schema",
   "execution.failed",
+  "provider.unavailable",
 ]);
 const READINESS_KEYS = [
   "applicationVersion", "capabilities", "protocolVersion", "status", "storageSchemaVersion",
@@ -168,6 +176,68 @@ export class BackendClient {
         confirm: true,
       },
       (value) => validateExecution(value, normalizedProjectId, normalizedPromptId),
+    );
+  }
+
+  listProviders() {
+    return this.#invoke("provider_catalog", {}, validateProviderCatalog);
+  }
+
+  saveProviderSettings(settings) {
+    requireExactObject(settings, [
+      "credential", "endpoint", "maxOutputTokens", "model", "providerId", "temperature",
+    ]);
+    const providerId = validateConfiguredProviderId(settings.providerId);
+    if (settings.endpoint !== OPENAI_RESPONSES_ENDPOINT) {
+      throw invalidProviderSettings();
+    }
+    const model = validateProviderModel(settings.model);
+    if (
+      typeof settings.temperature !== "number" || !Number.isFinite(settings.temperature) ||
+      settings.temperature < 0 || settings.temperature > 2 ||
+      !Number.isSafeInteger(settings.maxOutputTokens) || settings.maxOutputTokens < 1 ||
+      settings.maxOutputTokens > 4_096 ||
+      (settings.credential !== null && !validCredential(settings.credential))
+    ) {
+      throw invalidProviderSettings();
+    }
+    return this.#invoke(
+      "provider_save_settings",
+      {
+        providerId,
+        endpoint: OPENAI_RESPONSES_ENDPOINT,
+        model,
+        temperature: settings.temperature,
+        maxOutputTokens: settings.maxOutputTokens,
+        credential: settings.credential,
+      },
+      validateProviderResult,
+    );
+  }
+
+  clearProviderCredential(confirmed) {
+    requireConfirmation(confirmed);
+    return this.#invoke(
+      "provider_clear_credential",
+      { providerId: OPENAI_RESPONSES_PROVIDER, confirm: true },
+      validateProviderResult,
+    );
+  }
+
+  executePromptConfigured(projectId, promptId, providerId, confirmed) {
+    const normalizedProjectId = validateIdentifier(projectId);
+    const normalizedPromptId = validateIdentifier(promptId);
+    const normalizedProviderId = validateConfiguredProviderId(providerId);
+    requireConfirmation(confirmed);
+    return this.#invoke(
+      "library_execute_prompt_configured",
+      {
+        projectId: normalizedProjectId,
+        promptId: normalizedPromptId,
+        providerId: normalizedProviderId,
+        confirm: true,
+      },
+      (value) => validateConfiguredExecution(value, normalizedProjectId, normalizedPromptId),
     );
   }
   #promptCollection(command, projectId, payload) {
@@ -356,6 +426,100 @@ export function validateExecution(value, projectId, promptId) {
   });
 }
 
+export function validateProviderCatalog(value) {
+  requireExactObject(value, ["providers"]);
+  if (!Array.isArray(value.providers) || value.providers.length !== 2) {
+    throw unavailable();
+  }
+  const providers = value.providers.map(validateProvider);
+  if (
+    providers[0].providerId !== OFFLINE_REFERENCE_PROVIDER ||
+    providers[1].providerId !== OPENAI_RESPONSES_PROVIDER
+  ) {
+    throw unavailable();
+  }
+  return Object.freeze({ providers: Object.freeze(providers) });
+}
+
+function validateProviderResult(value) {
+  requireExactObject(value, ["provider"]);
+  const provider = validateProvider(value.provider);
+  if (provider.providerId !== OPENAI_RESPONSES_PROVIDER) {
+    throw unavailable();
+  }
+  return Object.freeze({ provider });
+}
+
+function validateProvider(value) {
+  requireExactObject(value, [
+    "authentication", "available", "configurable", "credentialReference", "credentialState",
+    "endpoint", "maxOutputTokens", "model", "name", "providerId", "temperature", "transport",
+    "version",
+  ]);
+  const common = {
+    providerId: value.providerId,
+    name: validateText(value.name, 120, false),
+    version: typeof value.version === "string" && VERSION.test(value.version)
+      ? value.version : unavailableValue(),
+    transport: value.transport,
+    authentication: value.authentication,
+    configurable: value.configurable,
+    available: value.available,
+    credentialState: value.credentialState,
+    credentialReference: value.credentialReference,
+    endpoint: value.endpoint,
+    model: value.model,
+    temperature: value.temperature,
+    maxOutputTokens: value.maxOutputTokens,
+  };
+  if (value.providerId === OFFLINE_REFERENCE_PROVIDER) {
+    if (
+      value.transport !== "local" || value.authentication !== "none" || value.configurable !== false ||
+      value.available !== true || value.credentialState !== "not-required" ||
+      value.credentialReference !== null || value.endpoint !== null || value.model !== null ||
+      value.temperature !== null || value.maxOutputTokens !== null
+    ) throw unavailable();
+  } else if (value.providerId === OPENAI_RESPONSES_PROVIDER) {
+    if (
+      value.transport !== "https" || value.authentication !== "api-key" || value.configurable !== true ||
+      !["missing", "stored"].includes(value.credentialState) ||
+      value.available !== (value.credentialState === "stored") ||
+      value.credentialReference !== OPENAI_CREDENTIAL_REFERENCE ||
+      value.endpoint !== OPENAI_RESPONSES_ENDPOINT || validateProviderModel(value.model) !== value.model ||
+      typeof value.temperature !== "number" || !Number.isFinite(value.temperature) ||
+      value.temperature < 0 || value.temperature > 2 || !Number.isSafeInteger(value.maxOutputTokens) ||
+      value.maxOutputTokens < 1 || value.maxOutputTokens > 4_096
+    ) throw unavailable();
+  } else {
+    throw unavailable();
+  }
+  return Object.freeze(common);
+}
+
+export function validateConfiguredExecution(value, projectId, promptId) {
+  const expectedProjectId = validateIdentifier(projectId);
+  const expectedPromptId = validateIdentifier(promptId);
+  requireExactObject(value, [
+    "executionId", "inputUnits", "model", "output", "outputUnits", "projectId",
+    "promptCharacterCount", "promptId", "providerId", "providerVersion",
+  ]);
+  const output = validateText(value.output, 12_500, false);
+  if (
+    value.projectId !== expectedProjectId || value.promptId !== expectedPromptId ||
+    value.providerId !== OPENAI_RESPONSES_PROVIDER || value.providerVersion !== "1.0.0" ||
+    !Number.isSafeInteger(value.inputUnits) || value.inputUnits < 0 ||
+    !Number.isSafeInteger(value.outputUnits) || value.outputUnits < 0 ||
+    !Number.isSafeInteger(value.promptCharacterCount) || value.promptCharacterCount < 1 ||
+    value.promptCharacterCount > 12_500
+  ) throw unavailable();
+  return Object.freeze({
+    projectId: value.projectId, promptId: value.promptId, providerId: value.providerId,
+    providerVersion: value.providerVersion, executionId: validateIdentifier(value.executionId),
+    output, inputUnits: value.inputUnits, outputUnits: value.outputUnits,
+    promptCharacterCount: value.promptCharacterCount, model: validateProviderModel(value.model),
+  });
+}
+
 function validatePrompt(value) {
   requireExactObject(value, PROMPT_KEYS);
   const blocks = validateBlocks(value.blocks, true);
@@ -467,6 +631,36 @@ function requireExactObject(value, keys) {
   if (Object.keys(value).sort().join(",") !== [...keys].sort().join(",")) {
     throw unavailable();
   }
+}
+
+function validateConfiguredProviderId(value) {
+  if (value !== OPENAI_RESPONSES_PROVIDER) {
+    throw invalidProviderSettings();
+  }
+  return value;
+}
+
+function validateProviderModel(value) {
+  if (
+    typeof value !== "string" || value.length < 1 || value.length > 80 ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value)
+  ) {
+    throw invalidProviderSettings();
+  }
+  return value;
+}
+
+function validCredential(value) {
+  return typeof value === "string" && value.length >= 8 && value.length <= 512 &&
+    value.trim() === value && !/[\u0000-\u001f\u007f]/.test(value);
+}
+
+function invalidProviderSettings() {
+  return new BackendClientError("library.invalid_input", "Provider settings are invalid.");
+}
+
+function unavailableValue() {
+  throw unavailable();
 }
 
 function normalizeBackendError(value) {

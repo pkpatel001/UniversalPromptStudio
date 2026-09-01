@@ -91,9 +91,7 @@ class ProviderRuntimeAIAdapter(AIProvider):
                     raise ValueError("Provider model parameter must be a string.")
                 model = value
         options = tuple(
-            ProviderRequestOption(name, value)
-            for name, value in normalized
-            if name != "model"
+            ProviderRequestOption(name, value) for name, value in normalized if name != "model"
         )
         return model, options
 

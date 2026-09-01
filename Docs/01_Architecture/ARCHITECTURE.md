@@ -20,8 +20,8 @@ The current repository defines:
 - Event bus.
 - Application services.
 - In-memory and dummy implementations for early development.
-- A controlled AI-provider SDK adapter and deterministic offline reference
-  provider registered at the composition root.
+- Controlled AI-provider SDK adapters for deterministic offline echo and one
+  bounded OpenAI Responses integration registered at the composition root.
 - Whoosh-backed search adapter behind the `SearchProvider` interface.
 - A strict workflow SDK, deterministic planner, bounded sequential runner, and
   offline reference handlers.
@@ -35,9 +35,10 @@ The current repository defines:
 The provider SDK adapter lives in `Backend/infrastructure/providers/`. The
 application service continues to depend only on `Backend.interfaces.AIProvider`;
 the composition root owns the concrete SDK registry, execution service, offline
-reference implementation, and adapter wiring.
+reference implementation, OpenAI Responses implementation, provider-settings
+service, DPAPI secret store, and adapter wiring.
 
-A-003 connects the desktop prompt library to this composition root through
+A-004 connects the desktop prompt library and provider settings through
 one Tauri-owned, target-triple frozen Python sidecar and strict JSON-lines
 protocol. Rust resolves the application data directory and Python owns a
 versioned SQLite database there. Development and release builds use the same
@@ -50,8 +51,13 @@ deterministic project-scoped search, prompt deletion, and transactional SQLite
 project deletion with dependent prompts. `SavedPromptRuntimeService` reloads a
 project-owned prompt, delegates deterministic enabled-block rendering to the
 existing `PromptBuilder`, and invokes the existing execution service only with
-the host-authored `ups.offline-echo` identity. Composition and execution remain
-ephemeral; only the source library state is durable.
+one of two host-authorized identities. `ups.offline-echo` remains local and
+credential-free. `ups.openai-responses` uses a fixed HTTPS endpoint, bounded
+model/temperature/output settings, and one opaque credential reference.
+Non-secret settings are atomically persisted beside the database while the API
+key is encrypted with current-user Windows DPAPI. SQLite remains schema 1.
+Composition and execution remain ephemeral; only source library state,
+non-secret provider settings, and protected credential availability are durable.
 
 ## Engineering Toolkit
 

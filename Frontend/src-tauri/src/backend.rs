@@ -15,6 +15,7 @@ const STORAGE_SCHEMA_VERSION: u32 = 1;
 const MAX_IPC_MESSAGE_BYTES: usize = 16_384;
 const MAX_LIBRARY_ITEMS: usize = 50;
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(3);
+const CONFIGURED_RESPONSE_TIMEOUT: Duration = Duration::from_secs(35);
 const READINESS_COMMAND: &str = "application.readiness";
 const PROJECT_LIST_COMMAND: &str = "library.projects.list";
 const PROJECT_CREATE_COMMAND: &str = "library.projects.create";
@@ -27,14 +28,24 @@ const PROMPT_DELETE_COMMAND: &str = "library.prompts.delete";
 const PROMPT_SEARCH_COMMAND: &str = "library.prompts.search";
 const PROMPT_COMPOSE_COMMAND: &str = "library.prompts.compose";
 const PROMPT_EXECUTE_OFFLINE_COMMAND: &str = "library.prompts.execute-offline";
+const PROVIDER_CATALOG_COMMAND: &str = "providers.catalog";
+const PROVIDER_SETTINGS_SAVE_COMMAND: &str = "providers.settings.save";
+const PROVIDER_CREDENTIAL_CLEAR_COMMAND: &str = "providers.credentials.clear";
+const PROMPT_EXECUTE_CONFIGURED_COMMAND: &str = "library.prompts.execute-configured";
 const OFFLINE_REFERENCE_PROVIDER: &str = "ups.offline-echo";
 const OFFLINE_REFERENCE_VERSION: &str = "1.0.0";
+const OPENAI_RESPONSES_PROVIDER: &str = "ups.openai-responses";
+const OPENAI_RESPONSES_VERSION: &str = "1.0.0";
+const OPENAI_RESPONSES_ENDPOINT: &str = "https://api.openai.com/v1/responses";
+const OPENAI_CREDENTIAL_REFERENCE: &str = "provider:ups.openai-responses:default";
 const MAX_COMPOSED_PROMPT_LENGTH: usize = 12_500;
 const MAX_EXECUTION_OUTPUT_LENGTH: usize = MAX_COMPOSED_PROMPT_LENGTH + 64;
+const MAX_CONFIGURED_OUTPUT_LENGTH: usize = 12_500;
+const MAX_CREDENTIAL_LENGTH: usize = 512;
 const SIDECAR_IDENTITY: &str = "com.universalpromptstudio.backend";
 const SIDECAR_NAME: &str = "universal-prompt-studio-backend";
 const APP_DATA_ENV: &str = "UPS_APP_DATA_DIR";
-const CAPABILITIES: [&str; 12] = [
+const CAPABILITIES: [&str; 16] = [
     READINESS_COMMAND,
     PROJECT_LIST_COMMAND,
     PROJECT_CREATE_COMMAND,
@@ -47,6 +58,10 @@ const CAPABILITIES: [&str; 12] = [
     PROMPT_SEARCH_COMMAND,
     PROMPT_COMPOSE_COMMAND,
     PROMPT_EXECUTE_OFFLINE_COMMAND,
+    PROVIDER_CATALOG_COMMAND,
+    PROVIDER_SETTINGS_SAVE_COMMAND,
+    PROVIDER_CREDENTIAL_CLEAR_COMMAND,
+    PROMPT_EXECUTE_CONFIGURED_COMMAND,
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -154,6 +169,51 @@ pub struct OfflineExecutionSummary {
     output_units: usize,
     prompt_character_count: usize,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderSummary {
+    provider_id: String,
+    name: String,
+    version: String,
+    transport: String,
+    authentication: String,
+    configurable: bool,
+    available: bool,
+    credential_state: String,
+    credential_reference: Option<String>,
+    endpoint: Option<String>,
+    model: Option<String>,
+    temperature: Option<f64>,
+    max_output_tokens: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderCatalog {
+    providers: Vec<ProviderSummary>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderSettingsResult {
+    provider: ProviderSummary,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfiguredExecutionSummary {
+    project_id: String,
+    prompt_id: String,
+    provider_id: String,
+    provider_version: String,
+    execution_id: String,
+    output: String,
+    input_units: usize,
+    output_units: usize,
+    prompt_character_count: usize,
+    model: String,
+}
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(
     deny_unknown_fields,
@@ -226,6 +286,30 @@ struct ProjectPayload<'a> {
 #[derive(Debug, Serialize)]
 struct DeleteProjectPayload<'a> {
     project_id: &'a str,
+    confirm: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct SaveProviderSettingsPayload<'a> {
+    provider_id: &'static str,
+    endpoint: &'static str,
+    model: &'a str,
+    temperature: f64,
+    max_output_tokens: usize,
+    credential: &'a Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct ClearProviderCredentialPayload {
+    provider_id: &'static str,
+    confirm: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct ExecuteConfiguredPayload<'a> {
+    project_id: &'a str,
+    prompt_id: &'a str,
+    provider_id: &'static str,
     confirm: bool,
 }
 
@@ -381,6 +465,57 @@ struct WireExecution {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct WireProviderCatalog {
+    providers: Vec<WireProvider>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireProviderResult {
+    provider: WireProvider,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireProvider {
+    provider_id: String,
+    name: String,
+    version: String,
+    transport: String,
+    authentication: String,
+    configurable: bool,
+    available: bool,
+    credential_state: String,
+    credential_reference: Option<String>,
+    endpoint: Option<String>,
+    model: Option<String>,
+    temperature: Option<f64>,
+    max_output_tokens: Option<usize>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireConfiguredExecutionResult {
+    execution: WireConfiguredExecution,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireConfiguredExecution {
+    project_id: String,
+    prompt_id: String,
+    provider_id: String,
+    provider_version: String,
+    execution_id: String,
+    output: String,
+    input_units: usize,
+    output_units: usize,
+    prompt_character_count: usize,
+    model: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct WirePrompt {
     prompt_id: String,
     project_id: String,
@@ -470,6 +605,34 @@ impl BackendProcess {
         P: Serialize,
         T: DeserializeOwned,
     {
+        self.request_inner(request_id, command, payload, RESPONSE_TIMEOUT)
+    }
+
+    fn request_with_timeout<P, T>(
+        &mut self,
+        request_id: &str,
+        command: &'static str,
+        payload: P,
+        timeout: Duration,
+    ) -> Result<T, BackendCommandError>
+    where
+        P: Serialize,
+        T: DeserializeOwned,
+    {
+        self.request_inner(request_id, command, payload, timeout)
+    }
+
+    fn request_inner<P, T>(
+        &mut self,
+        request_id: &str,
+        command: &'static str,
+        payload: P,
+        timeout: Duration,
+    ) -> Result<T, BackendCommandError>
+    where
+        P: Serialize,
+        T: DeserializeOwned,
+    {
         let request = WireRequest {
             schema_version: IPC_PROTOCOL_VERSION,
             request_id,
@@ -491,7 +654,7 @@ impl BackendProcess {
             .map_err(|_| BackendCommandError::unavailable())?;
         let line = self
             .output
-            .recv_timeout(RESPONSE_TIMEOUT)
+            .recv_timeout(timeout)
             .map_err(|_| BackendCommandError::unavailable())?
             .map_err(|_| BackendCommandError::unavailable())?;
         decode_response(&line, request_id)
@@ -518,6 +681,43 @@ impl BackendManager {
             app,
             process: Arc::new(Mutex::new(None)),
         }
+    }
+
+    fn request_with_timeout<P, T>(
+        &self,
+        request_id: &str,
+        command: &'static str,
+        payload: P,
+        timeout: Duration,
+    ) -> Result<T, BackendCommandError>
+    where
+        P: Serialize,
+        T: DeserializeOwned,
+    {
+        if !valid_request_id(request_id) {
+            return Err(BackendCommandError::invalid_request(
+                "The library request identifier is invalid.",
+            ));
+        }
+        let mut process = self
+            .process
+            .lock()
+            .map_err(|_| BackendCommandError::unavailable())?;
+        if process.is_none() {
+            *process = Some(BackendProcess::spawn(&self.app)?);
+        }
+        let result = process
+            .as_mut()
+            .ok_or_else(BackendCommandError::unavailable)?
+            .request_with_timeout(request_id, command, payload, timeout);
+        if result
+            .as_ref()
+            .err()
+            .is_some_and(|error| error.restart_process)
+        {
+            *process = None;
+        }
+        result
     }
 
     fn request<P, T>(
@@ -883,6 +1083,130 @@ pub async fn library_execute_prompt_offline(
     .map_err(|_| BackendCommandError::unavailable())?
 }
 
+#[tauri::command]
+pub async fn provider_catalog(
+    state: tauri::State<'_, BackendManager>,
+    request_id: String,
+) -> Result<ProviderCatalog, BackendCommandError> {
+    let manager = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let wire: WireProviderCatalog =
+            manager.request(&request_id, PROVIDER_CATALOG_COMMAND, EmptyPayload {})?;
+        validate_provider_catalog(wire)
+    })
+    .await
+    .map_err(|_| BackendCommandError::unavailable())?
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn provider_save_settings(
+    state: tauri::State<'_, BackendManager>,
+    request_id: String,
+    provider_id: String,
+    endpoint: String,
+    model: String,
+    temperature: f64,
+    max_output_tokens: usize,
+    credential: Option<String>,
+) -> Result<ProviderSettingsResult, BackendCommandError> {
+    validate_provider_settings_input(
+        &provider_id,
+        &endpoint,
+        &model,
+        temperature,
+        max_output_tokens,
+        credential.as_deref(),
+    )?;
+    let manager = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let wire: WireProviderResult = manager.request(
+            &request_id,
+            PROVIDER_SETTINGS_SAVE_COMMAND,
+            SaveProviderSettingsPayload {
+                provider_id: OPENAI_RESPONSES_PROVIDER,
+                endpoint: OPENAI_RESPONSES_ENDPOINT,
+                model: &model,
+                temperature,
+                max_output_tokens,
+                credential: &credential,
+            },
+        )?;
+        Ok(ProviderSettingsResult {
+            provider: validate_provider(wire.provider)?,
+        })
+    })
+    .await
+    .map_err(|_| BackendCommandError::unavailable())?
+}
+
+#[tauri::command]
+pub async fn provider_clear_credential(
+    state: tauri::State<'_, BackendManager>,
+    request_id: String,
+    provider_id: String,
+    confirm: bool,
+) -> Result<ProviderSettingsResult, BackendCommandError> {
+    if provider_id != OPENAI_RESPONSES_PROVIDER {
+        return Err(BackendCommandError::invalid_request(
+            "Provider identity is invalid.",
+        ));
+    }
+    validate_confirmation(confirm)?;
+    let manager = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let wire: WireProviderResult = manager.request(
+            &request_id,
+            PROVIDER_CREDENTIAL_CLEAR_COMMAND,
+            ClearProviderCredentialPayload {
+                provider_id: OPENAI_RESPONSES_PROVIDER,
+                confirm,
+            },
+        )?;
+        Ok(ProviderSettingsResult {
+            provider: validate_provider(wire.provider)?,
+        })
+    })
+    .await
+    .map_err(|_| BackendCommandError::unavailable())?
+}
+
+#[tauri::command]
+pub async fn library_execute_prompt_configured(
+    state: tauri::State<'_, BackendManager>,
+    request_id: String,
+    project_id: String,
+    prompt_id: String,
+    provider_id: String,
+    confirm: bool,
+) -> Result<ConfiguredExecutionSummary, BackendCommandError> {
+    validate_identifier(&project_id)?;
+    validate_identifier(&prompt_id)?;
+    if provider_id != OPENAI_RESPONSES_PROVIDER {
+        return Err(BackendCommandError::invalid_request(
+            "Provider identity is invalid.",
+        ));
+    }
+    validate_confirmation(confirm)?;
+    let manager = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let wire: WireConfiguredExecutionResult = manager.request_with_timeout(
+            &request_id,
+            PROMPT_EXECUTE_CONFIGURED_COMMAND,
+            ExecuteConfiguredPayload {
+                project_id: &project_id,
+                prompt_id: &prompt_id,
+                provider_id: OPENAI_RESPONSES_PROVIDER,
+                confirm,
+            },
+            CONFIGURED_RESPONSE_TIMEOUT,
+        )?;
+        validate_configured_execution(wire.execution, &project_id, &prompt_id)
+    })
+    .await
+    .map_err(|_| BackendCommandError::unavailable())?
+}
+
 fn decode_response<T: DeserializeOwned>(
     line: &[u8],
     expected_request_id: &str,
@@ -942,7 +1266,12 @@ fn map_wire_error<T>(error: WireError) -> Result<T, BackendCommandError> {
         ),
         "execution.failed" => BackendCommandError::new(
             "execution.failed",
-            "Offline prompt execution failed safely.",
+            "Provider execution failed safely.",
+            false,
+        ),
+        "provider.unavailable" => BackendCommandError::new(
+            "provider.unavailable",
+            "The configured provider is unavailable.",
             false,
         ),
         _ => BackendCommandError::unavailable(),
@@ -1041,6 +1370,168 @@ fn validate_project_list(value: WireProjectList) -> Result<ProjectList, BackendC
     Ok(ProjectList {
         projects,
         has_more: value.has_more,
+    })
+}
+
+fn validate_provider_catalog(
+    value: WireProviderCatalog,
+) -> Result<ProviderCatalog, BackendCommandError> {
+    if value.providers.len() != 2 {
+        return Err(BackendCommandError::unavailable());
+    }
+    let providers = value
+        .providers
+        .into_iter()
+        .map(validate_provider)
+        .collect::<Result<Vec<_>, _>>()?;
+    if providers[0].provider_id != OFFLINE_REFERENCE_PROVIDER
+        || providers[1].provider_id != OPENAI_RESPONSES_PROVIDER
+    {
+        return Err(BackendCommandError::unavailable());
+    }
+    Ok(ProviderCatalog { providers })
+}
+
+fn validate_provider(value: WireProvider) -> Result<ProviderSummary, BackendCommandError> {
+    validate_text(&value.name, 120, false)?;
+    let offline = value.provider_id == OFFLINE_REFERENCE_PROVIDER;
+    let remote = value.provider_id == OPENAI_RESPONSES_PROVIDER;
+    if !offline && !remote {
+        return Err(BackendCommandError::unavailable());
+    }
+    if offline {
+        if value.version != OFFLINE_REFERENCE_VERSION
+            || value.transport != "local"
+            || value.authentication != "none"
+            || value.configurable
+            || !value.available
+            || value.credential_state != "not-required"
+            || value.credential_reference.is_some()
+            || value.endpoint.is_some()
+            || value.model.is_some()
+            || value.temperature.is_some()
+            || value.max_output_tokens.is_some()
+        {
+            return Err(BackendCommandError::unavailable());
+        }
+    } else {
+        let model = value
+            .model
+            .as_deref()
+            .ok_or_else(BackendCommandError::unavailable)?;
+        let temperature = value
+            .temperature
+            .ok_or_else(BackendCommandError::unavailable)?;
+        let max_tokens = value
+            .max_output_tokens
+            .ok_or_else(BackendCommandError::unavailable)?;
+        if value.version != OPENAI_RESPONSES_VERSION
+            || value.transport != "https"
+            || value.authentication != "api-key"
+            || !value.configurable
+            || value.credential_reference.as_deref() != Some(OPENAI_CREDENTIAL_REFERENCE)
+            || value.endpoint.as_deref() != Some(OPENAI_RESPONSES_ENDPOINT)
+            || !matches!(value.credential_state.as_str(), "missing" | "stored")
+            || value.available != (value.credential_state == "stored")
+            || validate_provider_model(model).is_err()
+            || !temperature.is_finite()
+            || !(0.0..=2.0).contains(&temperature)
+            || !(1..=4096).contains(&max_tokens)
+        {
+            return Err(BackendCommandError::unavailable());
+        }
+    }
+    Ok(ProviderSummary {
+        provider_id: value.provider_id,
+        name: value.name,
+        version: value.version,
+        transport: value.transport,
+        authentication: value.authentication,
+        configurable: value.configurable,
+        available: value.available,
+        credential_state: value.credential_state,
+        credential_reference: value.credential_reference,
+        endpoint: value.endpoint,
+        model: value.model,
+        temperature: value.temperature,
+        max_output_tokens: value.max_output_tokens,
+    })
+}
+
+fn validate_provider_settings_input(
+    provider_id: &str,
+    endpoint: &str,
+    model: &str,
+    temperature: f64,
+    max_output_tokens: usize,
+    credential: Option<&str>,
+) -> Result<(), BackendCommandError> {
+    if provider_id != OPENAI_RESPONSES_PROVIDER
+        || endpoint != OPENAI_RESPONSES_ENDPOINT
+        || !temperature.is_finite()
+        || !(0.0..=2.0).contains(&temperature)
+        || !(1..=4096).contains(&max_output_tokens)
+        || validate_provider_model(model).is_err()
+    {
+        return Err(BackendCommandError::invalid_request(
+            "Provider settings are invalid.",
+        ));
+    }
+    if let Some(value) = credential
+        && (!(8..=MAX_CREDENTIAL_LENGTH).contains(&value.len())
+            || value.trim() != value
+            || value.chars().any(char::is_control))
+    {
+        return Err(BackendCommandError::invalid_request(
+            "Provider credential is invalid.",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_provider_model(value: &str) -> Result<(), BackendCommandError> {
+    let valid = !value.is_empty()
+        && value.len() <= 80
+        && value.bytes().enumerate().all(|(index, byte)| {
+            byte.is_ascii_alphanumeric() || (index > 0 && matches!(byte, b'.' | b'_' | b':' | b'-'))
+        });
+    if valid {
+        Ok(())
+    } else {
+        Err(BackendCommandError::invalid_request(
+            "Provider model is invalid.",
+        ))
+    }
+}
+
+fn validate_configured_execution(
+    value: WireConfiguredExecution,
+    project_id: &str,
+    prompt_id: &str,
+) -> Result<ConfiguredExecutionSummary, BackendCommandError> {
+    validate_identifier(&value.execution_id)?;
+    validate_provider_model(&value.model).map_err(|_| BackendCommandError::unavailable())?;
+    if value.project_id != project_id
+        || value.prompt_id != prompt_id
+        || value.provider_id != OPENAI_RESPONSES_PROVIDER
+        || value.provider_version != OPENAI_RESPONSES_VERSION
+        || value.output.trim().is_empty()
+        || value.output.chars().count() > MAX_CONFIGURED_OUTPUT_LENGTH
+        || !(1..=MAX_COMPOSED_PROMPT_LENGTH).contains(&value.prompt_character_count)
+    {
+        return Err(BackendCommandError::unavailable());
+    }
+    Ok(ConfiguredExecutionSummary {
+        project_id: value.project_id,
+        prompt_id: value.prompt_id,
+        provider_id: value.provider_id,
+        provider_version: value.provider_version,
+        execution_id: value.execution_id,
+        output: value.output,
+        input_units: value.input_units,
+        output_units: value.output_units,
+        prompt_character_count: value.prompt_character_count,
+        model: value.model,
     })
 }
 
@@ -1280,7 +1771,7 @@ mod tests {
 
     #[test]
     fn readiness_requires_identity_versions_and_exact_capabilities() {
-        let valid = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"com.universalpromptstudio.backend","application_version":"0.2.0-alpha","protocol_version":1,"storage_schema_version":1,"capabilities":["application.readiness","library.projects.list","library.projects.create","library.projects.delete","library.prompts.list","library.prompts.create","library.prompts.get","library.prompts.update","library.prompts.delete","library.prompts.search","library.prompts.compose","library.prompts.execute-offline"]}}"#;
+        let valid = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"com.universalpromptstudio.backend","application_version":"0.2.0-alpha","protocol_version":1,"storage_schema_version":1,"capabilities":["application.readiness","library.projects.list","library.projects.create","library.projects.delete","library.prompts.list","library.prompts.create","library.prompts.get","library.prompts.update","library.prompts.delete","library.prompts.search","library.prompts.compose","library.prompts.execute-offline","providers.catalog","providers.settings.save","providers.credentials.clear","library.prompts.execute-configured"]}}"#;
         let wire: WireReadiness = decode_response(valid, "one").unwrap();
         assert_eq!(validate_readiness(wire).unwrap().storage_schema_version, 1);
         assert!(decode_response::<WireReadiness>(valid, "two").is_err());
@@ -1407,11 +1898,76 @@ mod tests {
     }
 
     #[test]
+    fn configured_provider_contract_is_fixed_bounded_and_secret_free() {
+        let catalog = validate_provider_catalog(WireProviderCatalog {
+            providers: vec![
+                WireProvider {
+                    provider_id: OFFLINE_REFERENCE_PROVIDER.to_owned(),
+                    name: "UPS Offline Echo".to_owned(),
+                    version: OFFLINE_REFERENCE_VERSION.to_owned(),
+                    transport: "local".to_owned(),
+                    authentication: "none".to_owned(),
+                    configurable: false,
+                    available: true,
+                    credential_state: "not-required".to_owned(),
+                    credential_reference: None,
+                    endpoint: None,
+                    model: None,
+                    temperature: None,
+                    max_output_tokens: None,
+                },
+                WireProvider {
+                    provider_id: OPENAI_RESPONSES_PROVIDER.to_owned(),
+                    name: "OpenAI Responses".to_owned(),
+                    version: OPENAI_RESPONSES_VERSION.to_owned(),
+                    transport: "https".to_owned(),
+                    authentication: "api-key".to_owned(),
+                    configurable: true,
+                    available: true,
+                    credential_state: "stored".to_owned(),
+                    credential_reference: Some(OPENAI_CREDENTIAL_REFERENCE.to_owned()),
+                    endpoint: Some(OPENAI_RESPONSES_ENDPOINT.to_owned()),
+                    model: Some("gpt-5-mini".to_owned()),
+                    temperature: Some(1.0),
+                    max_output_tokens: Some(512),
+                },
+            ],
+        })
+        .unwrap();
+        assert_eq!(catalog.providers.len(), 2);
+        assert!(catalog.providers[1].available);
+        assert!(
+            validate_provider_settings_input(
+                OPENAI_RESPONSES_PROVIDER,
+                OPENAI_RESPONSES_ENDPOINT,
+                "gpt-5-mini",
+                1.0,
+                512,
+                Some("sk-test-never-returned"),
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_provider_settings_input(
+                OPENAI_RESPONSES_PROVIDER,
+                "https://evil.example/v1/responses",
+                "gpt-5-mini",
+                1.0,
+                512,
+                None,
+            )
+            .is_err()
+        );
+        let encoded = serde_json::to_string(&catalog).unwrap();
+        assert!(!encoded.contains("sk-test-never-returned"));
+    }
+
+    #[test]
     fn backend_errors_are_allowlisted_and_python_messages_are_not_exposed() {
         let execution = br#"{"schema_version":1,"request_id":"one","ok":false,"error":{"code":"execution.failed","message":"secret"}}"#;
         let error = decode_response::<WireReadiness>(execution, "one").unwrap_err();
         assert_eq!(error.code, "execution.failed");
-        assert_eq!(error.message, "Offline prompt execution failed safely.");
+        assert_eq!(error.message, "Provider execution failed safely.");
         assert!(!error.message.contains("secret"));
         let invalid = br#"{"schema_version":1,"request_id":"one","ok":false,"error":{"code":"ipc.invalid_payload","message":"secret"}}"#;
         let error = decode_response::<WireReadiness>(invalid, "one").unwrap_err();

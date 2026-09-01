@@ -9,10 +9,11 @@ toolkit contracts and explicit deferrals are maintained in
 - Versioned, allowlisted desktop-to-Python IPC and installed sidecar lifecycle.
 - Durable local prompt-library management, organization, search, and deletion.
 - Deterministic saved-prompt composition and confirmed offline echo execution.
+- Controlled OpenAI Responses settings, DPAPI credential protection, selection,
+  and confirmed execution.
 
 ## Next
 
-- Controlled provider selection, endpoint configuration, and credential handling.
 - Workflow authoring and validation UI over the schema-1 Workflow SDK.
 
 ## Later
