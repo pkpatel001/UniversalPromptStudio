@@ -1,4 +1,5 @@
 mod backend;
+mod workflows;
 
 use backend::{
     BackendManager, backend_readiness, library_compose_prompt, library_create_project,
@@ -8,6 +9,10 @@ use backend::{
     provider_catalog, provider_clear_credential, provider_save_settings,
 };
 use tauri::Manager;
+use workflows::{
+    workflow_create, workflow_delete, workflow_execute, workflow_get, workflow_operations,
+    workflow_plan, workflow_update, workflows,
+};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -34,6 +39,14 @@ pub fn run() {
             provider_save_settings,
             provider_clear_credential,
             library_execute_prompt_configured,
+            workflow_operations,
+            workflows,
+            workflow_create,
+            workflow_get,
+            workflow_update,
+            workflow_delete,
+            workflow_plan,
+            workflow_execute,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Universal Prompt Studio");

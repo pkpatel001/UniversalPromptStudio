@@ -5,6 +5,7 @@ import {
   OPENAI_RESPONSES_ENDPOINT,
   OPENAI_RESPONSES_PROVIDER,
 } from "./backend-client.js";
+import { initializeWorkflowUI } from "./workflow-ui.js";
 import { themeSelectionKey, THEME_CATALOG } from "./theme-catalog.js";
 import { ThemeApplicationController } from "./theme-controller.js";
 import { ThemePreferenceStore } from "./theme-preference.js";
@@ -666,4 +667,5 @@ themeSelect.addEventListener("change", () => {
 rememberTheme.addEventListener("change", () => { try { const active = themeController.activeSelection; if (rememberTheme.checked && active && preferenceStore) { preferenceStore.save(active); themeStatus.textContent = `Remembering ${active.appearance} theme on this device.`; } else { preferenceStore?.clear(); themeStatus.textContent = active ? `Applied ${active.appearance} theme for this session only.` : "Using the default application colors."; } } catch { rememberTheme.checked = !rememberTheme.checked; themeStatus.textContent = "Theme preference could not be changed."; } });
 revertTheme.addEventListener("click", () => { try { themeController.revert(); preferenceStore?.clear(); showDefaultTheme(); } catch { themeStatus.textContent = "Theme revert failed; the active colors were retained."; } });
 
+initializeWorkflowUI({ mount: document.querySelector(".workspace"), backendClient });
 renderProjects(); renderPrompts(); void initializeLibrary();

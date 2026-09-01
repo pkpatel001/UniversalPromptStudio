@@ -1,101 +1,104 @@
 # Application development handoff
 
-**Completed checkpoint:** A-004 — Controlled provider selection, endpoint configuration, and credential handling
-**Immediate checkpoint:** A-005 — Workflow authoring, validation, and bounded sequential execution UI
+**Completed checkpoint:** A-005 — Workflow authoring, validation, and bounded sequential execution UI
+**Immediate checkpoint:** A-006 — Theme and managed extension lifecycle UI at supported trust boundaries
 
 ## Current application baseline
 
-A-004 completes the first controlled configurable-provider runtime:
+A-005 completes the first product workflow slice:
 
 ```text
 desktop launch
     -> Rust resolves Tauri app_data_dir
         -> long-lived frozen Python sidecar
             -> schema-1 SQLite prompt library
-                -> create/list/delete projects
-                -> create/select/edit/delete project-owned prompts
-                -> organize with category, tags, and ordered blocks
-                -> deterministic project-scoped local search
-                -> compose enabled saved blocks in durable order
-                -> preview the final assembled prompt separately
-                -> choose ups.offline-echo or ups.openai-responses
-                -> persist bounded non-secret provider settings atomically
-                -> protect the API key with current-user Windows DPAPI
-                -> explicitly execute recomposed durable prompt state
+            -> atomic provider-settings.json and DPAPI credential blob
+            -> atomic schema-1 workflow-definitions.json
+                -> create/select/edit/delete bounded workflow definitions
+                -> choose only three host-owned operations
+                -> validate the current saved graph deterministically
+                -> preview the ordered sequential plan or bounded failures
+                -> confirm and execute one planned run
+                -> present bounded step outputs and final values ephemerally
 ```
 
-The desktop automatically opens the local library. Users can create and select
-projects, create and select prompts, edit title/category/tags, add/reorder/
-enable/remove typed blocks, search titles/organization/block content, and
-delete prompts or projects after explicit confirmation. All supported state
-survives restart until explicitly deleted. Users can compose saved enabled blocks,
-inspect the distinct final prompt, and explicitly run that durable state through
-offline echo or the configured OpenAI Responses provider. Provider selection,
-availability, bounded settings, credential save/clear, and execution are explicit.
-Execution results remain ephemeral.
+The prompt-library and provider outcomes from A-001 through A-004 remain
+unchanged. Users can manage project-owned prompts, compose enabled saved blocks,
+and explicitly execute through offline echo or the fixed OpenAI Responses path.
+Provider settings remain bounded and non-secret; API keys remain protected by
+current-user Windows DPAPI and never cross back to the webview.
 
-SQLite remains only at the fixed `prompt-library.sqlite3` path under Tauri's
-per-user app-data directory and remains schema version 1. Non-secret provider
-settings use atomic exact-shape `provider-settings.json`; the API key is stored
-only as a DPAPI-protected blob below `credentials/`. The A-002.1 integrity,
-shape, relationship,
-future-schema, unavailable-storage, and non-destructive recovery guarantees
-remain unchanged.
+The schema-1 workflow studio is part of the same scrollable workspace. It owns
+workflow identity, typed boundary ports, trusted nodes, directed edges, planning
+feedback, runtime inputs, confirmation, progress, intermediate results, and
+final results. The trusted operation catalog is exactly `ups.echo-text`,
+`ups.execute-saved-prompt`, and `ups.uppercase-text`. The saved-prompt operation
+reuses current durable prompt/provider state and accepts no arbitrary prompt
+text, endpoint, option, handler, or credential.
 
-The webview has sixteen fixed Tauri commands and no shell or filesystem authority.
-Rust maps those calls to sixteen fixed sidecar commands and independently validates
-correlation, identities, versions, capabilities, UUIDs, timestamps, ownership,
-categories, tags, block types/order/content, confirmations, deletion results,
-bounded collections, composition counts/text, the two-provider catalog, endpoint,
-credential reference/state, model and option bounds, execution correlation, and
-output bounds. Source-process and frozen installed-layout tests prove management,
-restart persistence, DPAPI redaction, composition, and offline execution.
+SQLite remains at the fixed `prompt-library.sqlite3` path under Tauri's per-user
+app-data directory and remains schema version 1. Workflow definitions use the
+separate exact-shape atomic `workflow-definitions.json` document. Plans, runs,
+intermediate values, final values, and execution metadata are not persisted.
+Invalid workflow storage fails without destructive recovery.
 
-## A-005 — Workflow authoring, validation, and bounded sequential execution UI
+The webview has 24 fixed Tauri commands and no shell or filesystem authority.
+Rust maps those calls to 24 fixed sidecar commands and independently validates
+the A-001 through A-004 contracts plus workflow schemas, trusted operations and
+ports, graph bounds, deterministic plans, typed runtime values, step/final
+outcomes, confirmations, and run correlation. Source, frozen, restart, and
+installed-layout tests prove workflow persistence, planning, and execution while
+durable state remains below per-user app data.
 
-Expose the existing schema-1 Workflow SDK as the first product workflow slice.
-Deliver:
+## A-006 — Theme and managed extension lifecycle UI
 
-- a bounded desktop authoring surface for workflow identity, nodes, edges, and
-  node configuration using only schema-1 fields;
-- deterministic validation and planning feedback before execution;
-- operation choices populated only from the trusted host operation registry;
-- explicit sequential execution with bounded intermediate and final values;
-- a clear choice of existing authorized provider path where an operation needs
-  prompt execution, without embedding credentials or arbitrary options;
-- typed IPC and independent frontend/Rust/Python validation for workflow shapes,
-  plans, execution events, results, confirmations, and safe failures; and
-- deterministic service, frontend, Rust, restart, installed-layout, and boundary
-  tests.
+Expose the existing Theme and Plugin SDK trust boundaries as the next bounded
+product slice. Deliver:
 
-Do not add dynamic handlers, arbitrary operation IDs, plugin-supplied operations,
-cycles, conditions, parallelism, retries, cancellation, background scheduling,
-resume, history persistence, import/export, sync, or remote triggers.
+- a desktop theme catalog and preview/apply/revert/remember flow using only the
+  existing fixed semantic token contract;
+- clear origin, compatibility, and trust-state presentation for themes and
+  managed extensions;
+- explicit bounded install/remove/enable/disable actions only where the
+  Engineering lifecycle already defines a safe host-owned transition;
+- no execution of unapproved package bytes or permission-requesting plugins;
+- typed IPC and independent frontend/Rust/Python validation for catalogs,
+  identities, compatibility, lifecycle plans, confirmations, and safe failures;
+  and
+- deterministic service, frontend, Rust, restart, installed-layout, and
+  boundary tests.
+
+Do not add a marketplace, remote discovery, automatic download/update,
+publisher trust, signature infrastructure, arbitrary CSS/assets, arbitrary
+plugin permissions, dynamic commands, webview filesystem authority, or silent
+activation.
 
 ## Subsequent application sequence
 
-1. **A-005:** Workflow authoring, validation, and sequential execution UI.
-2. **A-006:** Theme and managed extension lifecycle UI at supported trust boundaries.
-3. **A-007:** Import/export, settings, diagnostics, onboarding, and distribution polish.
+1. **A-006:** Theme and managed extension lifecycle UI at supported trust boundaries.
+2. **A-007:** Import/export, settings, diagnostics, onboarding, and distribution polish.
 
 Each slice must produce a usable vertical outcome and reuse existing domain
 contracts. Add Engineering capability only when the slice exposes a specific
 gap.
 
-## Starting points for A-005
+## Starting points for A-006
 
-- `Backend/application/services.py`
-- `Backend/core/container.py`
-- `Backend/ipc/router.py`
-- `Backend/infrastructure/workflows.py`
-- `Engineering/WorkflowSystem/`
-- `Frontend/src/backend-client.js`
+- `Engineering/ThemeSystem/`
+- `Engineering/PluginSystem/`
+- `Frontend/src/theme-catalog.js`
+- `Frontend/src/theme-controller.js`
+- `Frontend/src/theme-preference.js`
 - `Frontend/src/main.js`
 - `Frontend/src-tauri/src/backend.rs`
+- `Backend/core/container.py`
+- `Backend/ipc/router.py`
 - `Docs/023_SECURITY.md`
 - `Docs/04_Backend/IPC_PROTOCOL.md`
 
-Before edits, verify clean local/origin/live GitHub parity and inspect the
-A-004 acceptance evidence. Preserve the schema-1 prompt library, both current
-provider paths, DPAPI credential boundary, exact settings schema, and ephemeral
-execution policy. Reuse the Workflow SDK instead of creating a second graph model.
+Before edits, verify clean local/origin/live GitHub parity and inspect the A-005
+acceptance evidence. Preserve the schema-1 prompt library, both provider paths,
+DPAPI credential boundary, exact provider/workflow settings schemas, the trusted
+three-operation workflow registry, deterministic planning, explicit execution,
+and ephemeral run policy. Reuse ThemeSystem and PluginSystem rather than
+creating second lifecycle models.

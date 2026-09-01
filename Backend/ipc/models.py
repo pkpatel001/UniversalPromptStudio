@@ -25,6 +25,7 @@ class IpcErrorCode(StrEnum):
     STORAGE_UNAVAILABLE = "storage.unavailable"
     INVALID_DATABASE = "storage.invalid_database"
     FUTURE_SCHEMA = "storage.future_schema"
+    WORKFLOW_STORAGE_INVALID = "workflow.storage_invalid"
     EXECUTION_FAILED = "execution.failed"
     PROVIDER_UNAVAILABLE = "provider.unavailable"
 

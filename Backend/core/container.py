@@ -21,6 +21,11 @@ from Backend.application.services import (
     SavedPromptRuntimeService,
     SearchService,
 )
+from Backend.application.workflows import (
+    InMemoryWorkflowDefinitionRepository,
+    WorkflowAuthoringService,
+    WorkflowDefinitionRepository,
+)
 from Backend.core.events import EventBus
 from Backend.core.registry import ProviderRegistry
 from Backend.implementations.dummy import (
@@ -46,6 +51,11 @@ from Backend.infrastructure.repositories.sqlite import (
     SQLiteProjectRepository,
     SQLitePromptRepository,
     SQLiteStorageProvider,
+)
+from Backend.infrastructure.workflow_definitions import (
+    WORKFLOW_DEFINITIONS_FILE_NAME,
+    JsonWorkflowDefinitionRepository,
+    register_application_workflow_handlers,
 )
 from Backend.infrastructure.workflows import WorkflowEventBusSink
 from Backend.interfaces.providers import AIProvider
@@ -76,6 +86,7 @@ class ApplicationContainer:
     workflow_operation_registry: WorkflowOperationRegistry
     workflow_execution_service: WorkflowExecutionService
     offline_workflow_plan: WorkflowExecutionPlan
+    workflow_authoring_service: WorkflowAuthoringService
     provider_runtime_registry: ProviderRuntimeRegistry
     project_repository: ProjectRepository
     prompt_repository: PromptRepository
@@ -96,6 +107,7 @@ def create_in_memory_container() -> ApplicationContainer:
         prompt_repository=prompt_repository,
         provider_settings_repository=InMemoryProviderSettingsRepository(),
         secret_store=InMemorySecretStore(),
+        workflow_repository=InMemoryWorkflowDefinitionRepository(),
     )
 
 
@@ -123,6 +135,9 @@ def create_sqlite_container(database_path: Path) -> ApplicationContainer:
             database_path.parent / PROVIDER_SETTINGS_FILE_NAME
         ),
         secret_store=WindowsDpapiSecretStore(database_path.parent / "credentials"),
+        workflow_repository=JsonWorkflowDefinitionRepository(
+            database_path.parent / WORKFLOW_DEFINITIONS_FILE_NAME
+        ),
     )
 
 
@@ -132,6 +147,7 @@ def _create_container(
     provider_settings_repository: InMemoryProviderSettingsRepository
     | JsonProviderSettingsRepository,
     secret_store: InMemorySecretStore | WindowsDpapiSecretStore,
+    workflow_repository: WorkflowDefinitionRepository,
 ) -> ApplicationContainer:
     """Wire core application dependencies."""
 
@@ -165,10 +181,6 @@ def _create_container(
         openai_provider.version.value,
     )
     ai_providers.register(openai_adapter.name, openai_adapter)
-    workflow_operation_registry = WorkflowOperationRegistry()
-    register_offline_workflow_handlers(workflow_operation_registry)
-    offline_workflow_plan = offline_text_workflow_plan(workflow_operation_registry)
-    workflow_execution_service = WorkflowExecutionService(WorkflowEventBusSink(event_bus))
     prompt_builder = PromptBuilder()
     history_provider = InMemoryHistoryProvider()
     search_provider = BasicSearchProvider()
@@ -186,6 +198,22 @@ def _create_container(
         history_provider=history_provider,
         event_bus=event_bus,
     )
+    saved_prompt_runtime_service = SavedPromptRuntimeService(
+        prompt_service,
+        prompt_execution_service,
+        provider_configuration_service,
+    )
+    workflow_operation_registry = WorkflowOperationRegistry()
+    register_offline_workflow_handlers(workflow_operation_registry)
+    register_application_workflow_handlers(
+        workflow_operation_registry,
+        saved_prompt_runtime_service,
+    )
+    offline_workflow_plan = offline_text_workflow_plan(workflow_operation_registry)
+    workflow_execution_service = WorkflowExecutionService(WorkflowEventBusSink(event_bus))
+    workflow_authoring_service = WorkflowAuthoringService(
+        workflow_repository, workflow_operation_registry, workflow_execution_service
+    )
 
     return ApplicationContainer(
         event_bus=event_bus,
@@ -194,14 +222,13 @@ def _create_container(
         workflow_operation_registry=workflow_operation_registry,
         workflow_execution_service=workflow_execution_service,
         offline_workflow_plan=offline_workflow_plan,
+        workflow_authoring_service=workflow_authoring_service,
         project_repository=project_repository,
         prompt_repository=prompt_repository,
         project_service=project_service,
         prompt_service=prompt_service,
         prompt_execution_service=prompt_execution_service,
-        saved_prompt_runtime_service=SavedPromptRuntimeService(
-            prompt_service, prompt_execution_service, provider_configuration_service
-        ),
+        saved_prompt_runtime_service=saved_prompt_runtime_service,
         provider_configuration_service=provider_configuration_service,
         search_service=SearchService(search_provider),
     )

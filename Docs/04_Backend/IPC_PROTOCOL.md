@@ -1,6 +1,6 @@
 # Desktop-to-Python IPC protocol
 
-**Checkpoint:** A-004
+**Checkpoint:** A-005
 **Protocol:** 1
 **Storage schema:** 1
 
@@ -8,18 +8,20 @@
 
 ```text
 Vite webview
-    -> sixteen fixed Tauri commands
+    -> 24 fixed Tauri commands
         -> Rust BackendManager
             -> declared universal-prompt-studio-backend sidecar
                 -> ApplicationIpcRouter
                     -> one SQLite ApplicationContainer
                         -> prompt-library.sqlite3 in Tauri app data
+                        -> workflow-definitions.json in Tauri app data
 ```
 
 Rust resolves Tauri's `app_data_dir`, creates that application-owned directory,
 and passes it to the sidecar as `UPS_APP_DATA_DIR` after clearing the inherited
-environment. Python appends only the fixed `prompt-library.sqlite3` filename.
-The webview cannot provide an executable, path, environment value, Python
+environment. Python appends only the fixed `prompt-library.sqlite3`,
+`provider-settings.json`, credential, and `workflow-definitions.json`
+locations. The webview cannot provide an executable, path, environment value, Python
 module, IPC command, arbitrary payload, SQL, or filesystem destination.
 
 The webview retains only `core:default`; it has no shell or filesystem
@@ -76,6 +78,14 @@ messages. Unknown errors collapse to `backend.unavailable`.
 | `provider_save_settings` | `providers.settings.save` | Fixed provider/endpoint, model, temperature, output tokens, optional API key | Non-secret provider state only |
 | `provider_clear_credential` | `providers.credentials.clear` | Fixed provider, `confirm: true` | Provider state with `missing` credential |
 | `library_execute_prompt_configured` | `library.prompts.execute-configured` | IDs, `provider_id: ups.openai-responses`, `confirm: true` | Bounded configured result and metadata |
+| `workflow_operations` | `workflows.operations.list` | `{}` | Exact trusted operation catalog |
+| `workflows` | `workflows.list` | `{}` | Up to 50 deterministic workflow summaries |
+| `workflow_create` | `workflows.create` | One exact schema-1 workflow definition | Created definition |
+| `workflow_get` | `workflows.get` | `workflow_id` | One exact schema-1 definition |
+| `workflow_update` | `workflows.update` | Immutable `workflow_id` plus exact definition | Updated definition |
+| `workflow_delete` | `workflows.delete` | `workflow_id`, `confirm: true` | Deleted workflow ID |
+| `workflow_plan` | `workflows.plan` | `workflow_id` | Valid ordered plan or bounded failures |
+| `workflow_execute` | `workflows.execute` | Workflow/run IDs, typed inputs, `confirm: true` | Bounded sequential steps and outcome |
 
 Readiness returns these commands in the table's exact sidecar-command order.
 Application, protocol, and storage versions remain `0.2.0-alpha`, `1`, and `1`.
@@ -102,6 +112,12 @@ Application, protocol, and storage versions remain `0.2.0-alpha`, `1`, and `1`.
 | Credential ingress | 8–512 non-control characters; never returned |
 | Configured execution output | 1–12,500 characters |
 | Collections | First 50 deterministic results plus `has_more` |
+| Workflow definitions | Up to 50 exact schema-1 records; 12,000 encoded bytes each |
+| Workflow boundary ports | Up to 8 inputs and 8 outputs |
+| Workflow graph | 1–8 nodes and up to 64 edges |
+| Workflow operations | Exact three-entry host registry; node ports must match the selected contract |
+| Workflow runtime string | Up to 1,000 characters |
+| Workflow runtime value | JSON-shaped, non-null, and up to 6,000 encoded bytes |
 
 Prompt results contain exact `prompt_id`, `project_id`, `title`, nullable
 `category`, sorted `tags`, ordered `blocks`, `created_at`, and `updated_at`
@@ -163,18 +179,43 @@ the webview.
 
 There is no arbitrary provider selection, endpoint, header, credential reference,
 option name, model discovery, dynamic provider loading, streaming, cancellation,
-retry, workflow execution, background execution, or history persistence.
+retry, background execution, or history persistence.
+
+## Workflow authoring and execution semantics
+
+- Definitions use only the passive Workflow SDK schema-1 identity, boundary
+  ports, nodes, trusted operation IDs, and directed edges.
+- The operation catalog is exactly `ups.echo-text`,
+  `ups.execute-saved-prompt`, and `ups.uppercase-text`. Node ports must equal the
+  resolved host operation contract.
+- Drafts that satisfy structural and trusted-operation bounds may be saved even
+  when their graph is not executable. Planning reports bounded graph failures
+  without changing the definition.
+- A current saved definition must produce a valid deterministic plan before the
+  execution command accepts it. Execution requires a canonical run UUID and
+  exact `confirm: true`.
+- The saved-prompt node accepts only project, prompt, and authorized provider
+  identities. It reloads current durable prompt and provider state and accepts
+  no arbitrary prompt text, endpoint, option, or credential.
+- Each planned operation runs once in topological order. Intermediate and final
+  values are bounded, returned to the caller, and never persisted.
+- There are no dynamic handlers, arbitrary operation IDs, cycles, conditions,
+  parallelism, retries, cancellation, background scheduling, resume, run
+  history, import/export, sync, or remote triggers.
 
 ## SQLite lifecycle
 
-A-004 retains schema version 1 because provider settings are not prompt-library
-records. A-002.1 already persisted project
+A-005 retains schema version 1 because provider settings and workflow
+definitions are not prompt-library records. A-002.1 already persisted project
 ownership, categories, tags, ordered blocks, and update timestamps. No database
 shape change or migration is needed, and existing schema-1 user data is opened
 unchanged.
 
 Non-secret provider settings use bounded atomic schema-1 JSON below app data.
 The fixed credential reference resolves to a current-user Windows DPAPI blob.
+Workflow definitions use a separate bounded, exact-shape, atomic schema-1 JSON
+document. Invalid workflow storage fails without deletion, replacement,
+truncation, rename, downgrade, or automatic repair.
 
 Fresh databases still follow the owned migration from version 0 to 1. Every
 connection enables foreign keys, modern transaction control, trusted-schema
@@ -190,13 +231,14 @@ replacement, rename, truncation, downgrade, or automatic repair.
 - Transport, timeout, malformed response, or process failure discards the child;
   invalid input and not-found results keep a healthy process.
 - Source, frozen-sidecar, restart, and installed-layout tests prove management,
-  composition, both provider states, DPAPI ciphertext/redaction, and offline
-  execution while durable storage remains under per-user app data.
+  composition, both provider states, DPAPI ciphertext/redaction, workflow
+  persistence/planning/execution, and offline execution while durable storage
+  remains under per-user app data.
 - The sidecar exposes only two host-created providers. The OpenAI provider makes
   one explicitly initiated HTTPS POST to the fixed endpoint, resolves only its
   fixed DPAPI credential reference, performs no automatic retry, and returns no
   raw transport error. The protocol exposes no arbitrary network operation,
-  workflow execution, arbitrary filesystem access, or subprocess launch.
+  arbitrary workflow handler, filesystem access, or subprocess launch.
 
 The sidecar remains trusted application code with the user's process authority;
 this protocol is an authority-reduction boundary, not a sandbox.

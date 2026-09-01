@@ -38,6 +38,14 @@ const capabilities = [
   "providers.settings.save",
   "providers.credentials.clear",
   "library.prompts.execute-configured",
+  "workflows.operations.list",
+  "workflows.list",
+  "workflows.create",
+  "workflows.get",
+  "workflows.update",
+  "workflows.delete",
+  "workflows.plan",
+  "workflows.execute",
 ];
 const ready = Object.freeze({
   status: "ready",
@@ -104,7 +112,7 @@ const configuredExecution = Object.freeze({
   promptCharacterCount: finalPrompt.length, model: "gpt-5-mini",
 });
 
-test("client invokes only the sixteen fixed library and runtime commands", async () => {
+test("client invokes only the fixed prompt and provider commands", async () => {
   const calls = [];
   const responses = [
     ready,

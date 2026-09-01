@@ -59,6 +59,22 @@ key is encrypted with current-user Windows DPAPI. SQLite remains schema 1.
 Composition and execution remain ephemeral; only source library state,
 non-secret provider settings, and protected credential availability are durable.
 
+A-005 composes `WorkflowAuthoringService` over a dedicated atomic definition
+repository, the existing `WorkflowOperationRegistry`, `WorkflowPlanner`, and
+`WorkflowExecutionService`. The desktop authoring model is the canonical
+passive Workflow SDK schema 1 rather than a second graph type. Definitions are
+durable below application data; plans, step outputs, final values, and run
+metadata are ephemeral.
+
+The host registry exposes only echo, uppercase, and saved-prompt execution.
+Workflow nodes carry operation identities and exact port contracts but never
+handler code. The saved-prompt handler delegates to `SavedPromptRuntimeService`,
+so existing project ownership, provider selection, fixed endpoint/options, and
+DPAPI credential resolution remain authoritative. Python validates and plans
+the current durable definition, Rust independently validates the transport and
+outcome, and the frontend independently validates the public schema before
+presentation.
+
 ## Engineering Toolkit
 
 See `ENGINEERING_TOOLKIT.md` for subsystem ownership, lifecycle boundaries, and

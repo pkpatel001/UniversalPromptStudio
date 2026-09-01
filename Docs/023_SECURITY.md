@@ -396,21 +396,23 @@ Every generated diff still requires human review.
 
 ## Bounded desktop-to-Python IPC
 
-A-004 exposes sixteen Tauri commands: readiness, project list/create/delete,
+A-005 exposes 24 Tauri commands: readiness, project list/create/delete,
 project-scoped prompt list/create/get/update/delete/search, saved-prompt
 composition, two execution commands, provider catalog/settings save, and
-credential clear. Each accepts only bounded command-specific values. The
+credential clear, plus trusted workflow catalog/list/create/get/update/delete/
+plan/execute. Each accepts only bounded command-specific values. The
 webview cannot select an executable, database path, environment value, Python
 module, function, sidecar command, arbitrary payload, SQL, search index,
-filesystem destination, provider implementation, header, or credential
-reference.
+filesystem destination, provider implementation, workflow handler, operation
+implementation, header, or credential reference.
 
 Both development and release hosts launch only the target-triple sidecar declared
 by Tauri `externalBin`. The webview retains only `core:default`; no shell-plugin
 or filesystem permission is exposed. Rust clears the child environment,
 restores only the three variables required by the Windows frozen runtime, and
 adds the trusted `UPS_APP_DATA_DIR` value resolved through Tauri. Python appends
-only fixed application-owned database, settings, and credential locations.
+only fixed application-owned database, settings, credential, and workflow-
+definition locations.
 
 The JSON-lines protocol rejects unknown or duplicate fields, malformed UTF-8 or
 JSON, unsupported versions, non-finite values, malformed identifiers, unknown
@@ -422,12 +424,17 @@ timestamps, categories, tags, block types/order/content, text and collection
 bounds, confirmations, deletion results, project ownership, composition counts,
 the exact two-provider catalog, provider identity/version, endpoint, credential
 reference/state, model/options, execution correlation, and output bounds. The
-frontend validates the same public shapes independently. Transport failure or
+workflow bridge additionally revalidates schema/version, exact operations and
+ports, definition/graph bounds, plan order and dependencies, runtime values,
+step outputs, final results, run correlation, and confirmations. The frontend
+validates the same public shapes independently. Transport failure or
 malformed output discards the child so a later action may start a fresh process.
 
 SQLite schema version 1 is application-owned through `PRAGMA user_version`.
-A-004 retains schema 1. Non-secret provider settings instead use one bounded,
+A-005 retains schema 1. Non-secret provider settings use one bounded,
 exact-shape schema-1 JSON document atomically replaced below application data.
+Workflow definitions use a separate exact-shape atomic schema-1 JSON document;
+invalid or unavailable workflow storage is left unchanged and fails safely.
 Prompt access always includes the owning project. Prompt deletion removes only
 that owned record. Project deletion removes dependent prompts in one repository
 transaction and both deletion commands require exact `confirm: true` payloads.
@@ -443,6 +450,18 @@ arbitrary execution text. Offline execution remains fixed to
 `ups.offline-echo`. Configured execution is fixed to `ups.openai-responses`.
 Both require `confirm: true` and recompose durable state rather than trusting an
 earlier preview.
+
+Workflow authoring accepts only passive schema-1 definitions with bounded
+identity, metadata, typed boundary ports, one to eight nodes, up to 64 edges,
+and exact node ports resolved from the three-entry host operation registry.
+Structurally valid but disconnected or cyclic drafts may be stored; the
+deterministic planner rejects execution until the current saved definition has
+a valid plan. Execution requires exact confirmation, a canonical run UUID, and
+bounded typed inputs. Every operation runs once sequentially. Runtime values,
+step outputs, and final outputs are returned ephemerally and never written to
+history. The saved-prompt operation accepts only durable project/prompt IDs and
+one existing authorized provider ID, so the graph cannot transport credentials,
+endpoints, arbitrary options, or unsaved prompt text.
 
 The OpenAI application schema permits only the exact Responses endpoint, one
 bounded model identifier, temperature from 0 through 2, and maximum output
@@ -460,8 +479,9 @@ Settings-save rollback restores the previous credential if the non-secret write
 fails. Clearing the blob requires a separate exact confirmation. DPAPI does not
 protect against malicious code already running as the same Windows user.
 
-Composition, output, and minimal provider version/correlation/usage metadata
-are bounded and ephemeral. They are not written to SQLite or an
+Composition, provider output, workflow steps/values, and minimal provider
+version/correlation/usage metadata are bounded and ephemeral. They are not
+written to SQLite or an
 execution-history store. Failures become fixed presentation-safe error codes,
 including `provider.unavailable` for configured execution; provider-authored or
 transport detail does not cross Rust.
@@ -472,13 +492,14 @@ unmanaged, incomplete, relationship-invalid, or unavailable databases fail with
 bounded errors and are never deleted, replaced, renamed, truncated, downgraded,
 or automatically repaired.
 
-The router exposes no workflow execution, arbitrary provider request, endpoint,
-network operation, file access, or subprocess launch. Python error detail never
+The router exposes only trusted bounded sequential workflow execution; it
+exposes no arbitrary handler, provider request, endpoint, network operation,
+file access, or subprocess launch. Python error detail never
 crosses Rust; unknown failures collapse to a fixed unavailable response. Source,
 frozen, restart, and installed-layout tests verify management, composition,
-provider settings, DPAPI ciphertext and redaction, credential clearing, and
-offline execution while durable state remains under per-user app data rather
-than the installation.
+provider settings, DPAPI ciphertext and redaction, credential clearing,
+workflow persistence/planning/execution, and offline execution while durable
+state remains under per-user app data rather than the installation.
 
 The Python process remains trusted code with normal process authority. IPC
 validation reduces the webview's authority but is not a sandbox or process

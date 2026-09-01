@@ -1,4 +1,4 @@
-"""Real frozen-sidecar lifecycle acceptance tests through A-004."""
+"""Real frozen-sidecar lifecycle acceptance tests through A-005."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import pytest
 
 from Backend.core.container import DESKTOP_APP_DATA_ENV
 from Backend.infrastructure.repositories.sqlite import DATABASE_FILE_NAME
+from Backend.infrastructure.workflow_definitions import WORKFLOW_DEFINITIONS_FILE_NAME
 from Backend.ipc import (
     IPC_PROTOCOL_VERSION,
     PROJECT_CREATE_COMMAND,
@@ -29,6 +30,11 @@ from Backend.ipc import (
     PROVIDER_CREDENTIAL_CLEAR_COMMAND,
     PROVIDER_SETTINGS_SAVE_COMMAND,
     SIDECAR_IDENTITY,
+    WORKFLOW_CREATE_COMMAND,
+    WORKFLOW_EXECUTE_COMMAND,
+    WORKFLOW_LIST_COMMAND,
+    WORKFLOW_OPERATIONS_COMMAND,
+    WORKFLOW_PLAN_COMMAND,
 )
 from Engineering.core.version import VERSION
 
@@ -51,6 +57,14 @@ CAPABILITIES = [
     "providers.settings.save",
     "providers.credentials.clear",
     "library.prompts.execute-configured",
+    "workflows.operations.list",
+    "workflows.list",
+    "workflows.create",
+    "workflows.get",
+    "workflows.update",
+    "workflows.delete",
+    "workflows.plan",
+    "workflows.execute",
 ]
 
 
@@ -133,6 +147,53 @@ def _command(
 
 def _readiness(process: subprocess.Popen[bytes], request_id: str) -> dict[str, object]:
     return _command(process, request_id, "application.readiness", {})
+
+
+def _echo_workflow() -> dict[str, object]:
+    input_port = {
+        "id": "value",
+        "type": "string",
+        "description": "Text supplied to the operation.",
+    }
+    output_port = {
+        "id": "value",
+        "type": "string",
+        "description": "Text returned by the operation.",
+    }
+    return {
+        "schema_version": 1,
+        "workflow": {
+            "id": "ups.installed-echo",
+            "name": "Installed Echo",
+            "version": "1.0.0",
+            "sdk_version": 1,
+            "description": "Installed lifecycle workflow.",
+            "inputs": [
+                {"id": "input", "type": "string", "description": "Workflow text."}
+            ],
+            "outputs": [
+                {"id": "output", "type": "string", "description": "Workflow result."}
+            ],
+            "nodes": [
+                {
+                    "id": "echo",
+                    "operation": "ups.echo-text",
+                    "inputs": [input_port],
+                    "outputs": [output_port],
+                }
+            ],
+            "edges": [
+                {
+                    "source": {"workflow_input": "input"},
+                    "target": {"node": "echo", "port": "value"},
+                },
+                {
+                    "source": {"node": "echo", "port": "value"},
+                    "target": {"workflow_output": "output"},
+                },
+            ],
+        },
+    }
 
 
 def _assert_readiness(response: dict[str, object], request_id: str) -> None:
@@ -265,6 +326,12 @@ def test_installed_sidecar_persists_library_only_in_app_data(
             "credential": secret,
         },
     )
+    created_workflow = _command(
+        first,
+        "create-workflow",
+        WORKFLOW_CREATE_COMMAND,
+        {"workflow": _echo_workflow()},
+    )
     _stop(first)
     second = _start(installed, app_data)
     credential_files = list((app_data / "credentials").glob("*.dpapi"))
@@ -278,6 +345,27 @@ def test_installed_sidecar_persists_library_only_in_app_data(
         {"project_id": project_id},
     )
     provider_catalog = _command(second, "provider-catalog", PROVIDER_CATALOG_COMMAND, {})
+    workflow_operations = _command(
+        second, "workflow-operations", WORKFLOW_OPERATIONS_COMMAND, {}
+    )
+    workflows = _command(second, "list-workflows", WORKFLOW_LIST_COMMAND, {})
+    workflow_plan = _command(
+        second,
+        "plan-workflow",
+        WORKFLOW_PLAN_COMMAND,
+        {"workflow_id": "ups.installed-echo"},
+    )
+    workflow_execution = _command(
+        second,
+        "execute-workflow",
+        WORKFLOW_EXECUTE_COMMAND,
+        {
+            "workflow_id": "ups.installed-echo",
+            "run_id": "550e8400-e29b-41d4-a716-446655440000",
+            "inputs": [{"port_id": "input", "value": "Installed"}],
+            "confirm": True,
+        },
+    )
     cleared_provider = _command(
         second,
         "clear-provider",
@@ -372,10 +460,33 @@ def test_installed_sidecar_persists_library_only_in_app_data(
     assert remote["provider_id"] == "ups.openai-responses"  # type: ignore[index]
     assert remote["available"] is True  # type: ignore[index]
     assert remote["credential_state"] == "stored"  # type: ignore[index]
+    assert created_workflow["result"]["workflow"] == _echo_workflow()  # type: ignore[index]
+    operation_values = workflow_operations["result"]["operations"]  # type: ignore[index]
+    assert [item["operation_id"] for item in operation_values] == [  # type: ignore[index]
+        "ups.echo-text",
+        "ups.execute-saved-prompt",
+        "ups.uppercase-text",
+    ]
+    assert workflows["result"]["workflows"] == [  # type: ignore[index]
+        {
+            "workflow_id": "ups.installed-echo",
+            "name": "Installed Echo",
+            "version": "1.0.0",
+            "description": "Installed lifecycle workflow.",
+            "node_count": 1,
+            "edge_count": 2,
+        }
+    ]
+    assert workflow_plan["result"]["plan"]["valid"] is True  # type: ignore[index]
+    assert workflow_execution["result"]["execution"]["outputs"] == [  # type: ignore[index]
+        {"port_id": "output", "value": "Installed"}
+    ]
     assert secret not in repr((saved_provider, provider_catalog, cleared_provider))
     assert secret.encode() not in encrypted_credential
     assert cleared_provider["result"]["provider"]["credential_state"] == "missing"  # type: ignore[index]
     assert secret.encode() not in (app_data / "provider-settings.json").read_bytes()
     assert list((app_data / "credentials").glob("*.dpapi")) == []
     assert (app_data / DATABASE_FILE_NAME).is_file()
+    assert (app_data / WORKFLOW_DEFINITIONS_FILE_NAME).is_file()
     assert list(installed.parent.rglob("*.sqlite3")) == []
+    assert list(installed.parent.rglob(WORKFLOW_DEFINITIONS_FILE_NAME)) == []

@@ -2,9 +2,10 @@
 
 ## Product integration
 
-- A-004 provides project-owned prompt editing, ordered blocks, categories,
+- A-005 provides project-owned prompt editing, ordered blocks, categories,
   tags, deterministic project-scoped search, and explicit prompt/project
-  deletion under Tauri's per-user app-data directory.
+  deletion plus bounded schema-1 workflow authoring, planning, persistence, and
+  explicit sequential execution under Tauri's per-user app-data directory.
 - The product bundles and verifies the Windows x86_64 Python sidecar. Other target
   triples still require platform-native locked builds and acceptance evidence.
 - Search is a bounded synchronous scan of the selected local project; there is no
@@ -18,7 +19,6 @@
   protect against malicious code already running as that user.
 - Execution results and metadata are not persisted after the process exits.
 - Deleted projects and prompts are not recoverable in the application UI.
-- Workflow authoring and execution have no product UI.
 
 ## Extensibility and trust
 
@@ -36,9 +36,11 @@
 
 - Themes use a fixed semantic color set; custom CSS, fonts, icons, assets, and
   automatic contrast auditing are unsupported.
-- Workflow schema 1 is a bounded DAG executed sequentially. Cycles, conditions,
-  parallelism, retries, scheduling, persistence, and external handler loading
-  are unsupported.
+- Workflow schema 1 is a bounded DAG executed sequentially from an explicit
+  valid plan. Definitions persist locally, but runs and values do not. Dynamic
+  or plugin-supplied handlers, arbitrary operation IDs, cycles, conditions,
+  parallelism, retries, cancellation, scheduling, resume, history, import/export,
+  sync, remote triggers, and external handler loading are unsupported.
 
 ## Packaging
 

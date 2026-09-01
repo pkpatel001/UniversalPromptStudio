@@ -48,6 +48,10 @@ from Backend.infrastructure.repositories.sqlite import (
 from Engineering.core.version import VERSION
 
 from .models import IPC_PROTOCOL_VERSION, IpcErrorCode, IpcRequest, IpcResponse, JsonValue
+from .workflow_routes import (
+    WORKFLOW_SUPPORTED_COMMANDS,
+    handle_workflow_command,
+)
 
 APPLICATION_READINESS_COMMAND = "application.readiness"
 PROJECT_LIST_COMMAND = "library.projects.list"
@@ -83,6 +87,7 @@ SUPPORTED_COMMANDS = (
     PROVIDER_SETTINGS_SAVE_COMMAND,
     PROVIDER_CREDENTIAL_CLEAR_COMMAND,
     PROMPT_EXECUTE_CONFIGURED_COMMAND,
+    *WORKFLOW_SUPPORTED_COMMANDS,
 )
 MAX_LIBRARY_ITEMS = 50
 
@@ -155,6 +160,7 @@ class ApplicationIpcRouter:
             PROVIDER_SETTINGS_SAVE_COMMAND: self._save_provider_settings,
             PROVIDER_CREDENTIAL_CLEAR_COMMAND: self._clear_provider_credential,
             PROMPT_EXECUTE_CONFIGURED_COMMAND: self._execute_prompt_configured,
+            **{command: self._workflow_command for command in WORKFLOW_SUPPORTED_COMMANDS},
         }
         try:
             return handlers[request.command](request)
@@ -404,6 +410,10 @@ class ApplicationIpcRouter:
             request.request_id,
             {"execution": _configured_execution_value(composition, result)},
         )
+
+    def _workflow_command(self, request: IpcRequest) -> IpcResponse:
+        assert self._container is not None
+        return handle_workflow_command(self._container, request)
 
 
 def _require_fields(payload: dict[str, JsonValue], expected: frozenset[str]) -> None:

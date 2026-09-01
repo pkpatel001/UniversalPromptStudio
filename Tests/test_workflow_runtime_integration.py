@@ -23,7 +23,11 @@ def test_container_exposes_explicit_offline_workflow_runtime_and_plan() -> None:
 
     assert tuple(
         item.operation_id for item in container.workflow_operation_registry.registrations
-    ) == ("ups.echo-text", "ups.uppercase-text")
+    ) == (
+        "ups.echo-text",
+        "ups.execute-saved-prompt",
+        "ups.uppercase-text",
+    )
     assert container.offline_workflow_plan.workflow_id == "ups.offline-text-flow"
     assert tuple(step.node.node_id for step in container.offline_workflow_plan.steps) == (
         "echo",

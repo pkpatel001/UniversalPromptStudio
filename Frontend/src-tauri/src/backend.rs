@@ -45,7 +45,7 @@ const MAX_CREDENTIAL_LENGTH: usize = 512;
 const SIDECAR_IDENTITY: &str = "com.universalpromptstudio.backend";
 const SIDECAR_NAME: &str = "universal-prompt-studio-backend";
 const APP_DATA_ENV: &str = "UPS_APP_DATA_DIR";
-const CAPABILITIES: [&str; 16] = [
+const CAPABILITIES: [&str; 24] = [
     READINESS_COMMAND,
     PROJECT_LIST_COMMAND,
     PROJECT_CREATE_COMMAND,
@@ -62,6 +62,14 @@ const CAPABILITIES: [&str; 16] = [
     PROVIDER_SETTINGS_SAVE_COMMAND,
     PROVIDER_CREDENTIAL_CLEAR_COMMAND,
     PROMPT_EXECUTE_CONFIGURED_COMMAND,
+    "workflows.operations.list",
+    "workflows.list",
+    "workflows.create",
+    "workflows.get",
+    "workflows.update",
+    "workflows.delete",
+    "workflows.plan",
+    "workflows.execute",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -242,11 +250,11 @@ impl BackendCommandError {
         }
     }
 
-    fn invalid_request(message: &str) -> Self {
+    pub(crate) fn invalid_request(message: &str) -> Self {
         Self::new("library.invalid_input", message, false)
     }
 
-    fn unavailable() -> Self {
+    pub(crate) fn unavailable() -> Self {
         Self::new(
             "backend.unavailable",
             "The local application backend is unavailable.",
@@ -595,7 +603,7 @@ impl BackendProcess {
         })
     }
 
-    fn request<P, T>(
+    pub(crate) fn request<P, T>(
         &mut self,
         request_id: &str,
         command: &'static str,
@@ -608,7 +616,7 @@ impl BackendProcess {
         self.request_inner(request_id, command, payload, RESPONSE_TIMEOUT)
     }
 
-    fn request_with_timeout<P, T>(
+    pub(crate) fn request_with_timeout<P, T>(
         &mut self,
         request_id: &str,
         command: &'static str,
@@ -683,7 +691,7 @@ impl BackendManager {
         }
     }
 
-    fn request_with_timeout<P, T>(
+    pub(crate) fn request_with_timeout<P, T>(
         &self,
         request_id: &str,
         command: &'static str,
@@ -720,7 +728,7 @@ impl BackendManager {
         result
     }
 
-    fn request<P, T>(
+    pub(crate) fn request<P, T>(
         &self,
         request_id: &str,
         command: &'static str,
@@ -1241,9 +1249,9 @@ fn map_wire_error<T>(error: WireError) -> Result<T, BackendCommandError> {
         return Err(BackendCommandError::unavailable());
     }
     let safe = match error.code.as_str() {
-        "ipc.invalid_payload" => {
-            BackendCommandError::invalid_request("The project or prompt information is invalid.")
-        }
+        "ipc.invalid_payload" => BackendCommandError::invalid_request(
+            "The submitted application information is invalid.",
+        ),
         "library.not_found" => BackendCommandError::new(
             "library.not_found",
             "The selected library item no longer exists.",
@@ -1261,8 +1269,13 @@ fn map_wire_error<T>(error: WireError) -> Result<T, BackendCommandError> {
         ),
         "storage.unavailable" => BackendCommandError::new(
             "storage.unavailable",
-            "The prompt library is unavailable.",
+            "Local application storage is unavailable.",
             true,
+        ),
+        "workflow.storage_invalid" => BackendCommandError::new(
+            "workflow.storage_invalid",
+            "Workflow definitions are invalid and were left unchanged.",
+            false,
         ),
         "execution.failed" => BackendCommandError::new(
             "execution.failed",
@@ -1771,7 +1784,7 @@ mod tests {
 
     #[test]
     fn readiness_requires_identity_versions_and_exact_capabilities() {
-        let valid = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"com.universalpromptstudio.backend","application_version":"0.2.0-alpha","protocol_version":1,"storage_schema_version":1,"capabilities":["application.readiness","library.projects.list","library.projects.create","library.projects.delete","library.prompts.list","library.prompts.create","library.prompts.get","library.prompts.update","library.prompts.delete","library.prompts.search","library.prompts.compose","library.prompts.execute-offline","providers.catalog","providers.settings.save","providers.credentials.clear","library.prompts.execute-configured"]}}"#;
+        let valid = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"com.universalpromptstudio.backend","application_version":"0.2.0-alpha","protocol_version":1,"storage_schema_version":1,"capabilities":["application.readiness","library.projects.list","library.projects.create","library.projects.delete","library.prompts.list","library.prompts.create","library.prompts.get","library.prompts.update","library.prompts.delete","library.prompts.search","library.prompts.compose","library.prompts.execute-offline","providers.catalog","providers.settings.save","providers.credentials.clear","library.prompts.execute-configured","workflows.operations.list","workflows.list","workflows.create","workflows.get","workflows.update","workflows.delete","workflows.plan","workflows.execute"]}}"#;
         let wire: WireReadiness = decode_response(valid, "one").unwrap();
         assert_eq!(validate_readiness(wire).unwrap().storage_schema_version, 1);
         assert!(decode_response::<WireReadiness>(valid, "two").is_err());

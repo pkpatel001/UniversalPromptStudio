@@ -50,10 +50,23 @@
   preserving SQLite schema 1.
 - Added current-user Windows DPAPI credential protection; raw keys are excluded
   from SQLite, settings JSON, web storage, logs, errors, responses, and results.
+- Added the schema-1 workflow studio for bounded workflow identity, typed
+  boundary ports, trusted operation nodes, directed edges, deterministic plan
+  feedback, runtime inputs, step progress, intermediate values, and final output.
+- Added atomic exact-shape workflow-definition persistence below application
+  data while retaining SQLite schema 1 and ephemeral execution outcomes.
+- Added eight fixed workflow commands with independent frontend, Rust, and
+  Python validation for definitions, trusted operation contracts, plans,
+  confirmations, sequential steps, runtime values, and safe failures.
+- Added the host-owned saved-prompt workflow operation, which reuses durable
+  project/prompt ownership and the existing offline/configured provider boundary
+  without transporting credentials, endpoints, options, or arbitrary prompt text.
+- Added source, frozen-sidecar, restart, and installed-layout workflow
+  persistence/planning/execution coverage.
 - Added independent Python, Rust, and frontend validation plus installed restart,
   ciphertext, plaintext-redaction, dependency-audit, and packaging coverage.
-- The next checkpoint is A-005: workflow authoring, validation, and bounded
-  sequential execution UI.
+- The next checkpoint is A-006: theme and managed extension lifecycle UI at
+  supported trust boundaries.
 
 This changelog records milestone-level changes. Git history remains the source
 for checkpoint-level implementation detail.

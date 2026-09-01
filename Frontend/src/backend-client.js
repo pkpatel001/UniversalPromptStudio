@@ -30,6 +30,14 @@ const CAPABILITIES = Object.freeze([
   "providers.settings.save",
   "providers.credentials.clear",
   "library.prompts.execute-configured",
+  "workflows.operations.list",
+  "workflows.list",
+  "workflows.create",
+  "workflows.get",
+  "workflows.update",
+  "workflows.delete",
+  "workflows.plan",
+  "workflows.execute",
 ]);
 const SAFE_ERROR_CODES = new Set([
   "backend.unavailable",
@@ -38,6 +46,7 @@ const SAFE_ERROR_CODES = new Set([
   "storage.unavailable",
   "storage.invalid_database",
   "storage.future_schema",
+  "workflow.storage_invalid",
   "execution.failed",
   "provider.unavailable",
 ]);

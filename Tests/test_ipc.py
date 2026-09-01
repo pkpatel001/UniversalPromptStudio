@@ -84,6 +84,14 @@ def test_readiness_uses_one_long_lived_application_container() -> None:
             "providers.settings.save",
             "providers.credentials.clear",
             "library.prompts.execute-configured",
+            "workflows.operations.list",
+            "workflows.list",
+            "workflows.create",
+            "workflows.get",
+            "workflows.update",
+            "workflows.delete",
+            "workflows.plan",
+            "workflows.execute",
         ],
     }
     assert second.request_id == "second"
