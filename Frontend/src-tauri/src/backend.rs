@@ -32,6 +32,11 @@ const PROVIDER_CATALOG_COMMAND: &str = "providers.catalog";
 const PROVIDER_SETTINGS_SAVE_COMMAND: &str = "providers.settings.save";
 const PROVIDER_CREDENTIAL_CLEAR_COMMAND: &str = "providers.credentials.clear";
 const PROMPT_EXECUTE_CONFIGURED_COMMAND: &str = "library.prompts.execute-configured";
+const CUSTOMIZATION_CATALOG_COMMAND: &str = "customizations.catalog";
+const THEME_INSTALL_COMMAND: &str = "themes.install";
+const THEME_LIFECYCLE_COMMAND: &str = "themes.lifecycle";
+const EXTENSION_ACTIVATE_COMMAND: &str = "extensions.activate";
+const EXTENSION_DEACTIVATE_COMMAND: &str = "extensions.deactivate";
 const OFFLINE_REFERENCE_PROVIDER: &str = "ups.offline-echo";
 const OFFLINE_REFERENCE_VERSION: &str = "1.0.0";
 const OPENAI_RESPONSES_PROVIDER: &str = "ups.openai-responses";
@@ -45,7 +50,7 @@ const MAX_CREDENTIAL_LENGTH: usize = 512;
 const SIDECAR_IDENTITY: &str = "com.universalpromptstudio.backend";
 const SIDECAR_NAME: &str = "universal-prompt-studio-backend";
 const APP_DATA_ENV: &str = "UPS_APP_DATA_DIR";
-const CAPABILITIES: [&str; 24] = [
+const CAPABILITIES: [&str; 29] = [
     READINESS_COMMAND,
     PROJECT_LIST_COMMAND,
     PROJECT_CREATE_COMMAND,
@@ -62,6 +67,11 @@ const CAPABILITIES: [&str; 24] = [
     PROVIDER_SETTINGS_SAVE_COMMAND,
     PROVIDER_CREDENTIAL_CLEAR_COMMAND,
     PROMPT_EXECUTE_CONFIGURED_COMMAND,
+    CUSTOMIZATION_CATALOG_COMMAND,
+    THEME_INSTALL_COMMAND,
+    THEME_LIFECYCLE_COMMAND,
+    EXTENSION_ACTIVATE_COMMAND,
+    EXTENSION_DEACTIVATE_COMMAND,
     "workflows.operations.list",
     "workflows.list",
     "workflows.create",
@@ -1287,6 +1297,11 @@ fn map_wire_error<T>(error: WireError) -> Result<T, BackendCommandError> {
             "The configured provider is unavailable.",
             false,
         ),
+        "customization.blocked" => BackendCommandError::new(
+            "customization.blocked",
+            "The customization change was blocked by trust or integrity checks.",
+            false,
+        ),
         _ => BackendCommandError::unavailable(),
     };
     Err(safe)
@@ -1784,7 +1799,7 @@ mod tests {
 
     #[test]
     fn readiness_requires_identity_versions_and_exact_capabilities() {
-        let valid = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"com.universalpromptstudio.backend","application_version":"0.2.0-alpha","protocol_version":1,"storage_schema_version":1,"capabilities":["application.readiness","library.projects.list","library.projects.create","library.projects.delete","library.prompts.list","library.prompts.create","library.prompts.get","library.prompts.update","library.prompts.delete","library.prompts.search","library.prompts.compose","library.prompts.execute-offline","providers.catalog","providers.settings.save","providers.credentials.clear","library.prompts.execute-configured","workflows.operations.list","workflows.list","workflows.create","workflows.get","workflows.update","workflows.delete","workflows.plan","workflows.execute"]}}"#;
+        let valid = br#"{"schema_version":1,"request_id":"one","ok":true,"result":{"status":"ready","sidecar_identity":"com.universalpromptstudio.backend","application_version":"0.2.0-alpha","protocol_version":1,"storage_schema_version":1,"capabilities":["application.readiness","library.projects.list","library.projects.create","library.projects.delete","library.prompts.list","library.prompts.create","library.prompts.get","library.prompts.update","library.prompts.delete","library.prompts.search","library.prompts.compose","library.prompts.execute-offline","providers.catalog","providers.settings.save","providers.credentials.clear","library.prompts.execute-configured","customizations.catalog","themes.install","themes.lifecycle","extensions.activate","extensions.deactivate","workflows.operations.list","workflows.list","workflows.create","workflows.get","workflows.update","workflows.delete","workflows.plan","workflows.execute"]}}"#;
         let wire: WireReadiness = decode_response(valid, "one").unwrap();
         assert_eq!(validate_readiness(wire).unwrap().storage_schema_version, 1);
         assert!(decode_response::<WireReadiness>(valid, "two").is_err());

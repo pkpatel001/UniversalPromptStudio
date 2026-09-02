@@ -28,6 +28,7 @@ class IpcErrorCode(StrEnum):
     WORKFLOW_STORAGE_INVALID = "workflow.storage_invalid"
     EXECUTION_FAILED = "execution.failed"
     PROVIDER_UNAVAILABLE = "provider.unavailable"
+    CUSTOMIZATION_BLOCKED = "customization.blocked"
 
 
 @dataclass(frozen=True, slots=True)

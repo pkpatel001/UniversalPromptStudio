@@ -1,4 +1,4 @@
-"""Real frozen-sidecar lifecycle acceptance tests through A-005."""
+"""Real frozen-sidecar lifecycle acceptance tests through A-006."""
 
 from __future__ import annotations
 
@@ -14,6 +14,8 @@ from Backend.core.container import DESKTOP_APP_DATA_ENV
 from Backend.infrastructure.repositories.sqlite import DATABASE_FILE_NAME
 from Backend.infrastructure.workflow_definitions import WORKFLOW_DEFINITIONS_FILE_NAME
 from Backend.ipc import (
+    CUSTOMIZATION_CATALOG_COMMAND,
+    EXTENSION_ACTIVATE_COMMAND,
     IPC_PROTOCOL_VERSION,
     PROJECT_CREATE_COMMAND,
     PROJECT_DELETE_COMMAND,
@@ -30,6 +32,8 @@ from Backend.ipc import (
     PROVIDER_CREDENTIAL_CLEAR_COMMAND,
     PROVIDER_SETTINGS_SAVE_COMMAND,
     SIDECAR_IDENTITY,
+    THEME_INSTALL_COMMAND,
+    THEME_LIFECYCLE_COMMAND,
     WORKFLOW_CREATE_COMMAND,
     WORKFLOW_EXECUTE_COMMAND,
     WORKFLOW_LIST_COMMAND,
@@ -37,6 +41,9 @@ from Backend.ipc import (
     WORKFLOW_PLAN_COMMAND,
 )
 from Engineering.core.version import VERSION
+from Engineering.Tests.test_plugin_runtime import _write_plugin
+from Engineering.Tests.test_theme_installation import _package
+from Engineering.ThemeSystem import ThemePackageInspector
 
 ROOT = Path(__file__).resolve().parents[1]
 SIDECAR_BASENAME = "universal-prompt-studio-backend"
@@ -57,6 +64,11 @@ CAPABILITIES = [
     "providers.settings.save",
     "providers.credentials.clear",
     "library.prompts.execute-configured",
+    "customizations.catalog",
+    "themes.install",
+    "themes.lifecycle",
+    "extensions.activate",
+    "extensions.deactivate",
     "workflows.operations.list",
     "workflows.list",
     "workflows.create",
@@ -168,12 +180,8 @@ def _echo_workflow() -> dict[str, object]:
             "version": "1.0.0",
             "sdk_version": 1,
             "description": "Installed lifecycle workflow.",
-            "inputs": [
-                {"id": "input", "type": "string", "description": "Workflow text."}
-            ],
-            "outputs": [
-                {"id": "output", "type": "string", "description": "Workflow result."}
-            ],
+            "inputs": [{"id": "input", "type": "string", "description": "Workflow text."}],
+            "outputs": [{"id": "output", "type": "string", "description": "Workflow result."}],
             "nodes": [
                 {
                     "id": "echo",
@@ -345,9 +353,7 @@ def test_installed_sidecar_persists_library_only_in_app_data(
         {"project_id": project_id},
     )
     provider_catalog = _command(second, "provider-catalog", PROVIDER_CATALOG_COMMAND, {})
-    workflow_operations = _command(
-        second, "workflow-operations", WORKFLOW_OPERATIONS_COMMAND, {}
-    )
+    workflow_operations = _command(second, "workflow-operations", WORKFLOW_OPERATIONS_COMMAND, {})
     workflows = _command(second, "list-workflows", WORKFLOW_LIST_COMMAND, {})
     workflow_plan = _command(
         second,
@@ -490,3 +496,118 @@ def test_installed_sidecar_persists_library_only_in_app_data(
     assert (app_data / WORKFLOW_DEFINITIONS_FILE_NAME).is_file()
     assert list(installed.parent.rglob("*.sqlite3")) == []
     assert list(installed.parent.rglob(WORKFLOW_DEFINITIONS_FILE_NAME)) == []
+
+
+def test_frozen_sidecar_persists_themes_and_resets_extension_sessions(
+    sidecar: Path,
+    tmp_path: Path,
+) -> None:
+    installed = tmp_path / "installed" / f"{SIDECAR_BASENAME}.exe"
+    installed.parent.mkdir()
+    shutil.copy2(sidecar, installed)
+    app_data = tmp_path / "per-user-app-data"
+    inbox = app_data / "theme-packages"
+    inbox.mkdir(parents=True)
+    package = _package(tmp_path, theme_id="example.installed")
+    package = Path(shutil.move(package, inbox / package.name))
+    package_sha256 = ThemePackageInspector().inspect(package).sha256
+    _write_plugin(
+        app_data / "extensions",
+        """
+class EchoPlugin:
+    def activate(self, context):
+        context.register("commands", "echo", "installed-ready")
+
+    def deactivate(self, context):
+        return None
+""",
+    )
+
+    first = _start(installed, app_data)
+    first_catalog = _command(first, "customizations-first", CUSTOMIZATION_CATALOG_COMMAND, {})
+    package_record = first_catalog["result"]["theme_packages"][0]  # type: ignore[index]
+    extension = first_catalog["result"]["extensions"][0]  # type: ignore[index]
+    installed_theme = _command(
+        first,
+        "theme-install",
+        THEME_INSTALL_COMMAND,
+        {
+            "package_filename": package_record["filename"],  # type: ignore[index]
+            "approved_sha256": package_sha256,
+            "acknowledge_external_theme": True,
+            "confirm": True,
+        },
+    )
+    activated = _command(
+        first,
+        "extension-activate",
+        EXTENSION_ACTIVATE_COMMAND,
+        {
+            "plugin_id": extension["plugin_id"],  # type: ignore[index]
+            "version": extension["version"],  # type: ignore[index]
+            "directory_sha256": extension["directory_sha256"],  # type: ignore[index]
+            "acknowledge_full_trust": True,
+            "confirm": True,
+        },
+    )
+    active_catalog = _command(first, "customizations-active", CUSTOMIZATION_CATALOG_COMMAND, {})
+    _stop(first)
+
+    second = _start(installed, app_data)
+    restarted_catalog = _command(
+        second, "customizations-restarted", CUSTOMIZATION_CATALOG_COMMAND, {}
+    )
+    theme = restarted_catalog["result"]["themes"][0]  # type: ignore[index]
+    disabled = _command(
+        second,
+        "theme-disable",
+        THEME_LIFECYCLE_COMMAND,
+        {
+            "theme_id": theme["theme_id"],  # type: ignore[index]
+            "version": theme["version"],  # type: ignore[index]
+            "action": "disable",
+            "approved_package_sha256": theme["package_sha256"],  # type: ignore[index]
+            "acknowledge_lifecycle_change": True,
+            "confirm": True,
+        },
+    )
+    disabled_catalog = _command(
+        second, "customizations-disabled", CUSTOMIZATION_CATALOG_COMMAND, {}
+    )
+    _stop(second)
+
+    third = _start(installed, app_data)
+    persisted_disabled = _command(
+        third, "customizations-disabled-restart", CUSTOMIZATION_CATALOG_COMMAND, {}
+    )
+    disabled_theme = persisted_disabled["result"]["themes"][0]  # type: ignore[index]
+    restored = _command(
+        third,
+        "theme-restore",
+        THEME_LIFECYCLE_COMMAND,
+        {
+            "theme_id": disabled_theme["theme_id"],  # type: ignore[index]
+            "version": disabled_theme["version"],  # type: ignore[index]
+            "action": "restore",
+            "approved_package_sha256": disabled_theme["package_sha256"],  # type: ignore[index]
+            "acknowledge_lifecycle_change": True,
+            "confirm": True,
+        },
+    )
+    _stop(third)
+
+    assert package_record["trust_state"] == "exact-hash-and-ack-required"  # type: ignore[index]
+    assert extension["trust_state"] == "full-trust-required"  # type: ignore[index]
+    assert installed_theme["result"]["state"] == "active"  # type: ignore[index]
+    assert activated["result"]["runtime_state"] == "active"  # type: ignore[index]
+    assert active_catalog["result"]["theme_selections"]  # type: ignore[index]
+    assert active_catalog["result"]["extensions"][0]["runtime_state"] == "active"  # type: ignore[index]
+    assert restarted_catalog["result"]["extensions"][0]["runtime_state"] == "inactive"  # type: ignore[index]
+    assert disabled["result"]["state"] == "disabled"  # type: ignore[index]
+    assert disabled_catalog["result"]["theme_selections"] == []  # type: ignore[index]
+    assert persisted_disabled["result"]["themes"][0]["state"] == "disabled"  # type: ignore[index]
+    assert restored["result"]["state"] == "active"  # type: ignore[index]
+    assert (app_data / "themes" / "Installed" / "example.installed" / "1.0.0").is_dir()
+    assert (app_data / "extensions" / "echo" / "plugin-manifest.yaml").is_file()
+    assert list(installed.parent.rglob("theme-manifest.yaml")) == []
+    assert list(installed.parent.rglob("plugin-manifest.yaml")) == []

@@ -722,3 +722,191 @@ button.prompt-card.active {
     grid-column: 2;
   }
 }
+
+.customization-dialog {
+  background: transparent;
+  border: 0;
+  color: var(--ups-color-text);
+  height: min(90vh, 900px);
+  max-width: min(940px, calc(100vw - 32px));
+  padding: 0;
+  width: 100%;
+}
+
+.customization-dialog::backdrop {
+  background: rgb(10 20 24 / 62%);
+  backdrop-filter: blur(3px);
+}
+
+.customization-shell {
+  background: var(--ups-color-canvas);
+  border: 1px solid var(--ups-color-border);
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 28%);
+  display: grid;
+  gap: 24px;
+  max-height: 90vh;
+  overflow: auto;
+  padding: clamp(20px, 4vw, 34px);
+}
+
+.customization-shell > header,
+.customization-heading,
+.customization-card-heading,
+.customization-actions {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.customization-shell > header p,
+.customization-heading p,
+.customization-shell h2,
+.customization-shell h3,
+.customization-card p {
+  margin: 0;
+}
+
+.customization-shell > header p,
+.customization-heading p {
+  color: var(--ups-color-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.customization-shell h2 {
+  font-size: 25px;
+  margin-top: 4px;
+}
+
+.customization-shell h3 {
+  font-size: 16px;
+  margin-top: 3px;
+}
+
+.customization-heading > span {
+  background: var(--ups-color-surface-muted);
+  border-radius: 999px;
+  font-size: 12px;
+  min-width: 28px;
+  padding: 5px 8px;
+  text-align: center;
+}
+
+.trust-boundary,
+.customization-status,
+.boundary-note,
+.customization-empty {
+  border-radius: 9px;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 13px 15px;
+}
+
+.trust-boundary {
+  background: var(--ups-color-primary);
+  color: var(--ups-color-primary-text);
+  display: grid;
+  gap: 3px;
+}
+
+.customization-status,
+.boundary-note,
+.customization-empty {
+  background: var(--ups-color-surface-muted);
+  color: var(--ups-color-text-muted);
+  margin: 0;
+}
+
+.customization-status[data-state="error"],
+.blocked-note {
+  color: var(--ups-color-text);
+  font-weight: 700;
+}
+
+.customization-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.customization-card {
+  background: var(--ups-color-surface);
+  border: 1px solid var(--ups-color-border);
+  border-radius: 11px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.customization-card-heading {
+  align-items: flex-start;
+}
+
+.customization-card-heading code,
+.customization-metadata dd {
+  overflow-wrap: anywhere;
+}
+
+.customization-card-heading code {
+  color: var(--ups-color-text-muted);
+  font-size: 11px;
+  text-align: right;
+}
+
+.customization-metadata {
+  display: grid;
+  font-size: 12px;
+  gap: 7px 14px;
+  grid-template-columns: minmax(120px, 0.32fr) 1fr;
+  margin: 0;
+}
+
+.customization-metadata dt {
+  color: var(--ups-color-text-muted);
+  font-weight: 750;
+}
+
+.customization-metadata dd {
+  margin: 0;
+}
+
+.customization-ack {
+  align-items: flex-start;
+  display: flex;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.customization-ack input {
+  accent-color: var(--ups-color-primary);
+  margin-top: 2px;
+}
+
+.customization-actions {
+  justify-content: flex-end;
+}
+
+.customization-empty {
+  display: grid;
+  gap: 3px;
+}
+
+@media (max-width: 620px) {
+  .customization-shell > header,
+  .customization-card-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .customization-card-heading code {
+    text-align: left;
+  }
+
+  .customization-metadata {
+    grid-template-columns: 1fr;
+  }
+}

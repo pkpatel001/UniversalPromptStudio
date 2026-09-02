@@ -45,8 +45,13 @@ from Backend.infrastructure.repositories.sqlite import (
     FutureSchemaError,
     InvalidDatabaseError,
 )
+from Engineering.core.exceptions import EngineeringError
 from Engineering.core.version import VERSION
 
+from .customization_routes import (
+    CUSTOMIZATION_SUPPORTED_COMMANDS,
+    handle_customization_command,
+)
 from .models import IPC_PROTOCOL_VERSION, IpcErrorCode, IpcRequest, IpcResponse, JsonValue
 from .workflow_routes import (
     WORKFLOW_SUPPORTED_COMMANDS,
@@ -87,6 +92,7 @@ SUPPORTED_COMMANDS = (
     PROVIDER_SETTINGS_SAVE_COMMAND,
     PROVIDER_CREDENTIAL_CLEAR_COMMAND,
     PROMPT_EXECUTE_CONFIGURED_COMMAND,
+    *CUSTOMIZATION_SUPPORTED_COMMANDS,
     *WORKFLOW_SUPPORTED_COMMANDS,
 )
 MAX_LIBRARY_ITEMS = 50
@@ -160,6 +166,9 @@ class ApplicationIpcRouter:
             PROVIDER_SETTINGS_SAVE_COMMAND: self._save_provider_settings,
             PROVIDER_CREDENTIAL_CLEAR_COMMAND: self._clear_provider_credential,
             PROMPT_EXECUTE_CONFIGURED_COMMAND: self._execute_prompt_configured,
+            **{
+                command: self._customization_command for command in CUSTOMIZATION_SUPPORTED_COMMANDS
+            },
             **{command: self._workflow_command for command in WORKFLOW_SUPPORTED_COMMANDS},
         }
         try:
@@ -193,6 +202,18 @@ class ApplicationIpcRouter:
                 request.request_id,
                 IpcErrorCode.PROVIDER_UNAVAILABLE,
                 "The configured provider is unavailable.",
+            )
+        except EngineeringError:
+            if request.command in CUSTOMIZATION_SUPPORTED_COMMANDS:
+                return IpcResponse.failure(
+                    request.request_id,
+                    IpcErrorCode.CUSTOMIZATION_BLOCKED,
+                    "The customization change was blocked by trust or integrity checks.",
+                )
+            return IpcResponse.failure(
+                request.request_id,
+                IpcErrorCode.INTERNAL_ERROR,
+                "IPC request failed safely.",
             )
         except Exception:
             return IpcResponse.failure(
@@ -410,6 +431,10 @@ class ApplicationIpcRouter:
             request.request_id,
             {"execution": _configured_execution_value(composition, result)},
         )
+
+    def _customization_command(self, request: IpcRequest) -> IpcResponse:
+        assert self._container is not None
+        return handle_customization_command(self._container, request)
 
     def _workflow_command(self, request: IpcRequest) -> IpcResponse:
         assert self._container is not None

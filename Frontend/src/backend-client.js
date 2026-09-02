@@ -30,6 +30,11 @@ const CAPABILITIES = Object.freeze([
   "providers.settings.save",
   "providers.credentials.clear",
   "library.prompts.execute-configured",
+  "customizations.catalog",
+  "themes.install",
+  "themes.lifecycle",
+  "extensions.activate",
+  "extensions.deactivate",
   "workflows.operations.list",
   "workflows.list",
   "workflows.create",
@@ -49,6 +54,7 @@ const SAFE_ERROR_CODES = new Set([
   "workflow.storage_invalid",
   "execution.failed",
   "provider.unavailable",
+  "customization.blocked",
 ]);
 const READINESS_KEYS = [
   "applicationVersion", "capabilities", "protocolVersion", "status", "storageSchemaVersion",

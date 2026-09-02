@@ -1,4 +1,5 @@
 mod backend;
+mod customizations;
 mod workflows;
 
 use backend::{
@@ -7,6 +8,9 @@ use backend::{
     library_execute_prompt_configured, library_execute_prompt_offline, library_get_prompt,
     library_projects, library_prompts, library_search_prompts, library_update_prompt,
     provider_catalog, provider_clear_credential, provider_save_settings,
+};
+use customizations::{
+    customization_catalog, extension_activate, extension_deactivate, theme_install, theme_lifecycle,
 };
 use tauri::Manager;
 use workflows::{
@@ -47,6 +51,11 @@ pub fn run() {
             workflow_delete,
             workflow_plan,
             workflow_execute,
+            customization_catalog,
+            theme_install,
+            theme_lifecycle,
+            extension_activate,
+            extension_deactivate,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Universal Prompt Studio");

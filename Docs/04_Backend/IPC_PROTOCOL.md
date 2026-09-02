@@ -1,6 +1,6 @@
 # Desktop-to-Python IPC protocol
 
-**Checkpoint:** A-005
+**Checkpoint:** A-006
 **Protocol:** 1
 **Storage schema:** 1
 
@@ -8,20 +8,23 @@
 
 ```text
 Vite webview
-    -> 24 fixed Tauri commands
+    -> 29 fixed Tauri commands
         -> Rust BackendManager
             -> declared universal-prompt-studio-backend sidecar
                 -> ApplicationIpcRouter
                     -> one SQLite ApplicationContainer
                         -> prompt-library.sqlite3 in Tauri app data
                         -> workflow-definitions.json in Tauri app data
+                        -> theme-packages/ managed ingress in Tauri app data
+                        -> themes/ active, disabled, and receipt state in Tauri app data
+                        -> extensions/ discovery root in Tauri app data
 ```
 
 Rust resolves Tauri's `app_data_dir`, creates that application-owned directory,
 and passes it to the sidecar as `UPS_APP_DATA_DIR` after clearing the inherited
 environment. Python appends only the fixed `prompt-library.sqlite3`,
-`provider-settings.json`, credential, and `workflow-definitions.json`
-locations. The webview cannot provide an executable, path, environment value, Python
+`provider-settings.json`, credential, `workflow-definitions.json`,
+`theme-packages/`, `themes/`, and `extensions/` locations. The webview cannot provide an executable, path, environment value, Python
 module, IPC command, arbitrary payload, SQL, or filesystem destination.
 
 The webview retains only `core:default`; it has no shell or filesystem
@@ -78,6 +81,11 @@ messages. Unknown errors collapse to `backend.unavailable`.
 | `provider_save_settings` | `providers.settings.save` | Fixed provider/endpoint, model, temperature, output tokens, optional API key | Non-secret provider state only |
 | `provider_clear_credential` | `providers.credentials.clear` | Fixed provider, `confirm: true` | Provider state with `missing` credential |
 | `library_execute_prompt_configured` | `library.prompts.execute-configured` | IDs, `provider_id: ups.openai-responses`, `confirm: true` | Bounded configured result and metadata |
+| `customization_catalog` | `customizations.catalog` | `{}` | Bounded managed theme and extension catalog |
+| `theme_install` | `themes.install` | Package filename, exact SHA-256, external-package acknowledgement, `confirm: true` | Applied install or bounded issues |
+| `theme_lifecycle` | `themes.lifecycle` | Theme identity/version, `disable` or `restore`, exact SHA-256, lifecycle acknowledgement, `confirm: true` | Applied reversible transition or bounded issues |
+| `extension_activate` | `extensions.activate` | Plugin identity/version, exact directory SHA-256, full-trust acknowledgement, `confirm: true` | Session runtime status or bounded issues |
+| `extension_deactivate` | `extensions.deactivate` | Plugin identity/version, exact directory SHA-256, `confirm: true` | Inactive runtime status or bounded issues |
 | `workflow_operations` | `workflows.operations.list` | `{}` | Exact trusted operation catalog |
 | `workflows` | `workflows.list` | `{}` | Up to 50 deterministic workflow summaries |
 | `workflow_create` | `workflows.create` | One exact schema-1 workflow definition | Created definition |
@@ -112,6 +120,11 @@ Application, protocol, and storage versions remain `0.2.0-alpha`, `1`, and `1`.
 | Credential ingress | 8–512 non-control characters; never returned |
 | Configured execution output | 1–12,500 characters |
 | Collections | First 50 deterministic results plus `has_more` |
+| Customization catalog | Up to 20 themes, 20 extensions, and 10 bounded issues |
+| Theme or extension identity | Canonical qualified ID up to 128 characters |
+| Theme or extension version | Stable numeric `major.minor.patch` without leading zeroes |
+| Package or directory digest | Exactly 64 lowercase hexadecimal SHA-256 characters |
+| Theme tokens | Exact fixed semantic token names and bounded validated values |
 | Workflow definitions | Up to 50 exact schema-1 records; 12,000 encoded bytes each |
 | Workflow boundary ports | Up to 8 inputs and 8 outputs |
 | Workflow graph | 1–8 nodes and up to 64 edges |
@@ -181,6 +194,26 @@ There is no arbitrary provider selection, endpoint, header, credential reference
 option name, model discovery, dynamic provider loading, streaming, cancellation,
 retry, background execution, or history persistence.
 
+## Customization lifecycle semantics
+
+- Catalog discovery uses only the fixed application-data roots. The webview
+  cannot supply or enumerate a path.
+- Built-in themes remain host-owned. Managed selections are compiled only from
+  active packages whose exact managed receipts and package digests validate.
+  Any managed-theme integrity issue suppresses every dynamic selection.
+- External theme install accepts only one canonical package filename already in
+  `theme-packages/`, blocks the reserved `ups.*` namespace, rechecks the exact
+  approved SHA-256, and requires both acknowledgement and confirmation.
+- Disable and restore use the existing managed holding area. Neither transition
+  deletes, overwrites, repairs, or trusts changed package bytes.
+- Permission-requesting plugins are blocked. A permissionless plugin can run
+  only after its current directory digest matches the approved digest and the
+  user explicitly acknowledges full in-process trust and confirms activation.
+- Extension approval and contributions are process-local. Restart returns every
+  extension to `inactive`; runtime approval is never persisted.
+- There is no arbitrary CSS or asset application, extension install/remove/
+  update, permission grant, dynamic command, marketplace, remote discovery,
+  automatic download/update, signature trust, or silent activation.
 ## Workflow authoring and execution semantics
 
 - Definitions use only the passive Workflow SDK schema-1 identity, boundary
@@ -205,8 +238,9 @@ retry, background execution, or history persistence.
 
 ## SQLite lifecycle
 
-A-005 retains schema version 1 because provider settings and workflow
-definitions are not prompt-library records. A-002.1 already persisted project
+A-006 retains schema version 1 because provider settings, workflow
+definitions, theme receipts, and extension runtime state are not prompt-library
+records. A-002.1 already persisted project
 ownership, categories, tags, ordered blocks, and update timestamps. No database
 shape change or migration is needed, and existing schema-1 user data is opened
 unchanged.
@@ -215,7 +249,9 @@ Non-secret provider settings use bounded atomic schema-1 JSON below app data.
 The fixed credential reference resolves to a current-user Windows DPAPI blob.
 Workflow definitions use a separate bounded, exact-shape, atomic schema-1 JSON
 document. Invalid workflow storage fails without deletion, replacement,
-truncation, rename, downgrade, or automatic repair.
+truncation, rename, downgrade, or automatic repair. Managed theme receipts and
+disabled packages remain under the fixed theme root; extension approval is not
+stored.
 
 Fresh databases still follow the owned migration from version 0 to 1. Every
 connection enables foreign keys, modern transaction control, trusted-schema
@@ -232,13 +268,15 @@ replacement, rename, truncation, downgrade, or automatic repair.
   invalid input and not-found results keep a healthy process.
 - Source, frozen-sidecar, restart, and installed-layout tests prove management,
   composition, both provider states, DPAPI ciphertext/redaction, workflow
-  persistence/planning/execution, and offline execution while durable storage
-  remains under per-user app data.
+  persistence/planning/execution, managed-theme install/disable/restore,
+  extension restart reset, and offline execution while durable storage remains
+  under per-user app data.
 - The sidecar exposes only two host-created providers. The OpenAI provider makes
   one explicitly initiated HTTPS POST to the fixed endpoint, resolves only its
   fixed DPAPI credential reference, performs no automatic retry, and returns no
   raw transport error. The protocol exposes no arbitrary network operation,
-  arbitrary workflow handler, filesystem access, or subprocess launch.
+  arbitrary workflow handler, arbitrary customization path, plugin permission,
+  dynamic command, filesystem access, or subprocess launch.
 
 The sidecar remains trusted application code with the user's process authority;
 this protocol is an authority-reduction boundary, not a sandbox.

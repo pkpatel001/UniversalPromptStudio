@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from Backend.application.customizations import ManagedCustomizationService
 from Backend.application.prompt_builder import PromptBuilder
 from Backend.application.provider_settings import (
     PROVIDER_SETTINGS_FILE_NAME,
@@ -96,6 +97,7 @@ class ApplicationContainer:
     saved_prompt_runtime_service: SavedPromptRuntimeService
     provider_configuration_service: ProviderConfigurationService
     search_service: SearchService
+    customization_service: ManagedCustomizationService
 
 
 def create_in_memory_container() -> ApplicationContainer:
@@ -108,6 +110,7 @@ def create_in_memory_container() -> ApplicationContainer:
         provider_settings_repository=InMemoryProviderSettingsRepository(),
         secret_store=InMemorySecretStore(),
         workflow_repository=InMemoryWorkflowDefinitionRepository(),
+        app_data_directory=None,
     )
 
 
@@ -138,6 +141,7 @@ def create_sqlite_container(database_path: Path) -> ApplicationContainer:
         workflow_repository=JsonWorkflowDefinitionRepository(
             database_path.parent / WORKFLOW_DEFINITIONS_FILE_NAME
         ),
+        app_data_directory=database_path.parent,
     )
 
 
@@ -148,6 +152,7 @@ def _create_container(
     | JsonProviderSettingsRepository,
     secret_store: InMemorySecretStore | WindowsDpapiSecretStore,
     workflow_repository: WorkflowDefinitionRepository,
+    app_data_directory: Path | None,
 ) -> ApplicationContainer:
     """Wire core application dependencies."""
 
@@ -231,4 +236,5 @@ def _create_container(
         saved_prompt_runtime_service=saved_prompt_runtime_service,
         provider_configuration_service=provider_configuration_service,
         search_service=SearchService(search_provider),
+        customization_service=ManagedCustomizationService(app_data_directory),
     )

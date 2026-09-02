@@ -1,4 +1,5 @@
 import "./styles.css";
+import { initializeCustomizationUI } from "./customization-ui.js";
 import {
   BackendClient,
   OFFLINE_REFERENCE_PROVIDER,
@@ -6,7 +7,7 @@ import {
   OPENAI_RESPONSES_PROVIDER,
 } from "./backend-client.js";
 import { initializeWorkflowUI } from "./workflow-ui.js";
-import { themeSelectionKey, THEME_CATALOG } from "./theme-catalog.js";
+import { loadThemeCatalog, themeSelectionKey, THEME_CATALOG } from "./theme-catalog.js";
 import { ThemeApplicationController } from "./theme-controller.js";
 import { ThemePreferenceStore } from "./theme-preference.js";
 
@@ -43,6 +44,7 @@ document.querySelector("#app").innerHTML = `
         <div><p>Prompt library</p><h2 id="workspace-title">Choose or create a project</h2></div>
         <div class="header-actions">
           <button id="delete-project" class="danger subtle" type="button" disabled>Delete project</button>
+          <button id="open-customizations" class="secondary" type="button">Customize</button>
           <label class="theme-control">Theme<select id="theme-select"><option value="">Default</option></select></label>
           <label class="remember-theme"><input id="remember-theme" type="checkbox" disabled>Remember</label>
           <button id="revert-theme" class="secondary" type="button" disabled>Revert</button>
@@ -642,30 +644,114 @@ executePrompt.addEventListener("click", async () => {
 });
 
 const themeController = new ThemeApplicationController(document.documentElement);
+const openCustomizations = byId("open-customizations");
 const themeSelect = byId("theme-select");
 const rememberTheme = byId("remember-theme");
 const revertTheme = byId("revert-theme");
 const themeStatus = byId("theme-status");
+let themeCatalog = THEME_CATALOG;
 let preferenceStore = null;
+let themeStorage = null;
 const appearancePresentation = { light: { label: "Light", order: 0 }, dark: { label: "Dark", order: 1 }, "high-contrast": { label: "High contrast", order: 2 } };
-for (const entry of [...THEME_CATALOG.entries].sort((a, b) => appearancePresentation[a.selection.appearance].order - appearancePresentation[b.selection.appearance].order)) {
-  const option = document.createElement("option"); option.value = entry.key; option.textContent = `${entry.themeName} — ${appearancePresentation[entry.selection.appearance].label}`; themeSelect.append(option);
+function themeCatalogDocument(managedSelections = []) {
+  const selections = [
+    ...THEME_CATALOG.entries.map((entry) => ({
+      themeId: entry.selection.themeId,
+      themeName: entry.themeName,
+      version: entry.selection.version,
+      appearance: entry.selection.appearance,
+      tokens: entry.selection.tokens,
+    })),
+    ...managedSelections.map((selection) => ({
+      themeId: selection.themeId,
+      themeName: selection.themeName,
+      version: selection.version,
+      appearance: selection.appearance,
+      tokens: selection.tokens,
+    })),
+  ];
+  selections.sort((left, right) => {
+    const identity = left.themeId.localeCompare(right.themeId);
+    if (identity !== 0) return identity;
+    const leftVersion = left.version.split(".").map(Number);
+    const rightVersion = right.version.split(".").map(Number);
+    for (let index = 0; index < 3; index += 1) {
+      if (leftVersion[index] !== rightVersion[index]) return leftVersion[index] - rightVersion[index];
+    }
+    return left.appearance.localeCompare(right.appearance);
+  });
+  return { schemaVersion: 1, selections };
 }
-try { preferenceStore = new ThemePreferenceStore(window.localStorage); } catch { rememberTheme.disabled = true; }
+
+function renderThemeOptions() {
+  const current = themeController.activeSelection;
+  themeSelect.replaceChildren();
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = "Default";
+  themeSelect.append(defaultOption);
+  for (const entry of [...themeCatalog.entries].sort((left, right) => {
+    const appearance = appearancePresentation[left.selection.appearance].order - appearancePresentation[right.selection.appearance].order;
+    return appearance || left.themeName.localeCompare(right.themeName);
+  })) {
+    const option = document.createElement("option");
+    option.value = entry.key;
+    option.textContent = `${entry.themeName} — ${appearancePresentation[entry.selection.appearance].label}`;
+    themeSelect.append(option);
+  }
+  themeSelect.value = current ? themeSelectionKey(current) : "";
+}
+
+function configureThemeCatalog(managedSelections = []) {
+  try {
+    themeCatalog = loadThemeCatalog(themeCatalogDocument(managedSelections));
+    renderThemeOptions();
+    preferenceStore = themeStorage ? new ThemePreferenceStore(themeStorage, themeCatalog) : null;
+    const active = themeController.activeSelection;
+    if (active) {
+      if (themeCatalog.selectionForKey(themeSelectionKey(active)) === null) {
+        themeController.revert();
+        preferenceStore?.clear();
+        showDefaultTheme();
+        themeStatus.textContent = "The active managed theme is no longer enabled; default colors were restored.";
+      } else {
+        showActiveTheme(active);
+      }
+      return;
+    }
+    if (!preferenceStore) return;
+    const preference = preferenceStore.load();
+    if (preference.status === "restored") {
+      showActiveTheme(themeController.apply(preference.selection), true);
+      rememberTheme.checked = true;
+    } else if (preference.status === "invalid") {
+      themeStatus.textContent = "Saved theme is invalid or unavailable; using default colors.";
+    } else if (preference.status === "unavailable") {
+      preferenceStore = null;
+      rememberTheme.disabled = true;
+      themeStatus.textContent = "Theme preferences are unavailable; using default colors.";
+    }
+  } catch {
+    themeStatus.textContent = "Managed theme catalog validation failed; built-in colors were retained.";
+  }
+}
+try { themeStorage = window.localStorage; } catch { rememberTheme.disabled = true; }
+configureThemeCatalog();
 function showDefaultTheme() { themeSelect.value = ""; rememberTheme.checked = false; rememberTheme.disabled = true; revertTheme.disabled = true; themeStatus.textContent = "Using the default application colors."; }
 function showActiveTheme(active, restored = false) { themeSelect.value = themeSelectionKey(active); rememberTheme.disabled = preferenceStore === null; revertTheme.disabled = false; themeStatus.textContent = restored ? `Restored ${active.appearance} theme from your saved preference.` : `Applied ${active.appearance} theme for this session.`; }
-if (preferenceStore) {
-  const preference = preferenceStore.load();
-  if (preference.status === "restored") { try { showActiveTheme(themeController.apply(preference.selection), true); rememberTheme.checked = true; } catch { themeStatus.textContent = "Saved theme could not be applied; using default colors."; } }
-  else if (preference.status === "invalid") themeStatus.textContent = "Saved theme is invalid or unavailable; using default colors.";
-  else if (preference.status === "unavailable") { preferenceStore = null; rememberTheme.disabled = true; themeStatus.textContent = "Theme preferences are unavailable; using default colors."; }
-}
 themeSelect.addEventListener("change", () => {
   if (!themeSelect.value) { try { themeController.revert(); preferenceStore?.clear(); showDefaultTheme(); } catch { themeStatus.textContent = "Theme revert failed; the active colors were retained."; } return; }
-  try { const active = themeController.apply(THEME_CATALOG.selectionForKey(themeSelect.value)); showActiveTheme(active); if (rememberTheme.checked && preferenceStore) { preferenceStore.save(active); themeStatus.textContent = `Applied and remembered ${active.appearance} theme.`; } } catch { themeStatus.textContent = "Theme change failed; the previous colors were retained."; }
+  try { const active = themeController.apply(themeCatalog.selectionForKey(themeSelect.value)); showActiveTheme(active); if (rememberTheme.checked && preferenceStore) { preferenceStore.save(active); themeStatus.textContent = `Applied and remembered ${active.appearance} theme.`; } } catch { themeStatus.textContent = "Theme change failed; the previous colors were retained."; }
 });
 rememberTheme.addEventListener("change", () => { try { const active = themeController.activeSelection; if (rememberTheme.checked && active && preferenceStore) { preferenceStore.save(active); themeStatus.textContent = `Remembering ${active.appearance} theme on this device.`; } else { preferenceStore?.clear(); themeStatus.textContent = active ? `Applied ${active.appearance} theme for this session only.` : "Using the default application colors."; } } catch { rememberTheme.checked = !rememberTheme.checked; themeStatus.textContent = "Theme preference could not be changed."; } });
 revertTheme.addEventListener("click", () => { try { themeController.revert(); preferenceStore?.clear(); showDefaultTheme(); } catch { themeStatus.textContent = "Theme revert failed; the active colors were retained."; } });
 
+const customizationUI = initializeCustomizationUI({
+  trigger: openCustomizations,
+  onCatalog(catalog) {
+    configureThemeCatalog(catalog.themeSelections);
+  },
+});
+void customizationUI.refresh();
 initializeWorkflowUI({ mount: document.querySelector(".workspace"), backendClient });
 renderProjects(); renderPrompts(); void initializeLibrary();
