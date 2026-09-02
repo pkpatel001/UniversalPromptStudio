@@ -1,110 +1,110 @@
 # Application development handoff
 
-**Completed checkpoint:** A-006 — Theme and managed extension lifecycle UI at supported trust boundaries
-**Immediate checkpoint:** A-007 — Import/export, settings, diagnostics, onboarding, and distribution polish
+**Completed checkpoint:** A-007 — Import/export, settings, diagnostics,
+onboarding, and distribution polish
+**Immediate checkpoint:** None approved; select the next product outcome
+explicitly before implementation
 
 ## Current application baseline
 
-A-006 completes the managed customization slice:
+A-007 completes the approved A-001 through A-007 local desktop sequence:
 
 ```text
 desktop launch
     -> Rust resolves Tauri app_data_dir
         -> long-lived frozen Python sidecar
-            -> schema-1 prompt library and provider settings
+            -> schema-1 prompt library and DPAPI provider credential boundary
             -> schema-1 workflow definitions
-            -> fixed managed customization roots
-                -> verified theme-package inbox
-                -> active and reversibly disabled managed themes
-                -> permissionless extension discovery
-                    -> exact digest plus explicit trust confirmation
-                    -> session-only activation
-            -> strict catalog returned to the Customize surface
-                -> inspect origin, compatibility, trust, digest, and restart state
-                -> preview/apply/revert/remember compatible semantic themes
-                -> confirm supported lifecycle changes
+            -> managed theme state and session-only extension activation
+            -> schema-1 non-secret application settings
+        -> 37 exact desktop commands
+            -> prompt/provider/workflow/customization surfaces
+            -> first-run onboarding and device preferences
+            -> selected prompt/workflow portable files
+                -> validate and preview exact content
+                -> explicit conflict action plus digest-bound confirmation
+            -> redacted diagnostics and reviewed support export
 ```
 
-The prompt-library, provider, and workflow outcomes from A-001 through A-005
-remain unchanged. Users can manage project-owned prompts, compose enabled saved
-blocks, execute through offline echo or the fixed OpenAI Responses path, and
-author/validate/execute bounded sequential workflows using only the three
-host-owned operations.
+Users can manage project-owned prompts, compose enabled durable blocks, execute
+through offline echo or the fixed OpenAI Responses path, author and run bounded
+sequential workflows, manage compatible themes, and explicitly activate
+permissionless full-trust extensions for the current session.
 
-The Customize dialog merges the three host-owned built-in themes with only
-integrity-valid managed selections compiled from the existing semantic token
-contract. External install requires a package already present in the fixed
-app-data inbox, an exact package SHA-256, explicit external-package
-acknowledgement, and confirmation. Disable and restore use the existing
-reversible Engineering lifecycle and require the current approved digest. A
-managed-theme integrity issue fails the dynamic catalog closed.
+The **Settings & support** dialog adds compact layout, reduced motion, selected
+prompt/workflow export, reviewed import conflict handling, content-free
+diagnostics, and reviewed support export. First-run onboarding explains local
+storage and explicit execution. Telemetry is disabled and automatic updates are
+unsupported.
 
-Extensions are discovered only below the fixed app-data extension root.
-Permission-requesting plugins are blocked. Permissionless plugins require an
-exact directory SHA-256, full-trust acknowledgement, and confirmation before
-session activation. Approval and contributions are deliberately not persisted;
-restart returns every extension to inactive. A-006 exposes no extension
-install, removal, update, permission grant, or dynamic command.
+## A-007 storage and portability boundary
 
-SQLite remains at the fixed `prompt-library.sqlite3` path under Tauri's
-per-user app-data directory and remains schema version 1. Provider settings,
-DPAPI credential storage, and workflow definitions retain their separate
-bounded documents. Theme receipts and disabled state persist only in the fixed
-theme root. Runtime extension approval is ephemeral.
+`application-settings.json` is an atomic exact-shape schema-1 document below
+per-user application data. It contains only onboarding completion, compact
+layout, and reduced motion. Invalid settings fail unchanged. SQLite remains
+schema 1.
 
-The webview has 29 fixed Tauri commands and no shell or filesystem authority.
-Rust maps those calls to 29 fixed sidecar commands and independently validates
-all earlier contracts plus customization catalogs, semantic tokens, canonical
-identities, stable versions, exact digests, bounded issues, acknowledgements,
-confirmations, and safe results. Frozen restart and installed-layout tests prove
-theme persistence, reversible lifecycle, app-data containment, and
-extension-approval reset.
+Portable JSON contains exactly one prompt or one workflow and is limited to
+10,000 Unicode characters. The webview uses its native file input and Blob
+download; it has no Tauri filesystem or shell permission and sends no path.
+Prompt imports target the currently open existing project. Every import is
+validated and previewed before apply, reports exact conflict choices, and is
+bound to the reviewed SHA-256 plus confirmation. Cross-project prompt identity
+is never moved silently.
 
-## A-007 — Import/export, settings, diagnostics, onboarding, and distribution polish
+Diagnostics contain versions, package state, counts, provider availability and
+credential state, customization counts, and non-secret preferences only.
+Support export requires a redaction preview, acknowledgement, the reviewed
+digest, and confirmation. Credentials, prompt content, workflow definitions and
+runtime values, filesystem paths, environment values, extension code, and
+contributions are excluded.
 
-Turn the completed local desktop slices into a coherent first-run and support
-experience. Deliver:
+## Preserved trust boundary
 
-- bounded import/export for explicitly selected supported data, with previews,
-  conflict handling, and confirmation before durable changes;
-- one settings surface for the existing non-secret provider, workflow,
-  appearance, and application preferences without exposing credential values;
-- presentation-safe diagnostics and support-bundle generation with explicit
-  redaction and user review before any export;
-- first-run onboarding that explains local storage, provider credentials,
-  workflow execution, external-theme trust, and session-only extension trust;
-- accessibility, empty/error/loading states, keyboard flow, and responsive
-  layout polish across the completed desktop; and
-- deterministic boundary, migration, restart, packaging, and installed-app
-  acceptance tests plus distribution documentation.
+- The webview exposes 37 fixed Tauri commands and no filesystem or shell
+  authority.
+- Messages remain capped at 16 KiB and protocol/storage versions remain 1.
+- Provider credentials remain current-user DPAPI blobs and never enter portable
+  files, settings, diagnostics, support data, SQLite, or web storage.
+- Theme install remains fixed-inbox and exact-digest reviewed.
+- Extension activation remains permissionless-manifest only, exact-digest,
+  explicit full-trust, and session-only.
+- Workflow operations remain the exact three host-owned contracts with explicit
+  planning and execution confirmation.
+- There is no bulk archive/restore, arbitrary destination, cloud sync,
+  telemetry, automatic upload/update, remote marketplace, persistent extension
+  approval, or signed publishing.
+- The Windows x64 current-user NSIS package remains unsigned.
 
-Do not add cloud sync, background telemetry, automatic upload, marketplace or
-remote discovery, automatic package/provider updates, arbitrary archive paths,
-credential export, unreviewed diagnostic collection, silent conflict
-resolution, persistent extension approval, or installer signing without an
-explicit distribution decision.
+## Verification boundary
 
-## Subsequent application sequence
+The checkpoint is accepted only when source tests, frontend tests/build, Rust
+tests/format/strict Clippy, frozen-sidecar A-007 and earlier installed lifecycle
+tests, the full Engineering build, complete Python suite, dependency audit, and
+a fresh NSIS package all pass. Exact artifact sizes and SHA-256 values are
+recorded in `A-007_ACCEPTANCE_EVIDENCE.md`.
 
-1. **A-007:** Import/export, settings, diagnostics, onboarding, and distribution polish.
+Visual browser automation was attempted for the new dialogs. On this host the
+browser runtime could not start because the Windows sandbox helper failed while
+applying deny-read ACLs. This is an environment limitation; it does not replace
+the deterministic frontend build, native dialog semantics, Rust validation, or
+installed-process acceptance evidence.
 
-Add Engineering capability only when this product slice exposes a specific gap.
+## Next product decision
 
-## Starting points for A-007
+No A-008 scope is approved. Preserve the completed milestone boundary and choose
+the next user outcome before changing implementation. Candidates such as bulk
+backup/recovery, localization, advanced workflow behavior, automatic updating,
+signing, publishing, or cloud features each require their own requirements and
+trust/distribution decision.
 
-- `Frontend/src/main.js`
-- `Frontend/src/styles.css`
-- `Frontend/src/customization-ui.js`
-- `Frontend/src/backend-client.js`
-- `Frontend/src-tauri/src/backend.rs`
-- `Backend/core/container.py`
-- `Backend/ipc/router.py`
-- `Docs/023_SECURITY.md`
+Useful starting points for a future approved checkpoint:
+
+- `Docs/09_Roadmap/A-007_ACCEPTANCE_EVIDENCE.md`
+- `Docs/ADR/ADR-0046-controlled-product-portability-settings-and-redacted-support.md`
 - `Docs/04_Backend/IPC_PROTOCOL.md`
-- `Docs/09_Roadmap/A-006_ACCEPTANCE_EVIDENCE.md`
-
-Before edits, verify clean local/origin/live GitHub parity and inspect the A-006
-acceptance evidence. Preserve schema-1 prompt storage, the fixed provider and
-DPAPI credential boundary, bounded workflow planning/execution, managed-theme
-digest and receipt checks, fail-closed dynamic theme selection, permissionless
-extension admission, and session-only extension activation.
+- `Docs/05_Frontend/SETTINGS_PORTABILITY_AND_SUPPORT.md`
+- `Docs/023_SECURITY.md`
+- `Backend/application/product_hardening.py`
+- `Frontend/src/product-ui.js`
+- `Frontend/src-tauri/src/product.rs`

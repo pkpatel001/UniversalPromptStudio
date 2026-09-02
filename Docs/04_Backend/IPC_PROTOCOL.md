@@ -1,6 +1,6 @@
 # Desktop-to-Python IPC protocol
 
-**Checkpoint:** A-006
+**Checkpoint:** A-007
 **Protocol:** 1
 **Storage schema:** 1
 
@@ -8,13 +8,14 @@
 
 ```text
 Vite webview
-    -> 29 fixed Tauri commands
+    -> 37 fixed Tauri commands
         -> Rust BackendManager
             -> declared universal-prompt-studio-backend sidecar
                 -> ApplicationIpcRouter
                     -> one SQLite ApplicationContainer
                         -> prompt-library.sqlite3 in Tauri app data
                         -> workflow-definitions.json in Tauri app data
+                        -> application-settings.json in Tauri app data
                         -> theme-packages/ managed ingress in Tauri app data
                         -> themes/ active, disabled, and receipt state in Tauri app data
                         -> extensions/ discovery root in Tauri app data
@@ -24,6 +25,7 @@ Rust resolves Tauri's `app_data_dir`, creates that application-owned directory,
 and passes it to the sidecar as `UPS_APP_DATA_DIR` after clearing the inherited
 environment. Python appends only the fixed `prompt-library.sqlite3`,
 `provider-settings.json`, credential, `workflow-definitions.json`,
+`application-settings.json`,
 `theme-packages/`, `themes/`, and `extensions/` locations. The webview cannot provide an executable, path, environment value, Python
 module, IPC command, arbitrary payload, SQL, or filesystem destination.
 
@@ -86,6 +88,14 @@ messages. Unknown errors collapse to `backend.unavailable`.
 | `theme_lifecycle` | `themes.lifecycle` | Theme identity/version, `disable` or `restore`, exact SHA-256, lifecycle acknowledgement, `confirm: true` | Applied reversible transition or bounded issues |
 | `extension_activate` | `extensions.activate` | Plugin identity/version, exact directory SHA-256, full-trust acknowledgement, `confirm: true` | Session runtime status or bounded issues |
 | `extension_deactivate` | `extensions.deactivate` | Plugin identity/version, exact directory SHA-256, `confirm: true` | Inactive runtime status or bounded issues |
+| `application_settings` | `application.settings.get` | `{}` | Non-secret preferences plus fixed language/update/telemetry policy |
+| `application_settings_save` | `application.settings.save` | Complete three-preference record, `confirm: true` | Atomically saved non-secret preferences |
+| `portability_export` | `portability.export` | Item kind/identity and owning project for prompts | One canonical bounded JSON document and digest |
+| `portability_preview` | `portability.preview` | Portable document and target project for prompts | Item summary, conflict state, digest, and allowed actions |
+| `portability_import` | `portability.import` | Reviewed document/target/digest/action, `confirm: true` | Created, replaced, or skipped result |
+| `diagnostics_snapshot` | `diagnostics.snapshot` | `{}` | Content-free version/count/availability states |
+| `support_preview` | `diagnostics.support.preview` | `{}` | Included sections, redactions, size, and digest |
+| `support_export` | `diagnostics.support.export` | Reviewed digest, redaction acknowledgement, `confirm: true` | Canonical redacted support document |
 | `workflow_operations` | `workflows.operations.list` | `{}` | Exact trusted operation catalog |
 | `workflows` | `workflows.list` | `{}` | Up to 50 deterministic workflow summaries |
 | `workflow_create` | `workflows.create` | One exact schema-1 workflow definition | Created definition |
@@ -131,6 +141,10 @@ Application, protocol, and storage versions remain `0.2.0-alpha`, `1`, and `1`.
 | Workflow operations | Exact three-entry host registry; node ports must match the selected contract |
 | Workflow runtime string | Up to 1,000 characters |
 | Workflow runtime value | JSON-shaped, non-null, and up to 6,000 encoded bytes |
+| Portable document | One prompt or workflow; 1–10,000 Unicode characters |
+| Portable response | Up to 14,000 encoded bytes inside the 16 KiB transport |
+| Application settings | Exact three booleans in an atomic schema-1 document up to 4 KiB |
+| Support document | Counts/states only; up to 12,500 characters at the Rust/webview gate |
 
 Prompt results contain exact `prompt_id`, `project_id`, `title`, nullable
 `category`, sorted `tags`, ordered `blocks`, `created_at`, and `updated_at`
@@ -214,6 +228,29 @@ retry, background execution, or history persistence.
 - There is no arbitrary CSS or asset application, extension install/remove/
   update, permission grant, dynamic command, marketplace, remote discovery,
   automatic download/update, signature trust, or silent activation.
+## Product settings, portability, and support semantics
+
+- `application-settings.json` stores only onboarding completion, compact layout,
+  and reduced motion. Language is fixed to English, telemetry is disabled, and
+  automatic updates are unsupported. Invalid storage is left unchanged.
+- Portable exports contain exactly one selected prompt or workflow. The webview
+  receives content and a safe filename, never a path or filesystem capability.
+- Prompt export excludes its project name. Every portable file excludes
+  credentials, execution history, and extension approval.
+- Import validates and previews the exact document before apply. The preview
+  reports conflict state and allowed create/replace/skip choices. Apply requires
+  the same SHA-256, an allowed explicit choice, and confirmation.
+- A prompt identity owned by another project cannot be moved or replaced; only
+  skip is allowed. Workflow conflicts are similarly explicit.
+- Diagnostics contain versions, package state, counts, provider availability/
+  credential state, customization counts, and non-secret preferences only.
+- Support preview lists included sections and all fixed redactions. Export
+  requires the reviewed digest, redaction acknowledgement, and confirmation.
+- Support data excludes credentials, prompt content, workflow definitions and
+  runtime values, paths, environment values, extension code, and contributions.
+- There is no bulk archive, arbitrary path, cloud sync, telemetry, automatic
+  upload/update, credential export, silent resolution, or unreviewed collection.
+
 ## Workflow authoring and execution semantics
 
 - Definitions use only the passive Workflow SDK schema-1 identity, boundary
@@ -234,11 +271,11 @@ retry, background execution, or history persistence.
   values are bounded, returned to the caller, and never persisted.
 - There are no dynamic handlers, arbitrary operation IDs, cycles, conditions,
   parallelism, retries, cancellation, background scheduling, resume, run
-  history, import/export, sync, or remote triggers.
+  history, sync, or remote triggers.
 
 ## SQLite lifecycle
 
-A-006 retains schema version 1 because provider settings, workflow
+A-007 retains schema version 1 because provider settings, workflow
 definitions, theme receipts, and extension runtime state are not prompt-library
 records. A-002.1 already persisted project
 ownership, categories, tags, ordered blocks, and update timestamps. No database
@@ -250,7 +287,8 @@ The fixed credential reference resolves to a current-user Windows DPAPI blob.
 Workflow definitions use a separate bounded, exact-shape, atomic schema-1 JSON
 document. Invalid workflow storage fails without deletion, replacement,
 truncation, rename, downgrade, or automatic repair. Managed theme receipts and
-disabled packages remain under the fixed theme root; extension approval is not
+disabled packages remain under the fixed theme root. Application preferences use a
+separate exact-shape atomic schema-1 JSON document; extension approval is not
 stored.
 
 Fresh databases still follow the owned migration from version 0 to 1. Every
@@ -268,8 +306,9 @@ replacement, rename, truncation, downgrade, or automatic repair.
   invalid input and not-found results keep a healthy process.
 - Source, frozen-sidecar, restart, and installed-layout tests prove management,
   composition, both provider states, DPAPI ciphertext/redaction, workflow
-  persistence/planning/execution, managed-theme install/disable/restore,
-  extension restart reset, and offline execution while durable storage remains
+  persistence/planning/execution, managed-theme install/disable/restore, application-settings restart, reviewed
+  prompt/workflow portability, redacted support export, extension restart reset,
+  and offline execution while durable storage remains
   under per-user app data.
 - The sidecar exposes only two host-created providers. The OpenAI provider makes
   one explicitly initiated HTTPS POST to the fixed endpoint, resolves only its

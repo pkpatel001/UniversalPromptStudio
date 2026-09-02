@@ -1,6 +1,6 @@
 # Desktop UI architecture
 
-The A-005 desktop uses one vertically scrollable workspace with two bounded
+The A-007 desktop uses one vertically scrollable workspace with bounded
 product surfaces. It has no router, hidden administrative screen, shell panel,
 or filesystem browser.
 
@@ -36,5 +36,15 @@ preview.
 
 The app has one native Tauri window and uses normal document tab order, native
 form controls, status live regions, buttons, and scroll. There is no docking,
-secondary window, drag canvas, global shortcut, or persisted layout. Theme and
-managed extension lifecycle UI remain A-006 scope.
+secondary window, drag canvas, global shortcut, or arbitrary persisted layout.
+
+## Settings, onboarding, portability, and support
+
+A native modal product hub owns non-secret compact-layout and reduced-motion
+preferences, selected prompt/workflow export, reviewed import conflict handling,
+redacted diagnostics, and digest-bound support export. A separate first-run dialog
+explains local storage and explicit execution before recording onboarding
+completion. Native dialog focus/Escape behavior, normal tab order, live status
+regions, responsive single-column layouts, and reduced-motion overrides are used.
+The file input and Blob download stay inside the browser surface; Tauri receives
+content, never a filesystem path.

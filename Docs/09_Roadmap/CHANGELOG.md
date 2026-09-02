@@ -65,8 +65,21 @@
   persistence/planning/execution coverage.
 - Added independent Python, Rust, and frontend validation plus installed restart,
   ciphertext, plaintext-redaction, dependency-audit, and packaging coverage.
-- The next checkpoint is A-006: theme and managed extension lifecycle UI at
-  supported trust boundaries.
+- Added managed theme inbox/install/disable/restore UI with exact package digests,
+  fail-closed semantic token transport, and explicit trust review.
+- Added permissionless extension catalog and digest-bound session activation;
+  restart clears approval and contributions.
+- Added atomic non-secret application settings, compact layout, reduced motion,
+  and first-run onboarding with fixed telemetry/update policy.
+- Added bounded single-prompt and single-workflow JSON export, previewed import,
+  explicit conflict resolution, digest binding, and confirmation.
+- Added presentation-safe diagnostics plus reviewed, digest-bound support export
+  that excludes credentials, user content, paths, environment values, and
+  extension code.
+- Added eight fixed A-007 commands with independent Python, Rust, and frontend
+  validation plus frozen-process restart and portability acceptance coverage.
+- Completed the approved A-001 through A-007 alpha application sequence; further
+  product work requires a new explicit checkpoint.
 
 This changelog records milestone-level changes. Git history remains the source
 for checkpoint-level implementation detail.

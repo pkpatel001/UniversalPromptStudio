@@ -396,7 +396,7 @@ Every generated diff still requires human review.
 
 ## Bounded desktop-to-Python IPC
 
-A-006 exposes 29 Tauri commands: readiness, project list/create/delete,
+A-007 exposes 37 Tauri commands: readiness, project list/create/delete,
 project-scoped prompt list/create/get/update/delete/search, saved-prompt
 composition, two execution commands, provider catalog/settings save and
 credential clear, trusted workflow catalog/list/create/get/update/delete/plan/
@@ -426,6 +426,16 @@ results, project ownership, composition counts, the exact two-provider catalog,
 provider identity/version, endpoint, credential reference/state, model/options,
 execution correlation, and output bounds.
 
+The product-hardening bridge independently revalidates exact non-secret settings,
+portable kind/identity/target, JSON/document bounds, canonical SHA-256 digests,
+explicit conflict actions and confirmations, diagnostics shapes, and support
+redaction acknowledgement. Portable and support responses are content plus a safe
+filename; the webview cannot submit or receive a filesystem path. Diagnostics
+contain only versions, counts, availability/credential states, managed-state
+counts, and non-secret preferences. Support export excludes credentials, prompt
+content, workflow definitions/runtime values, paths, environment values, and
+extension code/contributions.
+
 The workflow bridge additionally revalidates schema/version, exact operations
 and ports, definition/graph bounds, plan order and dependencies, runtime values,
 step outputs, final results, run correlation, and confirmations. The
@@ -437,8 +447,11 @@ Transport failure or malformed output discards the child so a later action may
 start a fresh process.
 
 SQLite schema version 1 remains application-owned through `PRAGMA user_version`.
-A-006 retains schema 1. Non-secret provider settings use one bounded,
+A-007 retains schema 1. Non-secret provider settings use one bounded,
 exact-shape schema-1 JSON document atomically replaced below application data.
+Application preferences use another exact-shape atomic schema-1 document with
+only onboarding completion, compact layout, and reduced motion. Telemetry is
+disabled and automatic updates are unsupported. Invalid settings fail unchanged.
 Workflow definitions use a separate exact-shape atomic schema-1 JSON document;
 invalid or unavailable workflow storage is left unchanged and fails safely.
 Theme receipts and disabled state stay below the fixed managed-theme root.

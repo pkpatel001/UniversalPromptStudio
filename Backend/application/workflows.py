@@ -121,6 +121,11 @@ class WorkflowAuthoringService:
         self._validate_stored_definition(manifest)
         return manifest
 
+    def validate_definition(self, manifest: WorkflowManifest) -> None:
+        """Validate one passive definition without changing durable state."""
+
+        self._validate_definition(manifest)
+
     def _validate_stored_definition(self, manifest: WorkflowManifest) -> None:
         try:
             self._validate_definition(manifest)

@@ -422,7 +422,16 @@ export function initializeWorkflowUI({ mount, backendClient, workflowClient = ne
   });
 
   void refreshCatalogs();
-  return Object.freeze({ refresh: refreshCatalogs });
+  return Object.freeze({
+    refresh: refreshCatalogs,
+    selectedWorkflow: () => {
+      if (!state.persistedId) return null;
+      return Object.freeze({
+        workflowId: state.persistedId,
+        name: state.workflows.find((item) => item.workflowId === state.persistedId)?.name ?? state.definition?.workflow.name ?? state.persistedId,
+      });
+    },
+  });
 }
 
 function markup() {

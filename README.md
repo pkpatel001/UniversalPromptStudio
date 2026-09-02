@@ -50,9 +50,10 @@ The Engineering Toolkit is complete through E-017. The repository contains:
 * Controlled plugin, provider, theme, workflow, and self-generation boundaries
 * Deterministic validation, documentation, generation, build, release, and manifests
 * Automated Python, frontend, and Rust validation
-* A Tauri/Vite prompt workspace with controlled theme selection
+* A Tauri/Vite prompt workspace with controlled themes, workflows, onboarding, and support controls
 
-The desktop product remains alpha. A-004 provides a usable versioned SQLite
+The desktop product remains alpha. The completed A-001 through A-007 sequence
+provides a usable versioned SQLite
 prompt library in Tauri-managed app data, with durable project and prompt
 creation, ordered-block editing, category/tag organization, project-scoped local
 search, and explicit prompt/project deletion across installed application
@@ -61,8 +62,11 @@ prompt and explicitly executed through either the host-authored
 `ups.offline-echo` reference path or the bounded `ups.openai-responses` path.
 OpenAI settings are exact-shape, its endpoint is fixed, and its API key is
 protected for the current Windows user with DPAPI rather than stored in SQLite
-or web storage. A-005 is the exact next checkpoint: workflow authoring,
-validation, and bounded sequential execution UI.
+or web storage. A-007 completes the planned alpha product sequence with bounded
+single-item
+import/export, atomic application preferences, first-run onboarding, redacted
+diagnostics/support export, managed themes, session-only extension activation,
+and bounded sequential workflows.
 
 ## Technology Stack
 
@@ -138,7 +142,7 @@ development now proceeds through thin application vertical slices:
 * Prompt-library persistence, editing, organization, and search
 * Prompt composition and controlled provider execution
 * Workflow authoring and execution UI
-* Settings, diagnostics, import/export, onboarding, and distribution polish
+* Reviewed prompt/workflow portability and redacted support diagnostics
 
 See `Docs/09_Roadmap/PHASE_ROADMAP.md` for the current sequence and boundaries.
 

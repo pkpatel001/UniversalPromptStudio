@@ -2,7 +2,7 @@
 
 ## Product integration
 
-- A-005 provides project-owned prompt editing, ordered blocks, categories,
+- A-007 provides project-owned prompt editing, ordered blocks, categories,
   tags, deterministic project-scoped search, and explicit prompt/project
   deletion plus bounded schema-1 workflow authoring, planning, persistence, and
   explicit sequential execution under Tauri's per-user app-data directory.
@@ -39,8 +39,20 @@
 - Workflow schema 1 is a bounded DAG executed sequentially from an explicit
   valid plan. Definitions persist locally, but runs and values do not. Dynamic
   or plugin-supplied handlers, arbitrary operation IDs, cycles, conditions,
-  parallelism, retries, cancellation, scheduling, resume, history, import/export,
-  sync, remote triggers, and external handler loading are unsupported.
+  parallelism, retries, cancellation, scheduling, resume, history, sync, remote
+  triggers, and external handler loading are unsupported.
+
+## Portability and support
+
+- Portable files contain exactly one prompt or workflow; bulk backup/restore and
+  arbitrary archives or destinations are unsupported.
+- Prompt imports target the currently open project. Identity conflicts require an
+  explicit create, replace, or keep decision; cross-project identities are not moved.
+- Support diagnostics contain counts and states only. They cannot diagnose
+  content-specific failures and never include credentials, user content, paths,
+  environment values, or extension code.
+- Telemetry, automatic upload, cloud sync, localization beyond fixed English, and
+  automatic updates are unsupported.
 
 ## Packaging
 

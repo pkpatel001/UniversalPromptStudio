@@ -6,22 +6,21 @@ toolkit contracts and explicit deferrals are maintained in
 
 ## Now
 
-- Versioned, allowlisted desktop-to-Python IPC and installed sidecar lifecycle.
-- Durable local prompt-library management, organization, search, and deletion.
-- Deterministic saved-prompt composition and confirmed offline echo execution.
-- Controlled OpenAI Responses settings, DPAPI credential protection, selection,
-  and confirmed execution.
+- A-001 through A-007 local desktop sequence completed.
+- Durable prompts, controlled providers, bounded workflows, managed themes, and
+  session-only trusted extension activation.
+- Reviewed single-item prompt/workflow portability, non-secret settings, first-run
+  onboarding, and redacted support diagnostics.
 
 ## Next
 
-- Workflow authoring and validation UI over the schema-1 Workflow SDK.
+- No application checkpoint is approved beyond A-007. Select the next product
+  outcome explicitly before implementation.
 
 ## Later
 
-- Managed extension lifecycle UI within established trust boundaries.
-- Import/export, backup/recovery, diagnostics, onboarding, accessibility,
-  localization, and distribution polish.
-- Advanced workflow execution semantics after product requirements are proven.
+- Bulk backup/recovery, localization, signed publishing, or advanced workflow
+  execution only after separate product requirements and trust decisions.
 
 ## Not silently approved
 

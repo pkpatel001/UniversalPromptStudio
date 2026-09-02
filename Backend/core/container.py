@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from Backend.application.customizations import ManagedCustomizationService
+from Backend.application.product_hardening import ProductHardeningService
 from Backend.application.prompt_builder import PromptBuilder
 from Backend.application.provider_settings import (
     PROVIDER_SETTINGS_FILE_NAME,
@@ -98,6 +99,7 @@ class ApplicationContainer:
     provider_configuration_service: ProviderConfigurationService
     search_service: SearchService
     customization_service: ManagedCustomizationService
+    product_hardening_service: ProductHardeningService
 
 
 def create_in_memory_container() -> ApplicationContainer:
@@ -219,6 +221,15 @@ def _create_container(
     workflow_authoring_service = WorkflowAuthoringService(
         workflow_repository, workflow_operation_registry, workflow_execution_service
     )
+    customization_service = ManagedCustomizationService(app_data_directory)
+    product_hardening_service = ProductHardeningService(
+        project_repository,
+        prompt_repository,
+        workflow_authoring_service,
+        provider_configuration_service,
+        customization_service,
+        app_data_directory,
+    )
 
     return ApplicationContainer(
         event_bus=event_bus,
@@ -236,5 +247,6 @@ def _create_container(
         saved_prompt_runtime_service=saved_prompt_runtime_service,
         provider_configuration_service=provider_configuration_service,
         search_service=SearchService(search_provider),
-        customization_service=ManagedCustomizationService(app_data_directory),
+        customization_service=customization_service,
+        product_hardening_service=product_hardening_service,
     )

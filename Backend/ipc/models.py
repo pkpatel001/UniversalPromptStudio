@@ -29,6 +29,7 @@ class IpcErrorCode(StrEnum):
     EXECUTION_FAILED = "execution.failed"
     PROVIDER_UNAVAILABLE = "provider.unavailable"
     CUSTOMIZATION_BLOCKED = "customization.blocked"
+    PRODUCT_UNAVAILABLE = "product.unavailable"
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,4 +1,4 @@
-"""Real frozen-sidecar lifecycle acceptance tests through A-006."""
+"""Real frozen-sidecar lifecycle acceptance tests through A-007."""
 
 from __future__ import annotations
 
@@ -69,6 +69,14 @@ CAPABILITIES = [
     "themes.lifecycle",
     "extensions.activate",
     "extensions.deactivate",
+    "application.settings.get",
+    "application.settings.save",
+    "portability.export",
+    "portability.preview",
+    "portability.import",
+    "diagnostics.snapshot",
+    "diagnostics.support.preview",
+    "diagnostics.support.export",
     "workflows.operations.list",
     "workflows.list",
     "workflows.create",

@@ -1,5 +1,6 @@
 mod backend;
 mod customizations;
+mod product;
 mod workflows;
 
 use backend::{
@@ -11,6 +12,10 @@ use backend::{
 };
 use customizations::{
     customization_catalog, extension_activate, extension_deactivate, theme_install, theme_lifecycle,
+};
+use product::{
+    application_settings, application_settings_save, diagnostics_snapshot, portability_export,
+    portability_import, portability_preview, support_export, support_preview,
 };
 use tauri::Manager;
 use workflows::{
@@ -56,6 +61,14 @@ pub fn run() {
             theme_lifecycle,
             extension_activate,
             extension_deactivate,
+            application_settings,
+            application_settings_save,
+            portability_export,
+            portability_preview,
+            portability_import,
+            diagnostics_snapshot,
+            support_preview,
+            support_export,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Universal Prompt Studio");

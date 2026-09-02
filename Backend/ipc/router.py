@@ -8,6 +8,7 @@ from uuid import UUID
 
 from sqlalchemy.exc import SQLAlchemyError
 
+from Backend.application.product_hardening import ProductHardeningStorageError
 from Backend.application.provider_settings import (
     MAX_CREDENTIAL_LENGTH,
     MAX_MODEL_LENGTH,
@@ -53,6 +54,7 @@ from .customization_routes import (
     handle_customization_command,
 )
 from .models import IPC_PROTOCOL_VERSION, IpcErrorCode, IpcRequest, IpcResponse, JsonValue
+from .product_routes import PRODUCT_SUPPORTED_COMMANDS, handle_product_command
 from .workflow_routes import (
     WORKFLOW_SUPPORTED_COMMANDS,
     handle_workflow_command,
@@ -93,6 +95,7 @@ SUPPORTED_COMMANDS = (
     PROVIDER_CREDENTIAL_CLEAR_COMMAND,
     PROMPT_EXECUTE_CONFIGURED_COMMAND,
     *CUSTOMIZATION_SUPPORTED_COMMANDS,
+    *PRODUCT_SUPPORTED_COMMANDS,
     *WORKFLOW_SUPPORTED_COMMANDS,
 )
 MAX_LIBRARY_ITEMS = 50
@@ -169,6 +172,7 @@ class ApplicationIpcRouter:
             **{
                 command: self._customization_command for command in CUSTOMIZATION_SUPPORTED_COMMANDS
             },
+            **{command: self._product_command for command in PRODUCT_SUPPORTED_COMMANDS},
             **{command: self._workflow_command for command in WORKFLOW_SUPPORTED_COMMANDS},
         }
         try:
@@ -202,6 +206,12 @@ class ApplicationIpcRouter:
                 request.request_id,
                 IpcErrorCode.PROVIDER_UNAVAILABLE,
                 "The configured provider is unavailable.",
+            )
+        except ProductHardeningStorageError:
+            return IpcResponse.failure(
+                request.request_id,
+                IpcErrorCode.PRODUCT_UNAVAILABLE,
+                "Application settings or product support data are unavailable.",
             )
         except EngineeringError:
             if request.command in CUSTOMIZATION_SUPPORTED_COMMANDS:
@@ -435,6 +445,10 @@ class ApplicationIpcRouter:
     def _customization_command(self, request: IpcRequest) -> IpcResponse:
         assert self._container is not None
         return handle_customization_command(self._container, request)
+
+    def _product_command(self, request: IpcRequest) -> IpcResponse:
+        assert self._container is not None
+        return handle_product_command(self._container, request)
 
     def _workflow_command(self, request: IpcRequest) -> IpcResponse:
         assert self._container is not None

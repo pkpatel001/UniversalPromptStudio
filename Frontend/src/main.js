@@ -7,6 +7,7 @@ import {
   OPENAI_RESPONSES_PROVIDER,
 } from "./backend-client.js";
 import { initializeWorkflowUI } from "./workflow-ui.js";
+import { initializeProductUI } from "./product-ui.js";
 import { loadThemeCatalog, themeSelectionKey, THEME_CATALOG } from "./theme-catalog.js";
 import { ThemeApplicationController } from "./theme-controller.js";
 import { ThemePreferenceStore } from "./theme-preference.js";
@@ -44,6 +45,7 @@ document.querySelector("#app").innerHTML = `
         <div><p>Prompt library</p><h2 id="workspace-title">Choose or create a project</h2></div>
         <div class="header-actions">
           <button id="delete-project" class="danger subtle" type="button" disabled>Delete project</button>
+          <button id="open-product" class="secondary" type="button">Settings &amp; support</button>
           <button id="open-customizations" class="secondary" type="button">Customize</button>
           <label class="theme-control">Theme<select id="theme-select"><option value="">Default</option></select></label>
           <label class="remember-theme"><input id="remember-theme" type="checkbox" disabled>Remember</label>
@@ -130,6 +132,7 @@ document.querySelector("#app").innerHTML = `
 const backendClient = new BackendClient();
 const byId = (id) => document.querySelector(`#${id}`);
 const projectForm = byId("project-form");
+const openProduct = byId("open-product");
 const projectName = byId("project-name");
 const projectDescription = byId("project-description");
 const projectList = byId("project-list");
@@ -753,5 +756,17 @@ const customizationUI = initializeCustomizationUI({
   },
 });
 void customizationUI.refresh();
-initializeWorkflowUI({ mount: document.querySelector(".workspace"), backendClient });
+const workflowUI = initializeWorkflowUI({ mount: document.querySelector(".workspace"), backendClient });
+initializeProductUI({
+  trigger: openProduct,
+  context: () => ({
+    projectId: selectedProjectId,
+    prompt: selectedPrompt ? { promptId: selectedPrompt.promptId, title: selectedPrompt.title } : null,
+    workflow: workflowUI.selectedWorkflow(),
+  }),
+  async onImportApplied(result) {
+    if (result.kind === "prompt" && selectedProjectId) await loadPrompts(selectedProjectId);
+    if (result.kind === "workflow") await workflowUI.refresh();
+  },
+});
 renderProjects(); renderPrompts(); void initializeLibrary();
