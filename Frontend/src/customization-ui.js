@@ -12,7 +12,7 @@ export function initializeCustomizationUI({ trigger, onCatalog }) {
     <div class="customization-shell">
       <header>
         <div><p>Managed customization</p><h2 id="customization-title">Themes and extensions</h2></div>
-        <button class="secondary" type="button" data-close>Close</button>
+        <div class="customization-actions"><button class="secondary" type="button" data-help-topic="themes-extensions">How this works</button><button class="secondary" type="button" data-close>Close</button></div>
       </header>
       <div class="trust-boundary">
         <strong>Local, explicit, and reviewable</strong>
@@ -25,7 +25,7 @@ export function initializeCustomizationUI({ trigger, onCatalog }) {
       </section>
       <section aria-labelledby="theme-packages-title">
         <div class="customization-heading"><div><p>App-owned inbox</p><h3 id="theme-packages-title">Theme packages</h3></div><span data-package-count>0</span></div>
-        <p class="boundary-note">Only canonical <code>.ups-theme.zip</code> files already provisioned in the managed inbox can be installed. File browsing and importing arrive in A-007.</p>
+        <p class="boundary-note">Only canonical <code>.ups-theme.zip</code> files already provisioned in the managed inbox can be installed. Browsing for or importing theme packages is unavailable.</p>
         <div data-packages class="customization-list"></div>
       </section>
       <section aria-labelledby="extensions-title">

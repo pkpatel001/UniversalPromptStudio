@@ -436,7 +436,7 @@ export function initializeWorkflowUI({ mount, backendClient, workflowClient = ne
 
 function markup() {
   return `<section id="workflow-studio" class="workflow-studio" aria-labelledby="workflow-heading">
-    <div class="workflow-header"><div><p>Schema-1 workflow studio</p><h2 id="workflow-heading">Author, validate, and run sequential workflows</h2></div><button id="workflow-new" class="primary" type="button">New workflow</button></div>
+    <div class="workflow-header"><div><p>Schema-1 workflow studio</p><h2 id="workflow-heading">Author, validate, and run sequential workflows</h2></div><div class="workflow-editor-actions"><button class="secondary" type="button" data-help-topic="workflows">How workflows work</button><button id="workflow-new" class="primary" type="button">New workflow</button></div></div>
     <div id="workflow-status" class="library-status" data-state="pending" role="status" aria-live="polite">Opening workflows…</div>
     <div class="workflow-layout"><aside class="workflow-browser"><div class="section-heading"><h3>Workflows</h3><span id="workflow-count">0</span></div><div id="workflow-list"></div></aside>
     <section class="workflow-editor"><div id="workflow-empty" class="empty-state"><strong>Select or create a workflow</strong><span>Definitions stay local and use only trusted host operations.</span></div>

@@ -22,13 +22,13 @@ and deferred scope.
 | A-005 | Workflows | Authoring, validation, and bounded execution UI |
 | A-006 | Extensibility UI | Supported theme, plugin, and provider lifecycle surfaces |
 | A-007 | Product hardening | Import/export, settings, diagnostics, onboarding, accessibility, localization, backup, and distribution polish |
+| A-008 | Help and learning | Searchable offline guidance, contextual help, beginner documentation, stress-test instructions, and distribution guidance |
 
-A-004 completes the first controlled external-provider path: a two-provider
-host catalog, fixed OpenAI Responses endpoint and option schema, current-user
-Windows DPAPI credential protection, explicit selection, and confirmed bounded
-execution while preserving offline echo. The immediate checkpoint is
-**A-005 — Workflow authoring, validation, and bounded sequential execution UI**.
-Scope and acceptance guidance are in `APPLICATION_DEVELOPMENT_HANDOFF.md`.
+A-008 completes the approved alpha sequence with an offline, searchable user
+guide and contextual learning links at the existing frontend trust boundary. It
+adds no desktop command, provider call, filesystem authority, background work, or
+extension capability. No later application checkpoint is approved; select the
+next product outcome explicitly before implementation.
 
 ## Planning rule
 

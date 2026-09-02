@@ -8,6 +8,7 @@ import {
 } from "./backend-client.js";
 import { initializeWorkflowUI } from "./workflow-ui.js";
 import { initializeProductUI } from "./product-ui.js";
+import { initializeHelpUI } from "./help-ui.js";
 import { loadThemeCatalog, themeSelectionKey, THEME_CATALOG } from "./theme-catalog.js";
 import { ThemeApplicationController } from "./theme-controller.js";
 import { ThemePreferenceStore } from "./theme-preference.js";
@@ -45,6 +46,7 @@ document.querySelector("#app").innerHTML = `
         <div><p>Prompt library</p><h2 id="workspace-title">Choose or create a project</h2></div>
         <div class="header-actions">
           <button id="delete-project" class="danger subtle" type="button" disabled>Delete project</button>
+          <button id="open-help" class="secondary" type="button" data-help-topic="getting-started">Help</button>
           <button id="open-product" class="secondary" type="button">Settings &amp; support</button>
           <button id="open-customizations" class="secondary" type="button">Customize</button>
           <label class="theme-control">Theme<select id="theme-select"><option value="">Default</option></select></label>
@@ -82,13 +84,13 @@ document.querySelector("#app").innerHTML = `
               <label>Category <span>optional</span><input id="editor-category" maxlength="80" placeholder="e.g. Marketing"></label>
               <label class="wide">Tags <span>comma separated, up to 10</span><input id="editor-tags" placeholder="research, concise, offline"></label>
             </div>
-            <div class="block-heading"><div><h4>Ordered blocks</h4><p>Blocks are assembled from top to bottom.</p></div><button id="add-block" class="secondary" type="button">Add block</button></div>
+            <div class="block-heading"><div><h4>Ordered blocks</h4><p>Blocks are assembled from top to bottom.</p></div><div class="editor-actions"><button class="secondary" type="button" data-help-topic="prompt-blocks">Block guide</button><button id="add-block" class="secondary" type="button">Add block</button></div></div>
             <div id="block-list" class="block-list"></div>
             <div class="editor-actions"><span id="editor-saved"></span><button class="primary" type="submit">Save changes</button></div>
             <section class="runtime-panel" aria-labelledby="runtime-heading">
               <div class="runtime-heading">
                 <div><p>Saved composition</p><h4 id="runtime-heading">Preview and run</h4></div>
-                <span class="offline-badge">Controlled providers</span>
+                <div class="runtime-actions"><button class="secondary" type="button" data-help-topic="compose-run">Run guide</button><span class="offline-badge">Controlled providers</span></div>
               </div>
               <p class="runtime-help">Composition always uses saved blocks. Choose the offline reference path or explicitly configure the host-authorized OpenAI Responses path.</p>
               <div class="provider-picker">
@@ -133,6 +135,7 @@ const backendClient = new BackendClient();
 const byId = (id) => document.querySelector(`#${id}`);
 const projectForm = byId("project-form");
 const openProduct = byId("open-product");
+const openHelp = byId("open-help");
 const projectName = byId("project-name");
 const projectDescription = byId("project-description");
 const projectList = byId("project-list");
@@ -757,6 +760,7 @@ const customizationUI = initializeCustomizationUI({
 });
 void customizationUI.refresh();
 const workflowUI = initializeWorkflowUI({ mount: document.querySelector(".workspace"), backendClient });
+initializeHelpUI({ trigger: openHelp });
 initializeProductUI({
   trigger: openProduct,
   context: () => ({

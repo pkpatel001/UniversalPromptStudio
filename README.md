@@ -52,7 +52,7 @@ The Engineering Toolkit is complete through E-017. The repository contains:
 * Automated Python, frontend, and Rust validation
 * A Tauri/Vite prompt workspace with controlled themes, workflows, onboarding, and support controls
 
-The desktop product remains alpha. The completed A-001 through A-007 sequence
+The desktop product remains alpha. The completed A-001 through A-008 sequence
 provides a usable versioned SQLite
 prompt library in Tauri-managed app data, with durable project and prompt
 creation, ordered-block editing, category/tag organization, project-scoped local
@@ -62,11 +62,12 @@ prompt and explicitly executed through either the host-authored
 `ups.offline-echo` reference path or the bounded `ups.openai-responses` path.
 OpenAI settings are exact-shape, its endpoint is fixed, and its API key is
 protected for the current Windows user with DPAPI rather than stored in SQLite
-or web storage. A-007 completes the planned alpha product sequence with bounded
+or web storage. A-007 added bounded
 single-item
 import/export, atomic application preferences, first-run onboarding, redacted
 diagnostics/support export, managed themes, session-only extension activation,
-and bounded sequential workflows.
+and bounded sequential workflows. A-008 adds a searchable offline in-app help
+system, contextual task guidance, and a comprehensive beginner user guide.
 
 ## Technology Stack
 
@@ -120,6 +121,10 @@ python -m compileall Backend
 ```
 
 ## Documentation
+
+Start with the [beginner user guide](Docs/05_Frontend/USER_GUIDE.md) for
+installation, first use, provider setup, workflows, stress testing, and
+troubleshooting.
 
 Project documentation is located in:
 

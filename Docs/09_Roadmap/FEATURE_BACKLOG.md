@@ -6,15 +6,17 @@ toolkit contracts and explicit deferrals are maintained in
 
 ## Now
 
-- A-001 through A-007 local desktop sequence completed.
+- A-001 through A-008 local desktop sequence completed.
 - Durable prompts, controlled providers, bounded workflows, managed themes, and
   session-only trusted extension activation.
 - Reviewed single-item prompt/workflow portability, non-secret settings, first-run
   onboarding, and redacted support diagnostics.
+- Searchable offline in-app Help, contextual task links, and a comprehensive
+  beginner guide for installation through stress testing.
 
 ## Next
 
-- No application checkpoint is approved beyond A-007. Select the next product
+- No application checkpoint is approved beyond A-008. Select the next product
   outcome explicitly before implementation.
 
 ## Later

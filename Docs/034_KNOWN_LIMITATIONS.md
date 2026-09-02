@@ -2,7 +2,7 @@
 
 ## Product integration
 
-- A-007 provides project-owned prompt editing, ordered blocks, categories,
+- A-008 provides project-owned prompt editing, ordered blocks, categories,
   tags, deterministic project-scoped search, and explicit prompt/project
   deletion plus bounded schema-1 workflow authoring, planning, persistence, and
   explicit sequential execution under Tauri's per-user app-data directory.
@@ -53,6 +53,9 @@
   environment values, or extension code.
 - Telemetry, automatic upload, cloud sync, localization beyond fixed English, and
   automatic updates are unsupported.
+- In-app Help is a fixed English-only offline catalog. It has no screenshots,
+  interactive walkthrough automation, remote content updates, or content-specific
+  diagnostic access.
 
 ## Packaging
 

@@ -1,0 +1,154 @@
+.help-dialog {
+  background: transparent;
+  border: 0;
+  color: var(--ups-color-text);
+  height: min(880px, calc(100vh - 40px));
+  max-height: calc(100vh - 40px);
+  max-width: 1180px;
+  padding: 0;
+  width: calc(100vw - 40px);
+}
+
+.help-dialog::backdrop { background: rgb(5 12 16 / 72%); }
+
+.help-shell {
+  background: var(--ups-color-canvas);
+  border: 1px solid var(--ups-color-border);
+  border-radius: 14px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  overflow: hidden;
+}
+
+.help-header {
+  align-items: center;
+  background: var(--ups-color-surface);
+  border-bottom: 1px solid var(--ups-color-border);
+  display: flex;
+  justify-content: space-between;
+  padding: 18px 22px;
+}
+
+.help-header p,
+.help-header h2 { margin: 0; }
+.help-header p,
+.help-eyebrow {
+  color: var(--ups-color-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.help-header h2 { font-size: 22px; margin-top: 3px; }
+
+.help-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.help-browser {
+  background: var(--ups-color-surface-muted);
+  border-right: 1px solid var(--ups-color-border);
+  overflow: auto;
+  padding: 20px;
+}
+
+.help-search-status {
+  color: var(--ups-color-text-muted);
+  font-size: 12px;
+  margin: 10px 0 16px;
+}
+
+.help-results { display: grid; gap: 18px; }
+.help-results h3 {
+  color: var(--ups-color-text-muted);
+  font-size: 11px;
+  letter-spacing: .08em;
+  margin: 0 0 7px;
+  text-transform: uppercase;
+}
+.help-topic-list { display: grid; gap: 6px; }
+.help-topic-list button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--ups-color-text);
+  cursor: pointer;
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  text-align: left;
+}
+.help-topic-list button:hover { background: var(--ups-color-surface); }
+.help-topic-list button.active {
+  background: var(--ups-color-surface);
+  border-color: var(--ups-color-primary);
+  box-shadow: inset 3px 0 0 var(--ups-color-primary);
+}
+.help-topic-list strong { font-size: 13px; }
+.help-topic-list span { color: var(--ups-color-text-muted); font-size: 11px; line-height: 1.4; }
+.help-empty { color: var(--ups-color-text-muted); font-size: 13px; }
+
+.help-article {
+  background: var(--ups-color-surface);
+  overflow: auto;
+  padding: clamp(24px, 4vw, 52px);
+}
+.help-article > * { max-width: 760px; }
+.help-article h2 { font-size: clamp(25px, 3vw, 36px); margin: 6px 0 10px; }
+.help-article h3 { font-size: 16px; margin: 30px 0 12px; }
+.help-summary { color: var(--ups-color-text-muted); font-size: 16px; line-height: 1.6; margin: 0 0 20px; }
+.help-outcome {
+  background: var(--ups-color-surface-muted);
+  border-left: 4px solid var(--ups-color-primary);
+  border-radius: 7px;
+  font-weight: 650;
+  line-height: 1.5;
+  padding: 14px 16px;
+}
+.help-article ul { line-height: 1.6; padding-left: 22px; }
+.help-steps { display: grid; gap: 12px; list-style: none; padding: 0; counter-reset: help-step; }
+.help-steps li {
+  border: 1px solid var(--ups-color-border);
+  border-radius: 9px;
+  counter-increment: help-step;
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  padding: 14px;
+}
+.help-steps li::before {
+  align-items: center;
+  background: var(--ups-color-primary);
+  border-radius: 999px;
+  color: var(--ups-color-primary-text);
+  content: counter(help-step);
+  display: flex;
+  font-size: 12px;
+  font-weight: 800;
+  height: 25px;
+  justify-content: center;
+  width: 25px;
+}
+.help-steps strong,
+.help-steps p { grid-column: 2; }
+.help-steps strong { grid-row: 1; }
+.help-steps p { color: var(--ups-color-text-muted); line-height: 1.55; margin: 5px 0 0; }
+.help-related > div { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@media (max-width: 760px) {
+  .help-dialog { height: calc(100vh - 20px); max-height: calc(100vh - 20px); width: calc(100vw - 20px); }
+  .help-layout { grid-template-columns: 1fr; grid-template-rows: minmax(190px, 38%) minmax(0, 1fr); }
+  .help-browser { border-bottom: 1px solid var(--ups-color-border); border-right: 0; }
+  .help-article { padding: 24px; }
+}
+
+@media print {
+  .help-header button,
+  .help-browser { display: none; }
+  .help-dialog,
+  .help-shell { height: auto; max-height: none; width: auto; }
+  .help-layout { display: block; }
+  .help-article { overflow: visible; }
+}

@@ -1,6 +1,6 @@
 # Desktop UI architecture
 
-The A-007 desktop uses one vertically scrollable workspace with bounded
+The A-008 desktop uses one vertically scrollable workspace with bounded
 product surfaces. It has no router, hidden administrative screen, shell panel,
 or filesystem browser.
 
@@ -48,3 +48,19 @@ completion. Native dialog focus/Escape behavior, normal tab order, live status
 regions, responsive single-column layouts, and reduced-motion overrides are used.
 The file input and Blob download stay inside the browser surface; Tauri receives
 content, never a filesystem path.
+## Help and learning
+
+A native modal Help surface renders a fixed host-authored catalog of 15 offline
+topics. Search is deterministic, case-insensitive, and local; it indexes only the
+authored titles, summaries, steps, tips, and keywords. Results and article
+content are built with text nodes rather than arbitrary HTML.
+
+The workspace header opens the beginner quick start. Contextual buttons open
+task-specific guidance from prompt blocks, composition and provider execution,
+workflows, managed customization, portability, and settings/support. Related
+topic buttons keep navigation inside the same catalog. The dialog uses native
+focus/Escape behavior, a live result count, responsive one-column fallback, and
+the current semantic theme tokens. It adds no IPC command, network request,
+filesystem permission, web storage, or extension authority.
+
+The matching long-form manual is Docs/05_Frontend/USER_GUIDE.md.

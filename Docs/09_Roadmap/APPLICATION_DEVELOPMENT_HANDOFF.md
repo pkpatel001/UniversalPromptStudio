@@ -1,110 +1,126 @@
 # Application development handoff
 
-**Completed checkpoint:** A-007 — Import/export, settings, diagnostics,
-onboarding, and distribution polish
+**Completed checkpoint:** A-008 — Beginner-friendly user guide and in-app help
 **Immediate checkpoint:** None approved; select the next product outcome
 explicitly before implementation
 
 ## Current application baseline
 
-A-007 completes the approved A-001 through A-007 local desktop sequence:
+A-008 completes the approved A-001 through A-008 local desktop sequence:
 
-```text
-desktop launch
-    -> Rust resolves Tauri app_data_dir
-        -> long-lived frozen Python sidecar
-            -> schema-1 prompt library and DPAPI provider credential boundary
-            -> schema-1 workflow definitions
-            -> managed theme state and session-only extension activation
-            -> schema-1 non-secret application settings
-        -> 37 exact desktop commands
-            -> prompt/provider/workflow/customization surfaces
-            -> first-run onboarding and device preferences
-            -> selected prompt/workflow portable files
-                -> validate and preview exact content
-                -> explicit conflict action plus digest-bound confirmation
-            -> redacted diagnostics and reviewed support export
-```
+    desktop launch
+        -> Rust resolves Tauri app_data_dir
+            -> long-lived frozen Python sidecar
+                -> schema-1 prompt library and DPAPI provider credential boundary
+                -> schema-1 workflow definitions
+                -> managed theme state and session-only extension activation
+                -> schema-1 non-secret application settings
+            -> 37 exact desktop commands
+                -> prompt/provider/workflow/customization surfaces
+                -> first-run onboarding and device preferences
+                -> selected prompt/workflow portable files
+                    -> validate and preview exact content
+                    -> explicit conflict action plus digest-bound confirmation
+                -> redacted diagnostics and reviewed support export
+            -> fixed frontend Help catalog
+                -> 15 offline task topics and deterministic local search
+                -> contextual entry points from major product surfaces
+                -> safe text-node rendering and related-topic navigation
 
-Users can manage project-owned prompts, compose enabled durable blocks, execute
-through offline echo or the fixed OpenAI Responses path, author and run bounded
-sequential workflows, manage compatible themes, and explicitly activate
-permissionless full-trust extensions for the current session.
+The workspace remains an offline-first project and prompt library with saved
+ordered blocks, deterministic composition, explicit provider execution, bounded
+sequential workflows, managed themes, and exact-digest full-trust extensions for
+the current session.
 
-The **Settings & support** dialog adds compact layout, reduced motion, selected
+Settings & support retains compact layout, reduced motion, selected
 prompt/workflow export, reviewed import conflict handling, content-free
 diagnostics, and reviewed support export. First-run onboarding explains local
 storage and explicit execution. Telemetry is disabled and automatic updates are
 unsupported.
 
-## A-007 storage and portability boundary
+## A-008 help and learning boundary
 
-`application-settings.json` is an atomic exact-shape schema-1 document below
-per-user application data. It contains only onboarding completion, compact
-layout, and reduced motion. Invalid settings fail unchanged. SQLite remains
-schema 1.
+Help content is an application-owned, fixed catalog of 15 topics. It covers
+installation, first use, projects, prompt authoring, block types, composition,
+offline and OpenAI provider execution, workflows, portability, settings,
+diagnostics, managed customization, stress testing, troubleshooting, privacy,
+distribution, and terminology.
 
-Portable JSON contains exactly one prompt or one workflow and is limited to
-10,000 Unicode characters. The webview uses its native file input and Blob
-download; it has no Tauri filesystem or shell permission and sends no path.
-Prompt imports target the currently open existing project. Every import is
-validated and previewed before apply, reports exact conflict choices, and is
-bound to the reviewed SHA-256 plus confirmation. Cross-project prompt identity
-is never moved silently.
+Search normalizes case and accents and requires every entered term to match the
+authored topic text. It does not inspect prompt content, application data,
+diagnostics, provider responses, files, or network sources. Article content and
+navigation labels are created with text nodes; the catalog cannot inject
+arbitrary HTML.
 
-Diagnostics contain versions, package state, counts, provider availability and
-credential state, customization counts, and non-secret preferences only.
-Support export requires a redaction preview, acknowledgement, the reviewed
-digest, and confirmation. Credentials, prompt content, workflow definitions and
-runtime values, filesystem paths, environment values, extension code, and
-contributions are excluded.
+The native modal Help dialog uses normal tab order, Escape behavior, a live
+result count, responsive layout, and semantic theme tokens. The workspace opens
+the beginner quick start. Prompt blocks, prompt composition/provider execution,
+workflows, themes/extensions, portability, and settings/support open the
+matching topic directly.
 
-## Preserved trust boundary
+The long-form Docs/05_Frontend/USER_GUIDE.md is the complete beginner manual. It
+documents the unsigned Windows alpha, first-run path, prompt recipes, OpenAI
+credential boundary, workflows, single-item portability, trusted extensions,
+redacted support, a repeatable stress-test plan, troubleshooting, privacy,
+limitations, and a glossary.
 
-- The webview exposes 37 fixed Tauri commands and no filesystem or shell
-  authority.
-- Messages remain capped at 16 KiB and protocol/storage versions remain 1.
-- Provider credentials remain current-user DPAPI blobs and never enter portable
-  files, settings, diagnostics, support data, SQLite, or web storage.
-- Theme install remains fixed-inbox and exact-digest reviewed.
-- Extension activation remains permissionless-manifest only, exact-digest,
-  explicit full-trust, and session-only.
-- Workflow operations remain the exact three host-owned contracts with explicit
-  planning and execution confirmation.
+A-008 adds no Rust or Python implementation, no IPC command, no protocol or
+schema version, no Tauri permission, no filesystem picker, no web storage, no
+network request, no background task, and no extension authority. The desktop
+boundary remains protocol 1, SQLite schema 1, workflow schema 1, settings schema
+1, and 37 exact commands.
+
+## Preserved A-007 boundaries
+
+Application settings remain an atomic exact-shape schema-1 document containing
+only onboarding completion, compact layout, and reduced motion. Portable JSON
+contains exactly one prompt or workflow and is limited to 10,000 Unicode
+characters. Prompt imports target the currently open existing project and every
+import is previewed before a digest-bound confirmed apply.
+
+Diagnostics continue to contain versions, package state, counts, provider
+availability and credential state, customization counts, and non-secret
+preferences only. Credentials, prompt/workflow content, paths, environment
+values, and extension code remain excluded. Support download remains bound to
+the reviewed SHA-256 and confirmation.
+
+## Important limits
+
+- The application and help catalog are currently English-only.
+- In-app Help is static and offline; it has no screenshots, remote updates,
+  interactive automation, or access to user content.
 - There is no bulk archive/restore, arbitrary destination, cloud sync,
   telemetry, automatic upload/update, remote marketplace, persistent extension
   approval, or signed publishing.
+- OpenAI API use is external and can incur charges; current pricing and model
+  availability are provider concerns.
 - The Windows x64 current-user NSIS package remains unsigned.
+- The user guide documents the supported alpha; it does not claim suitability
+  for regulated production workloads.
 
 ## Verification boundary
 
-The checkpoint is accepted only when source tests, frontend tests/build, Rust
-tests/format/strict Clippy, frozen-sidecar A-007 and earlier installed lifecycle
-tests, the full Engineering build, complete Python suite, dependency audit, and
-a fresh NSIS package all pass. Exact artifact sizes and SHA-256 values are
-recorded in `A-007_ACCEPTANCE_EVIDENCE.md`.
-
-Visual browser automation was attempted for the new dialogs. On this host the
-browser runtime could not start because the Windows sandbox helper failed while
-applying deny-read ACLs. This is an environment limitation; it does not replace
-the deterministic frontend build, native dialog semantics, Rust validation, or
-installed-process acceptance evidence.
+The checkpoint is accepted only when catalog unit tests, all frontend tests and
+the production build, dependency audit, complete Python suite, Rust
+tests/format/strict Clippy, the full Engineering build, and a fresh Windows NSIS
+package pass. Artifact sizes, SHA-256 values, Authenticode state, and invariant
+checks are recorded in A-008_ACCEPTANCE_EVIDENCE.md.
 
 ## Next product decision
 
-No A-008 scope is approved. Preserve the completed milestone boundary and choose
-the next user outcome before changing implementation. Candidates such as bulk
-backup/recovery, localization, advanced workflow behavior, automatic updating,
-signing, publishing, or cloud features each require their own requirements and
-trust/distribution decision.
+No A-009 scope is approved. Preserve the completed milestone boundary and choose
+the next user outcome before changing implementation. Bulk backup/recovery,
+localization, automatic updates, signing/publishing, advanced workflow behavior,
+or cloud features each require separate requirements and trust/distribution
+decisions.
 
 Useful starting points for a future approved checkpoint:
 
-- `Docs/09_Roadmap/A-007_ACCEPTANCE_EVIDENCE.md`
-- `Docs/ADR/ADR-0046-controlled-product-portability-settings-and-redacted-support.md`
-- `Docs/04_Backend/IPC_PROTOCOL.md`
-- `Docs/05_Frontend/SETTINGS_PORTABILITY_AND_SUPPORT.md`
-- `Docs/023_SECURITY.md`
-- `Backend/application/product_hardening.py`
-- `Frontend/src/product-ui.js`
-- `Frontend/src-tauri/src/product.rs`
+- Docs/09_Roadmap/A-008_ACCEPTANCE_EVIDENCE.md
+- Docs/05_Frontend/USER_GUIDE.md
+- Docs/05_Frontend/UI_ARCHITECTURE.md
+- Docs/034_KNOWN_LIMITATIONS.md
+- Frontend/src/help-catalog.js
+- Frontend/src/help-ui.js
+- Frontend/src/help.css
+- Docs/023_SECURITY.md

@@ -78,7 +78,16 @@
   extension code.
 - Added eight fixed A-007 commands with independent Python, Rust, and frontend
   validation plus frozen-process restart and portability acceptance coverage.
-- Completed the approved A-001 through A-007 alpha application sequence; further
+- Added a fixed 15-topic offline Help catalog with deterministic local search,
+  safe text-node rendering, related-topic navigation, and responsive native-dialog
+  behavior.
+- Added contextual task guidance for prompt blocks, composition and provider runs,
+  workflows, managed customization, portability, and settings/support without new
+  IPC, network, filesystem, storage, or extension authority.
+- Added a comprehensive beginner user guide covering Windows installation, first
+  use, prompt design, providers, workflows, portability, trust, diagnostics,
+  stress testing, troubleshooting, privacy, limitations, and terminology.
+- Completed the approved A-001 through A-008 alpha application sequence; further
   product work requires a new explicit checkpoint.
 
 This changelog records milestone-level changes. Git history remains the source
