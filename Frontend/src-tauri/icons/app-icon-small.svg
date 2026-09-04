@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title description">
+  <title id="title">Universal Prompt Studio small application icon</title>
+  <desc id="description">A simplified blue monitor with orange prompt brackets and a blue execution chevron.</desc>
+  <defs>
+    <mask id="monitor-frame-small">
+      <rect width="256" height="256" fill="#000"/>
+      <rect x="22" y="28" width="212" height="158" rx="29" fill="#fff"/>
+      <rect x="44" y="50" width="168" height="114" rx="13" fill="#000"/>
+    </mask>
+  </defs>
+  <rect x="22" y="28" width="212" height="158" rx="29" fill="#0b4778" mask="url(#monitor-frame-small)"/>
+  <path d="M103 181h50l10 31h24a13 13 0 0 1 13 13v3H56v-3a13 13 0 0 1 13-13h24z" fill="#0b4778"/>
+  <path d="M92 76H74a8 8 0 0 0-8 8v48a8 8 0 0 0 8 8h18" fill="none" stroke="#f59e0b" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M164 76h18a8 8 0 0 1 8 8v48a8 8 0 0 1-8 8h-18" fill="none" stroke="#f59e0b" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m113 79 34 30-34 30" fill="none" stroke="#1688db" stroke-width="21" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

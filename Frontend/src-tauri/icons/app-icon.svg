@@ -1,11 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Universal Prompt Studio application icon</title>
+  <desc id="description">A blue desktop monitor containing orange prompt brackets, a blue execution chevron, and three connected nodes.</desc>
   <defs>
-    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6d5dfc"/>
-      <stop offset="1" stop-color="#3b2fb4"/>
-    </linearGradient>
+    <mask id="monitor-frame">
+      <rect width="512" height="512" fill="#000"/>
+      <rect x="48" y="56" width="416" height="314" rx="52" fill="#fff"/>
+      <rect x="84" y="96" width="344" height="232" rx="25" fill="#000"/>
+    </mask>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#background)"/>
-  <path d="M142 142h228v54H196v86c0 52 24 82 60 82s60-30 60-82v-48h54v48c0 86-45 138-114 138s-114-52-114-138V142z" fill="#fff"/>
-  <circle cx="343" cy="169" r="31" fill="#64e9ca"/>
+  <rect x="48" y="56" width="416" height="314" rx="52" fill="#0b4778" mask="url(#monitor-frame)"/>
+  <path d="M207 360h98l18 61h43a22 22 0 0 1 22 22v5H124v-5a22 22 0 0 1 22-22h43z" fill="#0b4778"/>
+  <path d="M256 143 184 211l14 76h116l14-76z" fill="none" stroke="#0b4778" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="256" cy="143" r="17" fill="#0b4778"/>
+  <circle cx="184" cy="287" r="17" fill="#0b4778"/>
+  <circle cx="328" cy="287" r="17" fill="#0b4778"/>
+  <path d="M177 153h-32a15 15 0 0 0-15 15v128a15 15 0 0 0 15 15h32" fill="none" stroke="#f59e0b" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M335 153h32a15 15 0 0 1 15 15v128a15 15 0 0 1-15 15h-32" fill="none" stroke="#f59e0b" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m231 191 63 61-63 61" fill="none" stroke="#1688db" stroke-width="35" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
