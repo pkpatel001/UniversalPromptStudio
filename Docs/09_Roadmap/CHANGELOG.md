@@ -16,6 +16,9 @@
 
 ### Product status
 
+- Replaced the provisional desktop artwork with the approved Universal Prompt
+  Studio blue-and-amber mark, including adaptive small-size PNGs, a flat vector
+  master, Windows Store assets, and a multi-resolution Windows ICO.
 - Added a strict schema-1 JSON-lines readiness protocol owned by the Python
   application layer.
 - Added a hash-locked, target-triple Python sidecar declared through Tauri, with
