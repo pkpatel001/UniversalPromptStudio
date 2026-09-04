@@ -34,6 +34,7 @@
     ],
     "shortDescription": "A local-first studio for reusable AI prompts.",
     "windows": {
+      "signCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File ..\\..\\Scripts\\sign-windows.ps1 -FilePath %1 -CertificateThumbprint D9B3B6979DC1092C3A5D1EBF80582A34FB0B109F",
       "nsis": {
         "installMode": "currentUser"
       }
